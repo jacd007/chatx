@@ -127,6 +127,8 @@ class _SupportBotPageState extends State<SupportBotPage> {
         controller: _controller,
         currentUser: me,
         showUserNames: false,
+        // One message every 10 seconds, to show slow mode.
+        slowMode: const Duration(seconds: 10),
         onSendMessage: (text, _) => _userSays(text),
         onMessageButton: (message, button) => _userSays(button.label),
       ),

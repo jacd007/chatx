@@ -59,7 +59,20 @@ Initial release.
   automatic dark mode.
 - Builders to replace bubbles, avatars, input, separators, typing indicator,
   scroll button, loader and empty state.
-- English and Spanish strings, overridable through `ChatLocalizations`.
+- AI controls: `ChatUser.isBot`, copy, 👍/👎 (`onFeedback`), regenerate,
+  stop button while streaming (`onStopGenerating`).
+- Syntax-highlighted code blocks with a copy button, and markdown tables.
+- Message translation (`onTranslate`) with a toggle to the original.
+- `LocationMessage` (live location), `EventMessage` with RSVP
+  (`ChatController.setRsvp`), `ContactMessage` and `StickerMessage` with
+  sticker packs in the emoji picker.
+- Delete for everyone (`markDeleted`), edit history (`editHistory`) and
+  scheduled messages (`scheduledFor`, long press on send).
+- Read-only channels, slow mode, report, block, saved messages
+  (`toggleSaved`) and `ChatWordFilter`.
+- Strings in English, Spanish, Portuguese, French and German, overridable
+  through `ChatLocalizations`. Emoji search in English and Spanish.
+- Accessibility guideline tests at 1x and 2x text size.
 - Works in apps built on `material_ui` through `MaterialUiCompatibilityBridge`.
 - Zero dependencies besides the Flutter SDK. Supports Android, iOS, web,
   macOS, Windows and Linux.

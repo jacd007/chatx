@@ -26,7 +26,8 @@ typedef ChatReactionLabel = String Function(
 
 /// User-facing strings of chatx.
 ///
-/// English ([en]) and Spanish ([es]) ship with the package. chatx picks one
+/// English ([en]), Spanish ([es]), Portuguese ([pt]), French ([fr]) and
+/// German ([de]) ship with the package. chatx picks one
 /// from the ambient [Locale] and falls back to English. Dates and times use
 /// your app's `MaterialLocalizations`, so they follow every locale your app
 /// supports.
@@ -885,8 +886,670 @@ class ChatLocalizations {
     saved: 'Guardado',
   );
 
+  /// Portuguese strings.
+  static const ChatLocalizations pt = ChatLocalizations(
+    inputHint: 'Mensagem',
+    sendButton: 'Enviar',
+    today: 'Hoje',
+    yesterday: 'Ontem',
+    edited: 'editada',
+    you: 'Você',
+    someone: 'Alguém',
+    typing: _typingPt,
+    copy: 'Copiar texto',
+    retry: 'Tentar novamente',
+    failedToSend: 'Não enviada. Toque para tentar novamente.',
+    loadMoreFailed: 'Não foi possível carregar mensagens antigas.',
+    scrollToBottom: 'Ir para as mensagens mais recentes',
+    unreadMessages: _unreadMessagesPt,
+    emptyState: 'Ainda não há mensagens. Diga olá!',
+    unsupportedMessage: 'Este tipo de mensagem não é compatível.',
+    statusSending: 'Enviando',
+    statusSent: 'Enviada',
+    statusDelivered: 'Entregue',
+    statusRead: 'Lida',
+    statusFailed: 'Falha no envio',
+    reply: 'Responder',
+    edit: 'Editar',
+    delete: 'Excluir',
+    cancel: 'Cancelar',
+    replyingTo: _replyingToPt,
+    editingMessage: 'Editando mensagem',
+    unreadSeparator: 'Novas mensagens',
+    quoteUnavailable: 'Mensagem original indisponível',
+    addReaction: 'Adicionar reação',
+    reactionLabel: _reactionLabelPt,
+    spoiler: 'Spoiler. Toque duas vezes para revelar.',
+    photo: 'Foto',
+    file: 'Arquivo',
+    voiceMessage: 'Mensagem de voz',
+    poll: 'Votação',
+    pollVotes: _pollVotesPt,
+    pollSelectOne: 'Escolha uma',
+    pollSelectMany: 'Escolha uma ou mais',
+    pollClosed: 'Resultados finais',
+    countdownCompleted: 'Chegou a hora!',
+    countdownDays: 'dias',
+    countdownHours: 'horas',
+    countdownMinutes: 'min',
+    countdownSeconds: 'seg',
+    pinnedMessage: 'Mensagem fixada',
+    pin: 'Fixar',
+    unpin: 'Desafixar',
+    select: 'Selecionar',
+    selectedCount: _selectedCountPt,
+    searchHint: 'Pesquisar',
+    searchNoResults: 'Nenhum resultado',
+    searchPrevious: 'Resultado anterior',
+    searchNext: 'Próximo resultado',
+    holdToRecord: 'Mantenha pressionado para gravar',
+    slideToCancel: 'Deslize para cancelar',
+    play: 'Reproduzir',
+    pause: 'Pausar',
+    uploading: 'Enviando',
+    close: 'Fechar',
+    mentionSuggestions: 'Sugestões de menção',
+    survey: 'Pesquisa',
+    surveyQuestions: _surveyQuestionsPt,
+    surveyResponses: _surveyResponsesPt,
+    surveyAnswer: 'Responder',
+    surveyAnswered: 'Respondida',
+    surveyClosed: 'Encerrada',
+    surveyStep: _surveyStepPt,
+    surveyNext: 'Próxima',
+    surveyBack: 'Voltar',
+    surveySubmit: 'Enviar',
+    surveyOptional: 'Opcional',
+    surveyTextHint: 'Sua resposta',
+    npsLow: 'Pouco provável',
+    npsHigh: 'Muito provável',
+    threadReplies: _threadRepliesPt,
+    seenBy: _seenByPt,
+    messageInfo: 'Informações',
+    readBy: 'Lida por',
+    forward: 'Encaminhar',
+    forwardedFrom: _forwardedFromPt,
+    expiresIn: _expiresInPt,
+    online: 'online',
+    lastSeen: _lastSeenPt,
+    justNow: 'agora mesmo',
+    minutesAgo: _minutesAgoPt,
+    todayAt: _todayAtPt,
+    yesterdayAt: _yesterdayAtPt,
+    members: _membersPt,
+    emoji: 'Emoji',
+    keyboard: 'Teclado',
+    searchEmoji: 'Pesquisar emoji',
+    emojiCategories: _emojiCategoriesPt,
+    moreReactions: 'Mais reações',
+    typingShort: 'digitando…',
+    regenerate: 'Gerar novamente',
+    goodResponse: 'Boa resposta',
+    badResponse: 'Resposta ruim',
+    stopGenerating: 'Parar',
+    copyCode: 'Copiar código',
+    copied: 'Copiado',
+    translate: 'Traduzir',
+    translated: 'Traduzida',
+    showOriginal: 'Ver original',
+    showTranslation: 'Ver tradução',
+    translating: 'Traduzindo…',
+    translationFailed: 'Não foi possível traduzir',
+    location: 'Localização',
+    liveLocation: 'Localização em tempo real',
+    liveUntil: _liveUntilPt,
+    event: 'Evento',
+    rsvpGoing: 'Vou',
+    rsvpMaybe: 'Talvez',
+    rsvpNotGoing: 'Não vou',
+    rsvpSummary: _rsvpSummaryPt,
+    contact: 'Contato',
+    call: 'Ligar',
+    sendEmail: 'E-mail',
+    addContact: 'Adicionar',
+    sticker: 'Figurinha',
+    deleteForEveryone: 'Excluir para todos',
+    messageDeleted: 'Esta mensagem foi excluída',
+    editHistory: 'Histórico de edições',
+    currentVersion: 'Atual',
+    scheduledFor: _scheduledForPt,
+    scheduleMessage: 'Agendar mensagem',
+    sendNow: 'Enviar agora',
+    inOneHour: 'Em 1 hora',
+    tonight: 'Hoje à noite',
+    tomorrowMorning: 'Amanhã de manhã',
+    pickDateTime: 'Escolher data e hora',
+    readOnly: 'Somente administradores podem enviar mensagens',
+    slowModeWait: _slowModeWaitPt,
+    report: 'Denunciar',
+    block: _blockPt,
+    save: 'Salvar',
+    unsave: 'Remover dos salvos',
+    saved: 'Salva',
+  );
+
+  /// French strings.
+  static const ChatLocalizations fr = ChatLocalizations(
+    inputHint: 'Message',
+    sendButton: 'Envoyer',
+    today: "Aujourd'hui",
+    yesterday: 'Hier',
+    edited: 'modifié',
+    you: 'Vous',
+    someone: 'Quelqu’un',
+    typing: _typingFr,
+    copy: 'Copier le texte',
+    retry: 'Réessayer',
+    failedToSend: 'Non envoyé. Touchez pour réessayer.',
+    loadMoreFailed: 'Impossible de charger les anciens messages.',
+    scrollToBottom: 'Aller aux derniers messages',
+    unreadMessages: _unreadMessagesFr,
+    emptyState: 'Pas encore de messages. Dites bonjour !',
+    unsupportedMessage: 'Ce type de message n’est pas pris en charge.',
+    statusSending: 'Envoi en cours',
+    statusSent: 'Envoyé',
+    statusDelivered: 'Distribué',
+    statusRead: 'Lu',
+    statusFailed: 'Échec de l’envoi',
+    reply: 'Répondre',
+    edit: 'Modifier',
+    delete: 'Supprimer',
+    cancel: 'Annuler',
+    replyingTo: _replyingToFr,
+    editingMessage: 'Modification du message',
+    unreadSeparator: 'Nouveaux messages',
+    quoteUnavailable: 'Message d’origine indisponible',
+    addReaction: 'Ajouter une réaction',
+    reactionLabel: _reactionLabelFr,
+    spoiler: 'Spoiler. Touchez deux fois pour afficher.',
+    photo: 'Photo',
+    file: 'Fichier',
+    voiceMessage: 'Message vocal',
+    poll: 'Vote',
+    pollVotes: _pollVotesFr,
+    pollSelectOne: 'Choisissez-en une',
+    pollSelectMany: 'Choisissez-en une ou plusieurs',
+    pollClosed: 'Résultats finaux',
+    countdownCompleted: 'C’est l’heure !',
+    countdownDays: 'jours',
+    countdownHours: 'heures',
+    countdownMinutes: 'min',
+    countdownSeconds: 's',
+    pinnedMessage: 'Message épinglé',
+    pin: 'Épingler',
+    unpin: 'Désépingler',
+    select: 'Sélectionner',
+    selectedCount: _selectedCountFr,
+    searchHint: 'Rechercher',
+    searchNoResults: 'Aucun résultat',
+    searchPrevious: 'Résultat précédent',
+    searchNext: 'Résultat suivant',
+    holdToRecord: 'Maintenez pour enregistrer',
+    slideToCancel: 'Glissez pour annuler',
+    play: 'Lire',
+    pause: 'Pause',
+    uploading: 'Téléversement',
+    close: 'Fermer',
+    mentionSuggestions: 'Suggestions de mention',
+    survey: 'Sondage',
+    surveyQuestions: _surveyQuestionsFr,
+    surveyResponses: _surveyResponsesFr,
+    surveyAnswer: 'Répondre',
+    surveyAnswered: 'Répondu',
+    surveyClosed: 'Fermé',
+    surveyStep: _surveyStepFr,
+    surveyNext: 'Suivant',
+    surveyBack: 'Retour',
+    surveySubmit: 'Envoyer',
+    surveyOptional: 'Facultatif',
+    surveyTextHint: 'Votre réponse',
+    npsLow: 'Peu probable',
+    npsHigh: 'Très probable',
+    threadReplies: _threadRepliesFr,
+    seenBy: _seenByFr,
+    messageInfo: 'Infos',
+    readBy: 'Lu par',
+    forward: 'Transférer',
+    forwardedFrom: _forwardedFromFr,
+    expiresIn: _expiresInFr,
+    online: 'en ligne',
+    lastSeen: _lastSeenFr,
+    justNow: 'à l’instant',
+    minutesAgo: _minutesAgoFr,
+    todayAt: _todayAtFr,
+    yesterdayAt: _yesterdayAtFr,
+    members: _membersFr,
+    emoji: 'Emoji',
+    keyboard: 'Clavier',
+    searchEmoji: 'Rechercher un emoji',
+    emojiCategories: _emojiCategoriesFr,
+    moreReactions: 'Plus de réactions',
+    typingShort: 'écrit…',
+    regenerate: 'Régénérer',
+    goodResponse: 'Bonne réponse',
+    badResponse: 'Mauvaise réponse',
+    stopGenerating: 'Arrêter',
+    copyCode: 'Copier le code',
+    copied: 'Copié',
+    translate: 'Traduire',
+    translated: 'Traduit',
+    showOriginal: 'Voir l’original',
+    showTranslation: 'Voir la traduction',
+    translating: 'Traduction…',
+    translationFailed: 'Traduction impossible',
+    location: 'Position',
+    liveLocation: 'Position en direct',
+    liveUntil: _liveUntilFr,
+    event: 'Événement',
+    rsvpGoing: 'J’y vais',
+    rsvpMaybe: 'Peut-être',
+    rsvpNotGoing: 'Je n’y vais pas',
+    rsvpSummary: _rsvpSummaryFr,
+    contact: 'Contact',
+    call: 'Appeler',
+    sendEmail: 'E-mail',
+    addContact: 'Ajouter',
+    sticker: 'Autocollant',
+    deleteForEveryone: 'Supprimer pour tous',
+    messageDeleted: 'Ce message a été supprimé',
+    editHistory: 'Historique des modifications',
+    currentVersion: 'Actuelle',
+    scheduledFor: _scheduledForFr,
+    scheduleMessage: 'Programmer le message',
+    sendNow: 'Envoyer maintenant',
+    inOneHour: 'Dans 1 heure',
+    tonight: 'Ce soir',
+    tomorrowMorning: 'Demain matin',
+    pickDateTime: 'Choisir la date et l’heure',
+    readOnly: 'Seuls les administrateurs peuvent envoyer des messages',
+    slowModeWait: _slowModeWaitFr,
+    report: 'Signaler',
+    block: _blockFr,
+    save: 'Enregistrer',
+    unsave: 'Retirer des enregistrés',
+    saved: 'Enregistré',
+  );
+
+  /// German strings.
+  static const ChatLocalizations de = ChatLocalizations(
+    inputHint: 'Nachricht',
+    sendButton: 'Senden',
+    today: 'Heute',
+    yesterday: 'Gestern',
+    edited: 'bearbeitet',
+    you: 'Du',
+    someone: 'Jemand',
+    typing: _typingDe,
+    copy: 'Text kopieren',
+    retry: 'Erneut versuchen',
+    failedToSend: 'Nicht gesendet. Tippen, um es erneut zu versuchen.',
+    loadMoreFailed: 'Ältere Nachrichten konnten nicht geladen werden.',
+    scrollToBottom: 'Zu den neuesten Nachrichten',
+    unreadMessages: _unreadMessagesDe,
+    emptyState: 'Noch keine Nachrichten. Sag Hallo!',
+    unsupportedMessage: 'Dieser Nachrichtentyp wird nicht unterstützt.',
+    statusSending: 'Wird gesendet',
+    statusSent: 'Gesendet',
+    statusDelivered: 'Zugestellt',
+    statusRead: 'Gelesen',
+    statusFailed: 'Senden fehlgeschlagen',
+    reply: 'Antworten',
+    edit: 'Bearbeiten',
+    delete: 'Löschen',
+    cancel: 'Abbrechen',
+    replyingTo: _replyingToDe,
+    editingMessage: 'Nachricht bearbeiten',
+    unreadSeparator: 'Neue Nachrichten',
+    quoteUnavailable: 'Ursprüngliche Nachricht nicht verfügbar',
+    addReaction: 'Reaktion hinzufügen',
+    reactionLabel: _reactionLabelDe,
+    spoiler: 'Spoiler. Zum Anzeigen doppelt tippen.',
+    photo: 'Foto',
+    file: 'Datei',
+    voiceMessage: 'Sprachnachricht',
+    poll: 'Abstimmung',
+    pollVotes: _pollVotesDe,
+    pollSelectOne: 'Wähle eine Option',
+    pollSelectMany: 'Wähle eine oder mehrere',
+    pollClosed: 'Endergebnis',
+    countdownCompleted: 'Es ist so weit!',
+    countdownDays: 'Tage',
+    countdownHours: 'Std.',
+    countdownMinutes: 'Min.',
+    countdownSeconds: 'Sek.',
+    pinnedMessage: 'Angeheftete Nachricht',
+    pin: 'Anheften',
+    unpin: 'Lösen',
+    select: 'Auswählen',
+    selectedCount: _selectedCountDe,
+    searchHint: 'Suchen',
+    searchNoResults: 'Keine Ergebnisse',
+    searchPrevious: 'Vorheriges Ergebnis',
+    searchNext: 'Nächstes Ergebnis',
+    holdToRecord: 'Gedrückt halten zum Aufnehmen',
+    slideToCancel: 'Zum Abbrechen wischen',
+    play: 'Abspielen',
+    pause: 'Pause',
+    uploading: 'Wird hochgeladen',
+    close: 'Schließen',
+    mentionSuggestions: 'Erwähnungsvorschläge',
+    survey: 'Umfrage',
+    surveyQuestions: _surveyQuestionsDe,
+    surveyResponses: _surveyResponsesDe,
+    surveyAnswer: 'Teilnehmen',
+    surveyAnswered: 'Beantwortet',
+    surveyClosed: 'Beendet',
+    surveyStep: _surveyStepDe,
+    surveyNext: 'Weiter',
+    surveyBack: 'Zurück',
+    surveySubmit: 'Absenden',
+    surveyOptional: 'Optional',
+    surveyTextHint: 'Deine Antwort',
+    npsLow: 'Unwahrscheinlich',
+    npsHigh: 'Sehr wahrscheinlich',
+    threadReplies: _threadRepliesDe,
+    seenBy: _seenByDe,
+    messageInfo: 'Info',
+    readBy: 'Gelesen von',
+    forward: 'Weiterleiten',
+    forwardedFrom: _forwardedFromDe,
+    expiresIn: _expiresInDe,
+    online: 'online',
+    lastSeen: _lastSeenDe,
+    justNow: 'gerade eben',
+    minutesAgo: _minutesAgoDe,
+    todayAt: _todayAtDe,
+    yesterdayAt: _yesterdayAtDe,
+    members: _membersDe,
+    emoji: 'Emoji',
+    keyboard: 'Tastatur',
+    searchEmoji: 'Emoji suchen',
+    emojiCategories: _emojiCategoriesDe,
+    moreReactions: 'Weitere Reaktionen',
+    typingShort: 'schreibt…',
+    regenerate: 'Neu generieren',
+    goodResponse: 'Gute Antwort',
+    badResponse: 'Schlechte Antwort',
+    stopGenerating: 'Stoppen',
+    copyCode: 'Code kopieren',
+    copied: 'Kopiert',
+    translate: 'Übersetzen',
+    translated: 'Übersetzt',
+    showOriginal: 'Original anzeigen',
+    showTranslation: 'Übersetzung anzeigen',
+    translating: 'Wird übersetzt…',
+    translationFailed: 'Übersetzung fehlgeschlagen',
+    location: 'Standort',
+    liveLocation: 'Live-Standort',
+    liveUntil: _liveUntilDe,
+    event: 'Ereignis',
+    rsvpGoing: 'Ich komme',
+    rsvpMaybe: 'Vielleicht',
+    rsvpNotGoing: 'Ich komme nicht',
+    rsvpSummary: _rsvpSummaryDe,
+    contact: 'Kontakt',
+    call: 'Anrufen',
+    sendEmail: 'E-Mail',
+    addContact: 'Hinzufügen',
+    sticker: 'Sticker',
+    deleteForEveryone: 'Für alle löschen',
+    messageDeleted: 'Diese Nachricht wurde gelöscht',
+    editHistory: 'Bearbeitungsverlauf',
+    currentVersion: 'Aktuell',
+    scheduledFor: _scheduledForDe,
+    scheduleMessage: 'Nachricht planen',
+    sendNow: 'Jetzt senden',
+    inOneHour: 'In 1 Stunde',
+    tonight: 'Heute Abend',
+    tomorrowMorning: 'Morgen früh',
+    pickDateTime: 'Datum und Uhrzeit wählen',
+    readOnly: 'Nur Admins können Nachrichten senden',
+    slowModeWait: _slowModeWaitDe,
+    report: 'Melden',
+    block: _blockDe,
+    save: 'Speichern',
+    unsave: 'Aus Gespeichert entfernen',
+    saved: 'Gespeichert',
+  );
+
   /// Built-in strings by language code.
-  static const Map<String, ChatLocalizations> builtIn = {'en': en, 'es': es};
+  static const Map<String, ChatLocalizations> builtIn = {
+    'en': en,
+    'es': es,
+    'pt': pt,
+    'fr': fr,
+    'de': de,
+  };
+
+  static String _typingPt(List<String> names) => switch (names.length) {
+        0 => '',
+        1 => '${names[0]} está digitando…',
+        2 => '${names[0]} e ${names[1]} estão digitando…',
+        _ => '${names[0]} e mais ${names.length - 1} estão digitando…',
+      };
+
+  static String _unreadMessagesPt(int count) =>
+      count == 1 ? '1 nova mensagem' : '$count novas mensagens';
+
+  static String _replyingToPt(String name) => 'Respondendo a $name';
+
+  static String _reactionLabelPt(String emoji, int count,
+          {required bool includesYou}) =>
+      includesYou ? '$emoji $count, incluindo você' : '$emoji $count';
+
+  static String _pollVotesPt(int count) =>
+      count == 1 ? '1 voto' : '$count votos';
+
+  static String _selectedCountPt(int count) =>
+      count == 1 ? '1 selecionada' : '$count selecionadas';
+
+  static String _surveyQuestionsPt(int count) =>
+      count == 1 ? '1 pergunta' : '$count perguntas';
+
+  static String _surveyResponsesPt(int count) =>
+      count == 1 ? '1 resposta' : '$count respostas';
+
+  static String _surveyStepPt(int current, int total) =>
+      'Pergunta $current de $total';
+
+  static String _threadRepliesPt(int count) =>
+      count == 1 ? '1 resposta' : '$count respostas';
+
+  static String _seenByPt(List<String> names) => names.length <= 3
+      ? 'Vista por ${names.join(', ')}'
+      : 'Vista por ${names.take(2).join(', ')} e mais ${names.length - 2}';
+
+  static String _forwardedFromPt(String name) => 'Encaminhada de $name';
+
+  static String _expiresInPt(String name) => 'Desaparece em $name';
+
+  static String _lastSeenPt(String name) => 'visto $name';
+
+  static String _minutesAgoPt(int count) => 'há $count min';
+
+  static String _todayAtPt(String name) => 'hoje às $name';
+
+  static String _yesterdayAtPt(String name) => 'ontem às $name';
+
+  static String _membersPt(int count) =>
+      count == 1 ? '1 membro' : '$count membros';
+
+  static String _liveUntilPt(String name) => 'até $name';
+
+  static String _rsvpSummaryPt(int going, int maybe) =>
+      maybe == 0 ? '$going vão' : '$going vão · $maybe talvez';
+
+  static String _scheduledForPt(String name) => 'Agendada para $name';
+
+  static String _slowModeWaitPt(String name) => 'Modo lento: aguarde $name';
+
+  static String _blockPt(String name) => 'Bloquear $name';
+
+  static const _emojiCategoriesPt = [
+    'Recentes',
+    'Carinhas',
+    'Pessoas',
+    'Natureza',
+    'Comida',
+    'Atividades',
+    'Viagens',
+    'Objetos',
+    'Símbolos',
+    'Bandeiras',
+  ];
+
+  static String _typingFr(List<String> names) => switch (names.length) {
+        0 => '',
+        1 => '${names[0]} écrit…',
+        2 => '${names[0]} et ${names[1]} écrivent…',
+        _ => '${names[0]} et ${names.length - 1} autres écrivent…',
+      };
+
+  static String _unreadMessagesFr(int count) =>
+      count == 1 ? '1 nouveau message' : '$count nouveaux messages';
+
+  static String _replyingToFr(String name) => 'Réponse à $name';
+
+  static String _reactionLabelFr(String emoji, int count,
+          {required bool includesYou}) =>
+      includesYou ? '$emoji $count, dont vous' : '$emoji $count';
+
+  static String _pollVotesFr(int count) =>
+      count == 1 ? '1 vote' : '$count votes';
+
+  static String _selectedCountFr(int count) =>
+      count == 1 ? '1 sélectionné' : '$count sélectionnés';
+
+  static String _surveyQuestionsFr(int count) =>
+      count == 1 ? '1 question' : '$count questions';
+
+  static String _surveyResponsesFr(int count) =>
+      count == 1 ? '1 réponse' : '$count réponses';
+
+  static String _surveyStepFr(int current, int total) =>
+      'Question $current sur $total';
+
+  static String _threadRepliesFr(int count) =>
+      count == 1 ? '1 réponse' : '$count réponses';
+
+  static String _seenByFr(List<String> names) => names.length <= 3
+      ? 'Vu par ${names.join(', ')}'
+      : 'Vu par ${names.take(2).join(', ')} et ${names.length - 2} autres';
+
+  static String _forwardedFromFr(String name) => 'Transféré de $name';
+
+  static String _expiresInFr(String name) => 'Disparaît dans $name';
+
+  static String _lastSeenFr(String name) => 'vu $name';
+
+  static String _minutesAgoFr(int count) => 'il y a $count min';
+
+  static String _todayAtFr(String name) => 'aujourd’hui à $name';
+
+  static String _yesterdayAtFr(String name) => 'hier à $name';
+
+  static String _membersFr(int count) =>
+      count == 1 ? '1 membre' : '$count membres';
+
+  static String _liveUntilFr(String name) => 'jusqu’à $name';
+
+  static String _rsvpSummaryFr(int going, int maybe) =>
+      maybe == 0 ? '$going y vont' : '$going y vont · $maybe peut-être';
+
+  static String _scheduledForFr(String name) => 'Programmé pour $name';
+
+  static String _slowModeWaitFr(String name) => 'Mode lent : attendez $name';
+
+  static String _blockFr(String name) => 'Bloquer $name';
+
+  static const _emojiCategoriesFr = [
+    'Récents',
+    'Smileys',
+    'Personnes',
+    'Nature',
+    'Nourriture',
+    'Activités',
+    'Voyages',
+    'Objets',
+    'Symboles',
+    'Drapeaux',
+  ];
+
+  static String _typingDe(List<String> names) => switch (names.length) {
+        0 => '',
+        1 => '${names[0]} schreibt…',
+        2 => '${names[0]} und ${names[1]} schreiben…',
+        _ => '${names[0]} und ${names.length - 1} weitere schreiben…',
+      };
+
+  static String _unreadMessagesDe(int count) =>
+      count == 1 ? '1 neue Nachricht' : '$count neue Nachrichten';
+
+  static String _replyingToDe(String name) => 'Antwort an $name';
+
+  static String _reactionLabelDe(String emoji, int count,
+          {required bool includesYou}) =>
+      includesYou ? '$emoji $count, inklusive dir' : '$emoji $count';
+
+  static String _pollVotesDe(int count) =>
+      count == 1 ? '1 Stimme' : '$count Stimmen';
+
+  static String _selectedCountDe(int count) => '$count ausgewählt';
+
+  static String _surveyQuestionsDe(int count) =>
+      count == 1 ? '1 Frage' : '$count Fragen';
+
+  static String _surveyResponsesDe(int count) =>
+      count == 1 ? '1 Antwort' : '$count Antworten';
+
+  static String _surveyStepDe(int current, int total) =>
+      'Frage $current von $total';
+
+  static String _threadRepliesDe(int count) =>
+      count == 1 ? '1 Antwort' : '$count Antworten';
+
+  static String _seenByDe(List<String> names) => names.length <= 3
+      ? 'Gesehen von ${names.join(', ')}'
+      : 'Gesehen von ${names.take(2).join(', ')} und ${names.length - 2} weiteren';
+
+  static String _forwardedFromDe(String name) => 'Weitergeleitet von $name';
+
+  static String _expiresInDe(String name) => 'Verschwindet in $name';
+
+  static String _lastSeenDe(String name) => 'zuletzt online $name';
+
+  static String _minutesAgoDe(int count) => 'vor $count Min.';
+
+  static String _todayAtDe(String name) => 'heute um $name';
+
+  static String _yesterdayAtDe(String name) => 'gestern um $name';
+
+  static String _membersDe(int count) =>
+      count == 1 ? '1 Mitglied' : '$count Mitglieder';
+
+  static String _liveUntilDe(String name) => 'bis $name';
+
+  static String _rsvpSummaryDe(int going, int maybe) =>
+      maybe == 0 ? '$going kommen' : '$going kommen · $maybe vielleicht';
+
+  static String _scheduledForDe(String name) => 'Geplant für $name';
+
+  static String _slowModeWaitDe(String name) => 'Langsamer Modus: warte $name';
+
+  static String _blockDe(String name) => '$name blockieren';
+
+  static const _emojiCategoriesDe = [
+    'Zuletzt',
+    'Smileys',
+    'Personen',
+    'Natur',
+    'Essen',
+    'Aktivitäten',
+    'Reisen',
+    'Objekte',
+    'Symbole',
+    'Flaggen',
+  ];
 
   /// Returns the built-in strings for [locale], or [en] if the language is
   /// not bundled.

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'pages/ai_streaming_page.dart';
+import 'pages/announcements_page.dart';
 import 'pages/basic_chat_page.dart';
 import 'pages/bubble_styles_page.dart';
 import 'pages/community_page.dart';
@@ -26,7 +27,13 @@ class ChatxExampleApp extends StatelessWidget {
       darkTheme: ThemeData(colorSchemeSeed: _seed, brightness: Brightness.dark),
       // Dates and times inside chatx follow MaterialLocalizations.
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      supportedLocales: const [Locale('en'), Locale('es')],
+      supportedLocales: const [
+        Locale('en'),
+        Locale('es'),
+        Locale('pt'),
+        Locale('fr'),
+        Locale('de'),
+      ],
       home: const DemoListPage(),
     );
   }
@@ -46,13 +53,13 @@ class DemoListPage extends StatelessWidget {
       ),
       (
         'Media & files',
-        'Images, files, voice notes, links, spoilers',
+        'Images, files, voice, location, contact, stickers',
         Icons.perm_media_outlined,
         (_) => const MediaPage(),
       ),
       (
         'Community',
-        'Survey, poll, thread, seen by, mentions, search',
+        'Survey, event, translation, moderation, threads',
         Icons.groups_outlined,
         (_) => const CommunityPage(),
       ),
@@ -63,8 +70,14 @@ class DemoListPage extends StatelessWidget {
         (_) => const SupportBotPage(),
       ),
       (
+        'Announcements',
+        'Read-only channel, saved messages',
+        Icons.campaign_outlined,
+        (_) => const AnnouncementsPage(),
+      ),
+      (
         'AI streaming',
-        'Token-by-token answers with markdown',
+        'Streaming, stop, regenerate, code and tables',
         Icons.auto_awesome_outlined,
         (_) => const AiStreamingPage(),
       ),

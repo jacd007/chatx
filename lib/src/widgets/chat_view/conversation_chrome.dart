@@ -163,7 +163,14 @@ extension _FloatingDateLogic on _ChatViewState {
   /// Shows the date of the topmost visible message while the user scrolls,
   /// and hides it shortly after scrolling stops.
   void _updateFloatingDate(ScrollNotification notification) {
+    // Only user scrolling shows the date. Programmatic jumps, such as
+    // sticking to the newest message, do not.
+    if (notification is ScrollStartNotification) {
+      _userScrolling = notification.dragDetails != null;
+    }
+    if (!_userScrolling) return;
     if (notification is ScrollEndNotification) {
+      _userScrolling = false;
       _floatingDateTimer?.cancel();
       _floatingDateTimer = Timer(const Duration(milliseconds: 900), () {
         if (mounted) _floatingDate.value = null;

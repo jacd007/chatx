@@ -87,6 +87,47 @@ class _CommunityPageState extends State<CommunityPage> {
           ChatReadReceipt(user: sam, readAt: _daysAgo(0, 11)),
         ],
       ),
+      EventMessage(
+        id: 'event',
+        author: leo,
+        createdAt: _daysAgo(0, 11).add(const Duration(minutes: 40)),
+        title: 'Rooftop meetup',
+        startsAt: _now.add(const Duration(days: 3, hours: 4)),
+        endsAt: _now.add(const Duration(days: 3, hours: 7)),
+        location: 'Calle Mayor 12',
+        rsvps: const {
+          'ana': ChatRsvp.going,
+          'leo': ChatRsvp.going,
+          'sam': ChatRsvp.maybe,
+        },
+      ),
+      TextMessage(
+        id: 'pt',
+        author: sam,
+        createdAt: _daysAgo(0, 11).add(const Duration(minutes: 45)),
+        text: 'Alguém pode levar gelo? Eu levo os copos 🧊',
+      ),
+      TextMessage(
+        id: 'edited',
+        author: me,
+        createdAt: _daysAgo(0, 11).add(const Duration(minutes: 50)),
+        text: 'I will bring **two** speakers 🔊',
+        editedAt: _daysAgo(0, 11).add(const Duration(minutes: 52)),
+        editHistory: [
+          ChatEdit(
+            text: 'I will bring a speaker',
+            at: _daysAgo(0, 11).add(const Duration(minutes: 50)),
+          ),
+        ],
+        status: MessageStatus.read,
+      ),
+      TextMessage(
+        id: 'deleted',
+        author: leo,
+        createdAt: _daysAgo(0, 11).add(const Duration(minutes: 55)),
+        text: 'removed',
+        deletedAt: _daysAgo(0, 11).add(const Duration(minutes: 56)),
+      ),
       SurveyMessage(
         id: 'survey',
         author: ana,
@@ -118,8 +159,19 @@ class _CommunityPageState extends State<CommunityPage> {
           ),
         ],
       ),
+      TextMessage(
+        id: 'scheduled',
+        author: me,
+        createdAt: _daysAgo(0, 12).add(const Duration(minutes: 5)),
+        text: 'Reminder: meetup starts in one hour! ⏰',
+        scheduledFor: _now.add(const Duration(days: 3, hours: 3)),
+      ),
     ],
   )..pin('launch');
+
+  static const _translations = {
+    'pt': 'Can someone bring ice? I will bring the cups 🧊',
+  };
 
   late final ChatSearchController _search =
       ChatSearchController(chatController: _controller);
@@ -184,6 +236,37 @@ class _CommunityPageState extends State<CommunityPage> {
             ? _controller.pin(message.id)
             : _controller.unpin(message.id),
         onDeleteMessage: (message) => _controller.remove(message.id),
+        onDeleteForEveryone: (message) => _controller.markDeleted(message.id),
+        onEditMessage: (message, text) =>
+            _controller.editText(message.id, text),
+        onRsvp: (event, rsvp) => _controller.setRsvp(event.id, me.id, rsvp),
+        onTranslate: (message) async {
+          await latency(500);
+          return _translations[message.id] ?? '(translated) ${message.text}';
+        },
+        onSaveMessage: (message, saved) => _controller.toggleSaved(message.id),
+        onReportMessage: (message) => ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Reported. Thanks!'))),
+        onBlockUser: (user) => ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${user.name} blocked')),
+        ),
+        wordFilter: ChatWordFilter({'darn'}),
+        onScheduleMessage: (text, at, replyTo) => _controller.insert(
+          TextMessage(
+            id: newId(),
+            author: me,
+            createdAt: DateTime.now(),
+            text: text,
+            replyToId: replyTo?.id,
+            scheduledFor: at,
+          ),
+        ),
+        onSendScheduledNow: (message) => _controller.update(
+          message.copyWithMeta(
+            clearScheduledFor: true,
+            status: MessageStatus.sent,
+          ),
+        ),
         onThreadTap: (message) => Navigator.of(context).push(
           MaterialPageRoute<void>(builder: (_) => ThreadPage(root: message)),
         ),

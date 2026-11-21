@@ -245,6 +245,11 @@ void main() {
       expect(table.header, hasLength(2));
       expect(table.alignments, [MdAlign.left, MdAlign.right]);
       expect(table.rows, hasLength(2));
+      expect(
+        MarkdownParser.parse('| a | b |\n|:-|--:|\n| 1 | 2 |').single,
+        isA<MdTable>(),
+        reason: 'one dash per column is enough',
+      );
       expect(MarkdownParser.toPlainText('| a | b |\n|---|---|\n| 1 | 2 |'),
           'a | b 1 | 2');
     });

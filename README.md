@@ -28,15 +28,33 @@ follows your app's theme.
 | **Floating date** | **AI answers** | **Dark mode** |
 | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/15_floating_date.png" width="240" alt="Date chip floating while scrolling"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/04_ai_markdown.png" width="240" alt="Assistant answer with markdown"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/06_dark_custom_look.png" width="240" alt="Dark theme with custom colors"> |
 
+| AI answer with code and table | Stop while streaming | Location, contact and sticker |
+| :---: | :---: | :---: |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/23_ai_code_table.png" width="240" alt="Assistant answer with highlighted code, a table and rating buttons"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/24_ai_stop.png" width="240" alt="Stop button while the answer streams"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/26_location_contact_sticker.png" width="240" alt="Location card with live badge, contact card and a sticker"> |
+
+| Event with RSVP | Translation | Moderation menu |
+| :---: | :---: | :---: |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/28_event_rsvp.png" width="240" alt="Event card with RSVP buttons"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/25_translate_deleted_scheduled.png" width="240" alt="Translated message with a toggle to the original"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/29_moderation_menu.png" width="240" alt="Menu with translate, save, report and block"> |
+
+| Edit history | Deleted and scheduled | Read-only channel |
+| :---: | :---: | :---: |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/30_edit_history.png" width="240" alt="Sheet with previous versions of a message"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/33_german.png" width="240" alt="Deleted placeholder and scheduled message, in German"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/31_read_only_channel.png" width="240" alt="Read-only announcements channel"> |
+
+| Slow mode | Sticker packs | Text at 200% |
+| :---: | :---: | :---: |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/34_slow_mode.png" width="240" alt="Input disabled by slow mode with a countdown"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/27_sticker_picker.png" width="240" alt="Emoji picker with a sticker pack tab"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/32_large_text.png" width="240" alt="Conversation with text at 200%"> |
+
 ## Features
 
 - **Drop-in screen.** `ChatView` gives you a message list and input bar.
 - **Any backend.** A plain `ChatController` holds the state. No streams or
   state-management package required.
-- **Markdown.** Bold, italic, strike, code, code blocks, quotes, lists,
-  headings and links.
-- **Streaming.** Show LLM answers token by token. Only the streaming bubble
-  rebuilds.
+- **Markdown.** Bold, italic, strike, code, quotes, lists, headings, links,
+  tables and code blocks with syntax highlighting and a copy button.
+- **AI chats.** Stream answers token by token (only the streaming bubble
+  rebuilds), stop them, regenerate them, rate them with 👍/👎 and copy them.
+- **Translation.** Translate any message with your own service and switch
+  back to the original.
 - **Replies.** Swipe a bubble to reply. Quotes jump to the original message.
 - **Reactions, editing and deleting** from a menu that opens as a bottom
   sheet or as a popup, on long press or on tap.
@@ -51,6 +69,11 @@ follows your app's theme.
   messages.
 - **Built-in emoji picker** with categories and search, a `ChatHeader` with
   presence and typing, and drafts that survive leaving the chat.
+- **Location, events, contacts and stickers.** Map cards with live
+  location, events with RSVP, contact cards and sticker packs in the picker.
+- **Moderation.** Delete for everyone, edit history, scheduled messages,
+  read-only channels, slow mode, report, block, saved messages and a word
+  filter.
 - **Spoilers.** `||hidden text||` and blurred images, revealed on tap.
 - **Group features.** `@mentions` with suggestions, pinned messages, search
   with highlighted results, multi-selection and a floating date while
@@ -62,8 +85,9 @@ follows your app's theme.
   history and a scroll-to-bottom button with unread count.
 - **Your design.** Derived from Material 3 with automatic dark mode. Override
   any color or style, or replace any piece with a builder.
-- **Accessible.** Screen reader labels, 48dp touch targets, text scaling and
-  reduced-motion support.
+- **Accessible.** Screen reader labels, 48dp touch targets, contrast and text
+  scaling to 200%, checked by automated tests. Reduced-motion support.
+- **Five languages.** English, Spanish, Portuguese, French and German.
 - **Safe by default.** HTML is never interpreted and only `http`, `https` and
   `mailto` links are tappable.
 - **Everywhere.** Android, iOS, web, macOS, Windows and Linux.
@@ -79,6 +103,8 @@ follows your app's theme.
   - [Connect your backend](#connect-your-backend)
   - [Delivery status and retry](#delivery-status-and-retry)
   - [Streaming answers (AI chats)](#streaming-answers-ai-chats)
+  - [AI answer controls](#ai-answer-controls)
+  - [Translation](#translation)
   - [Infinite history](#infinite-history)
   - [Typing indicator](#typing-indicator)
   - [Opening links](#opening-links)
@@ -106,6 +132,15 @@ follows your app's theme.
   - [Search](#search)
   - [Selection](#selection)
   - [Pinned messages](#pinned-messages)
+  - [Location](#location)
+  - [Events and RSVP](#events-and-rsvp)
+  - [Contacts](#contacts)
+  - [Stickers](#stickers)
+  - [Delete for everyone and edit history](#delete-for-everyone-and-edit-history)
+  - [Scheduled messages](#scheduled-messages)
+  - [Channels and slow mode](#channels-and-slow-mode)
+  - [Report, block and save](#report-block-and-save)
+  - [Word filter](#word-filter)
   - [Custom message types](#custom-message-types)
   - [Theming](#theming)
   - [Bubble shape](#bubble-shape)
@@ -370,6 +405,58 @@ controller.completeStream(id);
 
 Markdown is re-parsed safely on every chunk, so an unfinished code block
 renders correctly while it streams.
+
+### AI answer controls
+
+Mark the assistant with `isBot: true`. Its answers then get a row of
+actions: copy, 👍/👎 and regenerate (only on the newest answer). While an
+answer streams, the send button becomes a stop button.
+
+```dart
+const assistant = ChatUser(id: 'bot', name: 'Assistant', isBot: true);
+
+ChatView(
+  // ...
+  onStopGenerating: (message) {
+    subscription.cancel();
+    controller.completeStream(message.id);
+  },
+  onRegenerate: (message) {
+    controller.update(message.copyWith(text: '', isStreaming: true));
+    streamAnswer(message.id);
+  },
+  onFeedback: (message, feedback) {
+    // feedback is ChatFeedback.positive, .negative or null (removed).
+    controller.update(
+      message.copyWith(feedback: feedback, clearFeedback: feedback == null),
+    );
+    api.rate(message.id, feedback);
+  },
+)
+```
+
+Code blocks are highlighted for Dart, JavaScript, TypeScript, Python, JSON,
+SQL, Kotlin, Swift, Java, Go, Rust, shell and YAML, and have a "Copy code"
+button. Tables use the GitHub syntax (see the
+[Markdown reference](#markdown-reference)).
+
+### Translation
+
+Give chatx a function that translates a message. The menu then offers
+"Translate", and a label under the bubble switches between the translation
+and the original. chatx keeps the translation in memory only.
+
+```dart
+ChatView(
+  // ...
+  onTranslate: (message) => myTranslator.translate(
+    message.text,
+    to: Localizations.localeOf(context).languageCode,
+  ),
+)
+```
+
+If the function throws, the bubble shows "Couldn't translate · Retry".
 
 ### Infinite history
 
@@ -962,6 +1049,186 @@ message and, when there are several pins, cycles through them.
 While scrolling, a date chip floats at the top of the list. Turn it off with
 `showFloatingDate: false`.
 
+### Location
+
+```dart
+LocationMessage(
+  id: 'loc1',
+  author: ana,
+  createdAt: DateTime.now(),
+  latitude: 38.7223,
+  longitude: -9.1393,
+  title: 'Miradouro de Santa Luzia',
+  address: 'Largo de Santa Luzia, Lisbon',
+  mapImageUri: 'https://…/static-map.png', // optional
+  liveUntil: DateTime.now().add(const Duration(hours: 1)), // live location
+)
+```
+
+chatx has no maps dependency. It shows `mapImageUri` (loaded through
+`imageProviderBuilder`), your own widget from `locationMapBuilder`, or a
+drawn placeholder map. Live locations show a pulsing pin and "Live location ·
+until …". Open a maps app in `onLocationTap`.
+
+### Events and RSVP
+
+```dart
+EventMessage(
+  id: 'e1',
+  author: leo,
+  createdAt: DateTime.now(),
+  title: 'Rooftop meetup',
+  startsAt: DateTime(2026, 11, 24, 19),
+  endsAt: DateTime(2026, 11, 24, 22),
+  location: 'Calle Mayor 12',
+  rsvps: const {'ana': ChatRsvp.going, 'sam': ChatRsvp.maybe},
+)
+
+ChatView(
+  // ...
+  onRsvp: (event, rsvp) => controller.setRsvp(event.id, me.id, rsvp),
+)
+```
+
+Tapping the selected answer again removes it (`rsvp` is `null`).
+
+### Contacts
+
+`ContactMessage` shows a card with Call, Email and Add contact buttons.
+Buttons appear only when the data exists.
+
+```dart
+ChatView(
+  // ...
+  onContactAction: (contact, action) => switch (action) {
+    ChatContactAction.call => launchUrl(Uri.parse('tel:${contact.phone}')),
+    ChatContactAction.email => launchUrl(Uri.parse('mailto:${contact.email}')),
+    ChatContactAction.save => saveToAddressBook(contact),
+  },
+)
+```
+
+### Stickers
+
+Stickers come from your app: chatx renders them, it does not ship any.
+`StickerMessage` is shown at 150 dp without a bubble. Add packs to the emoji
+picker as extra tabs:
+
+```dart
+ChatView(
+  // ...
+  stickerPacks: const [
+    ChatStickerPack(
+      id: 'faces',
+      name: 'Faces',
+      stickers: [ChatSticker(id: 'smile', uri: 'asset:smile', label: 'Smile')],
+    ),
+  ],
+  imageProviderBuilder: (uri) => uri.startsWith('asset:')
+      ? AssetImage('assets/stickers/${uri.substring(6)}.png')
+      : NetworkImage(uri),
+  onSendSticker: (sticker) => controller.insert(
+    StickerMessage(
+      id: uuid(),
+      author: me,
+      createdAt: DateTime.now(),
+      uri: sticker.uri,
+      label: sticker.label,
+    ),
+  ),
+)
+```
+
+Animated GIFs work the same way: `Image` plays them.
+
+### Delete for everyone and edit history
+
+`onDeleteForEveryone` adds "Delete for everyone" to the menu of your
+messages. Mark the message as deleted to show a placeholder instead of the
+content:
+
+```dart
+ChatView(
+  // ...
+  onDeleteForEveryone: (message) {
+    controller.markDeleted(message.id);
+    api.deleteForEveryone(message.id);
+  },
+)
+```
+
+`ChatController.editText` keeps the previous text in
+`TextMessage.editHistory`. Tapping "edited" opens a sheet with every version.
+
+### Scheduled messages
+
+With `onScheduleMessage`, a long press on the send button opens quick
+options (in 1 hour, tonight, tomorrow morning, pick a date and time):
+
+```dart
+ChatView(
+  // ...
+  onScheduleMessage: (text, at, replyTo) => controller.insert(
+    TextMessage(
+      id: uuid(),
+      author: me,
+      createdAt: DateTime.now(),
+      text: text,
+      scheduledFor: at,
+    ),
+  ),
+  onSendScheduledNow: (message) => controller.update(
+    message.copyWithMeta(clearScheduledFor: true),
+  ),
+)
+```
+
+Messages with `scheduledFor` are drawn faded with "Scheduled for …". Their
+menu offers Send now, Edit and Delete. Your backend sends them at the right
+time.
+
+### Channels and slow mode
+
+```dart
+ChatView(
+  // ...
+  readOnly: !isAdmin, // hides the input, shows "Only admins can send messages"
+  readOnlyMessage: 'Only moderators can post here', // optional
+  slowMode: const Duration(seconds: 30), // one message every 30 seconds
+)
+```
+
+In slow mode the input shows a countdown until the user can send again.
+Enforce both rules on your server too.
+
+### Report, block and save
+
+Each callback adds an entry to the message menu:
+
+```dart
+ChatView(
+  // ...
+  onReportMessage: (message) => api.report(message.id),
+  onBlockUser: (user) => api.block(user.id),
+  onSaveMessage: (message, saved) => controller.toggleSaved(message.id),
+)
+```
+
+Saved messages show a bookmark icon. Read them with
+`controller.savedIds` or `controller.isSaved(id)`.
+
+### Word filter
+
+```dart
+ChatView(
+  // ...
+  wordFilter: ChatWordFilter({'darn', 'heck'}), // "darn it" -> "d*** it"
+)
+```
+
+Whole words only, case-insensitive. The filter changes what is shown, not
+the message. Filter on the server as well for real moderation.
+
 ### Custom message types
 
 Use `CustomMessage` with a `type` and a `payload`, and render it with
@@ -1105,14 +1372,22 @@ Other `ChatView` options: `showAvatars`, `showUserNames`,
 
 ### Localization
 
-chatx ships English and Spanish strings and picks them from the app locale.
+chatx ships English, Spanish, Portuguese, French and German strings and picks
+them from the app locale. Emoji search also understands Spanish words, with
+or without accents (`corazon`, `cumpleaños`).
 Dates and times use your app's `MaterialLocalizations`, so add
 `flutter_localizations` to get them in every language:
 
 ```dart
 MaterialApp(
   localizationsDelegates: GlobalMaterialLocalizations.delegates,
-  supportedLocales: const [Locale('en'), Locale('es')],
+  supportedLocales: const [
+    Locale('en'),
+    Locale('es'),
+    Locale('pt'),
+    Locale('fr'),
+    Locale('de'),
+  ],
 )
 ```
 
@@ -1142,6 +1417,7 @@ to `ChatView.localizations`.
 | `# Title` | heading (`#` to `######`) |
 | `[label](https://…)` | link |
 | `https://…` or `www.…` | automatic link |
+| `\| a \| b \|` + `\|:--\|--:\|` + rows | table, with column alignment |
 | `\*` | a literal `*` |
 
 Rules that keep chats readable: `snake_case` words stay intact, single line
@@ -1154,8 +1430,10 @@ Use `ChatText` to render the same markdown anywhere in your app.
 
 - Bubbles announce the author and time, and status icons have labels.
 - The typing indicator is a live region.
-- Interactive elements are at least 48×48 dp, except the small reaction chips
-  (the same reactions are available in the message menu).
+- Interactive elements are at least 48×48 dp, including reaction chips and
+  RSVP, contact and bot buttons.
+- Automated tests check touch targets, labels and text contrast (WCAG AA) at
+  normal and 200% text size.
 - Swipe actions are also available as screen reader custom actions.
 - Spoiler text is announced as a spoiler, never read aloud until revealed.
 - Voice recording works with a screen reader: tap to start, tap to send.
@@ -1178,7 +1456,14 @@ Use `ChatText` to render the same markdown anywhere in your app.
   `chatx_survey_nps_<n>`, `chatx_survey_text`, `chatx_button_<id>_<button>`,
   `chatx_quick_reply_<index>`, `chatx_thread_<id>`, `chatx_seen_by`,
   `chatx_expiry`, `chatx_emoji_button`, `chatx_emoji_<emoji>`,
-  `chatx_emoji_search`, `chatx_react_more` and `chatx_header`.
+  `chatx_emoji_search`, `chatx_react_more`, `chatx_header`,
+  `chatx_stop_button`, `chatx_ai_copy_<id>`, `chatx_ai_good_<id>`,
+  `chatx_ai_bad_<id>`, `chatx_ai_regenerate_<id>`, `chatx_copy_code`,
+  `chatx_translation_toggle`, `chatx_rsvp_<id>_<going|maybe|notGoing>`,
+  `chatx_contact_<id>_<call|email|save>`, `chatx_sticker_pack_<id>`,
+  `chatx_sticker_<id>`, `chatx_sticker_message_<id>`, `chatx_deleted`,
+  `chatx_edited_<id>`, `chatx_edit_history`, `chatx_schedule_sheet`,
+  `chatx_scheduled`, `chatx_read_only` and `chatx_saved_icon`.
 
 ## Security
 
@@ -1212,10 +1497,12 @@ wherever you keep state and feed it from your providers or blocs.
 
 The [`example`](example) folder contains demos for every feature: basic chat
 (replies, reactions, popup menu, editing), media and files (images, voice
-notes, links, spoilers), community (survey, poll, thread, read receipts,
-forwarding, countdown, pins, mentions, search, selection), support bot
-(buttons, quick replies, disappearing code), AI streaming, bubble styles, custom look and infinite
-history. Its
+notes, links, spoilers, location, contact, stickers), community (survey,
+poll, event, thread, read receipts, translation, edit history, scheduled and
+deleted messages, report, block, save, word filter), announcements
+(read-only channel), support bot (buttons, quick replies, slow mode), AI
+streaming (stop, regenerate, rating, code, tables), bubble styles, custom
+look and infinite history. Its
 [integration test](example/integration_test/screenshots_test.dart) walks
 through the app on a device and produces the screenshots above.
 

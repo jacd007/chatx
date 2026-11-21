@@ -822,42 +822,46 @@ class _ReplyQuote extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: original == null ? null : onTap,
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(width: 3, color: accentColor),
-                Flexible(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 5, 10, 6),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (name != null)
+          child: ConstrainedBox(
+            // A comfortable touch target even for one-line quotes.
+            constraints: const BoxConstraints(minHeight: 48),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(width: 3, color: accentColor),
+                  Flexible(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 5, 10, 6),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (name != null)
+                            Text(
+                              name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.userNameTextStyle.copyWith(
+                                color: accentColor,
+                              ),
+                            ),
                           Text(
-                            name,
-                            maxLines: 1,
+                            preview,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: theme.userNameTextStyle.copyWith(
-                              color: accentColor,
+                            style: theme.systemMessageTextStyle.copyWith(
+                              color: textColor.withValues(alpha: 0.8),
+                              fontStyle:
+                                  original == null ? FontStyle.italic : null,
                             ),
                           ),
-                        Text(
-                          preview,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.systemMessageTextStyle.copyWith(
-                            color: textColor.withValues(alpha: 0.8),
-                            fontStyle:
-                                original == null ? FontStyle.italic : null,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -908,9 +912,10 @@ class _Reactions extends StatelessWidget {
     final l10n = ChatLocalizations.of(context);
     final textStyle = Theme.of(context).textTheme.labelMedium;
     final scheme = Theme.of(context).colorScheme;
-    // Pull the chips up so they overlap the bubble edge, like a sticker.
     return Transform.translate(
-      offset: const Offset(0, -6),
+      // Pull the chips up so they overlap the bubble edge, and the 48 dp
+      // touch targets do not push the next message away.
+      offset: const Offset(0, -16),
       child: Wrap(
         spacing: 4,
         runSpacing: 4,
@@ -984,11 +989,16 @@ class _ReactionChip extends StatelessWidget {
       button: onTap != null,
       selected: selected,
       label: semanticLabel,
+      onTap: onTap,
       excludeSemantics: true,
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
-        child: chip,
+        // The chip looks small, but the touch target is 48 dp tall.
+        child: SizedBox(
+          height: 48,
+          child: Center(widthFactor: 1, child: chip),
+        ),
       ),
     );
   }

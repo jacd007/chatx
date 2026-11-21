@@ -88,6 +88,33 @@ class _MediaPageState extends State<MediaPage> {
         createdAt: _start.add(const Duration(minutes: 8)),
         text: 'Finished the series! The killer was ||the gardener|| 😱',
       ),
+      LocationMessage(
+        id: 'location',
+        author: ana,
+        createdAt: _start.add(const Duration(minutes: 10)),
+        latitude: 38.7223,
+        longitude: -9.1393,
+        title: 'Miradouro de Santa Luzia',
+        address: 'Largo de Santa Luzia, Lisbon',
+        liveUntil: DateTime.now().add(const Duration(hours: 1)),
+      ),
+      ContactMessage(
+        id: 'contact',
+        author: me,
+        createdAt: _start.add(const Duration(minutes: 11)),
+        name: 'Leo Martín',
+        organization: 'Tour guide',
+        phone: '+351 912 345 678',
+        email: 'leo@example.com',
+        status: MessageStatus.read,
+      ),
+      StickerMessage(
+        id: 'sticker',
+        author: ana,
+        createdAt: _start.add(const Duration(minutes: 12)),
+        uri: 'sticker:love',
+        label: 'In love',
+      ),
       ImageMessage(
         id: 'spoilerImg',
         author: ana,
@@ -188,9 +215,23 @@ class _MediaPageState extends State<MediaPage> {
         controller: _controller,
         currentUser: me,
         onSendMessage: _send,
-        imageProviderBuilder: (uri) => uri.startsWith('asset:')
-            ? AssetImage('assets/images/${uri.substring(6)}.png')
-            : NetworkImage(uri),
+        imageProviderBuilder: demoImage,
+        stickerPacks: const [demoStickers],
+        onSendSticker: (sticker) => _controller.insert(
+          StickerMessage(
+            id: newId(),
+            author: me,
+            createdAt: DateTime.now(),
+            uri: sticker.uri,
+            label: sticker.label,
+            status: MessageStatus.sent,
+          ),
+        ),
+        onLocationTap: (location) => ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Open ${location.title} in maps'))),
+        onContactAction: (contact, action) => ScaffoldMessenger.of(context)
+            .showSnackBar(
+                SnackBar(content: Text('${action.name}: ${contact.name}'))),
         onLinkTap: (uri) => showLink(context, uri),
         onFileTap: (file) => ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Open ${file.name} with your viewer')),

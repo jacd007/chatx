@@ -295,7 +295,7 @@ class _EventContent extends StatelessWidget {
                       onRsvp(message, selected ? null : rsvp);
                     },
               child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 44),
+                constraints: const BoxConstraints(minHeight: 48),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -501,13 +501,30 @@ class _ContactContent extends StatelessWidget {
           children: [
             for (final (action, icon, label) in actions)
               Expanded(
-                child: TextButton.icon(
+                child: TextButton(
                   key: Key('chatx_contact_${message.id}_${action.name}'),
                   onPressed:
                       onAction == null ? null : () => onAction(message, action),
-                  icon: Icon(icon, size: 18),
-                  label: Text(label, maxLines: 1),
-                  style: TextButton.styleFrom(foregroundColor: accent),
+                  style: TextButton.styleFrom(
+                    foregroundColor: accent,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 6,
+                    ),
+                  ),
+                  // Icon above the label, so three actions fit side by side
+                  // even with long translations or large text.
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, size: 20),
+                      const SizedBox(height: 2),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(label, maxLines: 1),
+                      ),
+                    ],
+                  ),
                 ),
               ),
           ],

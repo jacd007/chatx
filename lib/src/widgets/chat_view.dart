@@ -542,6 +542,7 @@ class _ChatViewState extends State<ChatView> {
   StreamSubscription<ChatScrollRequest>? _scrollRequests;
   final ValueNotifier<DateTime?> _floatingDate = ValueNotifier(null);
   Timer? _floatingDateTimer;
+  bool _userScrolling = false;
   final GlobalKey _listKey = GlobalKey();
   final ValueNotifier<_MentionQuery?> _mentionQuery = ValueNotifier(null);
   final ValueNotifier<Map<String, _Translation>> _translations =

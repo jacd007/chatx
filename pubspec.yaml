@@ -1,7 +1,7 @@
 name: chatx
 description: >-
-  Zero-dependency chat UI for Flutter: replies, reactions, media, voice
-  notes, polls, surveys, threads, mentions, search, bots and markdown.
+  Zero-dependency chat UI for Flutter: replies, reactions, media, voice,
+  polls, surveys, threads, AI controls, location, events and moderation.
 version: 0.1.0
 repository: https://github.com/jacd007/chatx
 issue_tracker: https://github.com/jacd007/chatx/issues
@@ -15,14 +15,14 @@ screenshots:
     path: doc/screenshots/08_images_voice.png
   - description: Survey card, read receipts and forwarded message.
     path: doc/screenshots/16_survey_seen_forward.png
-  - description: Step-by-step survey with an NPS question.
-    path: doc/screenshots/17_survey_nps.png
+  - description: AI answer with highlighted code, a table and rating.
+    path: doc/screenshots/23_ai_code_table.png
   - description: Poll, countdown announcement and pinned message.
     path: doc/screenshots/11_poll_countdown_pinned.png
-  - description: Bot buttons and quick replies.
-    path: doc/screenshots/18_bot_buttons.png
-  - description: Thread view.
-    path: doc/screenshots/19_thread.png
+  - description: Message menu with translate, save, report and block.
+    path: doc/screenshots/29_moderation_menu.png
+  - description: Location, contact card and sticker.
+    path: doc/screenshots/26_location_contact_sticker.png
   - description: Built-in emoji picker.
     path: doc/screenshots/21_emoji_picker.png
   - description: Dark mode with a custom theme.

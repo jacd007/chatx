@@ -97,7 +97,7 @@ class _SurveyContent extends StatelessWidget {
           child: InkWell(
             onTap: canAnswer ? () => _open(context) : null,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 44),
+              constraints: const BoxConstraints(minHeight: 48),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

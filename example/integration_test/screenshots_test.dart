@@ -85,10 +85,24 @@ void main() {
     await tester.tap(find.byKey(const Key('chatx_send_button')));
     // Let the "thinking" pause pass and part of the answer stream in.
     FocusManager.instance.primaryFocus?.unfocus();
-    for (var i = 0; i < 24; i++) {
+    for (var i = 0; i < 14; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
-    await shoot('04_ai_markdown');
+    expect(find.byKey(const Key('chatx_stop_button')), findsOneWidget);
+    await shoot('24_ai_stop');
+    // Let the answer finish: code block, table and AI actions appear.
+    for (var i = 0; i < 80; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+      if (find.byKey(const Key('chatx_stop_button')).evaluate().isEmpty) {
+        break;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    await settle(tester, 600);
+    final good = find.byIcon(Icons.thumb_up_outlined);
+    await tester.tap(good.first);
+    await settle(tester);
+    await shoot('23_ai_code_table');
   });
 
   testWidgets('bubble styles', (tester) async {
@@ -109,13 +123,23 @@ void main() {
   testWidgets('media: files, links, spoilers, images, voice', (tester) async {
     await open(tester, 'Media & files');
     await settle(tester, 1200);
+    await shoot('26_location_contact_sticker');
+
+    final list = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('chatx_link_preview')),
+      250,
+      scrollable: list,
+    );
+    await settle(tester, 600);
     await shoot('07_files_links_spoilers');
 
-    await tester.timedDrag(
-      find.byType(CustomScrollView).first,
-      const Offset(0, 700),
-      const Duration(milliseconds: 600),
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('chatx_voice_play_voice1')),
+      250,
+      scrollable: list,
     );
+    await tester.drag(list, const Offset(0, 250));
     await settle(tester, 800);
     await tester.tap(find.byKey(const Key('chatx_voice_play_voice1')));
     await Future<void>.delayed(const Duration(milliseconds: 1500));
@@ -139,12 +163,58 @@ void main() {
     tester.semantics.tap(mic);
     await settle(tester);
     semantics.dispose();
+
+    await tester.tap(find.byKey(const Key('chatx_emoji_button')));
+    await settle(tester, 600);
+    await tester.tap(find.byKey(const Key('chatx_sticker_pack_faces')));
+    await settle(tester, 900);
+    await shoot('27_sticker_picker');
   });
 
   testWidgets('community: survey, poll, mentions, search, selection, thread',
       (tester) async {
     await open(tester, 'Community');
     await shoot('16_survey_seen_forward');
+
+    final communityList = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('chatx_bubble_pt')),
+      200,
+      scrollable: communityList,
+    );
+    await settle(tester);
+    await tester.longPress(find.byKey(const Key('chatx_bubble_pt')));
+    await settle(tester);
+    await shoot('29_moderation_menu');
+    await tester.tap(find.text('Translate'));
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    await settle(tester);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('chatx_edited_edited')),
+      -150,
+      scrollable: communityList,
+    );
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('chatx_edited_edited')));
+    await settle(tester, 700);
+    await shoot('30_edit_history');
+    await tester.tapAt(const Offset(20, 120));
+    await settle(tester, 700);
+    await shoot('25_translate_deleted_scheduled');
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('chatx_rsvp_event_going')),
+      200,
+      scrollable: communityList,
+    );
+    await tester.tap(find.byKey(const Key('chatx_rsvp_event_going')));
+    await settle(tester);
+    await shoot('28_event_rsvp');
+    final backToBottom = find.byKey(const Key('chatx_scroll_to_bottom'));
+    if (backToBottom.hitTestable().evaluate().isNotEmpty) {
+      await tester.tap(backToBottom);
+      await settle(tester, 700);
+    }
 
     await tester.tap(find.byKey(const Key('chatx_survey_survey')));
     await settle(tester, 700);
@@ -206,6 +276,12 @@ void main() {
       await tester.tap(toBottom);
       await settle(tester, 700);
     }
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('chatx_bubble_drinks')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await settle(tester);
     await tester.longPress(find.byKey(const Key('chatx_bubble_drinks')));
     await settle(tester);
     await tester.tap(find.text('Select'));
@@ -255,5 +331,41 @@ void main() {
     await tester.tap(find.byKey(const Key('chatx_emoji_😍')));
     await settle(tester);
     await shoot('21_emoji_picker');
+  });
+
+  testWidgets('support bot: slow mode', (tester) async {
+    await open(tester, 'Support bot');
+    await tester.enterText(
+      find.byKey(const Key('chatx_input_field')),
+      'Where is my order?',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('chatx_send_button')));
+    FocusManager.instance.primaryFocus?.unfocus();
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
+    await settle(tester);
+    await shoot('34_slow_mode');
+  });
+
+  testWidgets('announcements: read-only channel', (tester) async {
+    await open(tester, 'Announcements');
+    await shoot('31_read_only_channel');
+  });
+
+  testWidgets('large text and another language', (tester) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await open(tester, 'Media & files');
+    await settle(tester, 1000);
+    await shoot('32_large_text');
+    tester.platformDispatcher.clearTextScaleFactorTestValue();
+
+    tester.platformDispatcher.localesTestValue = const [Locale('de', 'DE')];
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(const ChatxExampleApp());
+    await settle(tester);
+    await tester.tap(find.text('Community'));
+    await settle(tester, 900);
+    await shoot('33_german');
   });
 }

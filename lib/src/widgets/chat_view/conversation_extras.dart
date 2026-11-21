@@ -169,7 +169,7 @@ class _MessageButtons extends StatelessWidget {
       child: InkWell(
         onTap: callback,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 44),
+          constraints: const BoxConstraints(minHeight: 48),
           child: Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -217,7 +217,7 @@ class _QuickReplies extends StatelessWidget {
       final accent = theme.outgoingBubbleColor;
       return SizedBox(
         key: const Key('chatx_quick_replies'),
-        height: 52,
+        height: 60,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),

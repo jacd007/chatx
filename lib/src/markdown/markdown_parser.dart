@@ -220,7 +220,7 @@ abstract final class MarkdownParser {
   static final RegExp _quote = RegExp(r'^ {0,3}> ?(.*)$');
   static final RegExp _fence = RegExp(r'^ {0,3}(```+|~~~+)[ \t]*([^`\s]*)');
   static final RegExp _tableSeparator =
-      RegExp(r'^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$');
+      RegExp(r'^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$');
 
   static List<String> _cells(String line) {
     var text = line.trim();

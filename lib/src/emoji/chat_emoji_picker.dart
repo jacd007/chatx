@@ -156,12 +156,49 @@ class _ChatEmojiPickerState extends State<ChatEmojiPicker>
     widget.onSelected(emoji);
   }
 
+  static const _accents = {
+    'á': 'a',
+    'é': 'e',
+    'í': 'i',
+    'ó': 'o',
+    'ú': 'u',
+    'ü': 'u',
+    'ñ': 'n',
+    'à': 'a',
+    'è': 'e',
+    'ì': 'i',
+    'ò': 'o',
+    'ù': 'u',
+    'â': 'a',
+    'ê': 'e',
+    'î': 'i',
+    'ô': 'o',
+    'û': 'u',
+    'ã': 'a',
+    'õ': 'o',
+    'ç': 'c',
+    'ä': 'a',
+    'ö': 'o',
+  };
+
+  static String _plain(String text) =>
+      text.toLowerCase().split('').map((c) => _accents[c] ?? c).join();
+
+  /// Searches English keywords and their Spanish translations, ignoring
+  /// case and accents.
   List<(String, String)> _matches(String query) {
-    final needle = query.trim().toLowerCase();
+    final needle = _plain(query.trim());
+    bool matches(String keyword) {
+      if (keyword.startsWith(needle)) return true;
+      final spanish = emojiKeywordsEs[keyword];
+      return spanish != null &&
+          spanish.split(' ').any((word) => word.startsWith(needle));
+    }
+
     return [
       for (final list in emojiCatalog.values)
         for (final entry in list)
-          if (entry.$2.split(' ').any((word) => word.startsWith(needle))) entry,
+          if (entry.$2.split(' ').any(matches)) entry,
     ];
   }
 

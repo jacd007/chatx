@@ -21,19 +21,29 @@ class _AiStreamingPageState extends State<AiStreamingPage> {
   StreamSubscription<String>? _subscription;
 
   static const _answer = '''
-Here is a quick summary of **chatx**:
-
-1. Zero dependencies
-2. Backend agnostic
-3. Streaming-friendly
+Here is how to stream an answer with **chatx**:
 
 ```dart
-controller.appendText(id, token);
+final id = uuid();
+controller.insert(TextMessage(
+  id: id,
+  author: assistant,
+  createdAt: DateTime.now(),
+  text: '',
+  isStreaming: true,
+));
+await for (final token in llm.stream(prompt)) {
+  controller.appendText(id, token); // 60 fps
+}
+controller.completeStream(id);
 ```
 
-> Tip: call `completeStream` when the response ends.
+| Feature | Cost |
+|:--|--:|
+| Zero dependencies | 0 KB |
+| Rebuilds per token | 1 bubble |
 
-Read more at https://github.com/jacd007/chatx''';
+> Tip: rate the answer or regenerate it below.''';
 
   @override
   void dispose() {
@@ -66,10 +76,28 @@ Read more at https://github.com/jacd007/chatx''';
       ),
     );
 
+    _stream(answerId);
+  }
+
+  void _stream(String id) {
+    unawaited(_subscription?.cancel());
     _subscription = _fakeTokens(_answer).listen(
-      (token) => _controller.appendText(answerId, token),
-      onDone: () => _controller.completeStream(answerId),
+      (token) => _controller.appendText(id, token),
+      onDone: () => _controller.completeStream(id),
     );
+  }
+
+  /// Replaces the answer with a fresh, empty stream.
+  void _regenerate(TextMessage message) {
+    _controller.update(
+      message.copyWith(text: '', isStreaming: true, clearFeedback: true),
+    );
+    _stream(message.id);
+  }
+
+  void _stop(TextMessage message) {
+    unawaited(_subscription?.cancel());
+    _controller.completeStream(message.id);
   }
 
   /// Emits the text in small chunks after a "thinking" pause.
@@ -77,7 +105,7 @@ Read more at https://github.com/jacd007/chatx''';
     await Future<void>.delayed(const Duration(milliseconds: 900));
     final tokens = RegExp(r'\S+\s*|\s+').allMatches(text);
     for (final token in tokens) {
-      await Future<void>.delayed(const Duration(milliseconds: 35));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
       yield token.group(0)!;
     }
   }
@@ -91,6 +119,11 @@ Read more at https://github.com/jacd007/chatx''';
         currentUser: me,
         onSendMessage: _send,
         showUserNames: false,
+        onRegenerate: _regenerate,
+        onStopGenerating: _stop,
+        onFeedback: (message, feedback) => _controller.update(
+          message.copyWith(feedback: feedback, clearFeedback: feedback == null),
+        ),
         onLinkTap: (uri) => showLink(context, uri),
         emptyStateBuilder: (context) => const Center(
           child: Text('Ask me anything ✨'),
