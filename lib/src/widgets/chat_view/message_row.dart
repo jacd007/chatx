@@ -84,7 +84,9 @@ class _MessageRowState extends State<_MessageRow> {
             Widget content = swipe == null ||
                     message is SystemMessage ||
                     streaming ||
-                    selecting
+                    selecting ||
+                    message.deletedAt != null ||
+                    message.scheduledFor != null
                 ? row
                 : _SwipeToAction(
                     icon: swipe.icon,
@@ -98,6 +100,9 @@ class _MessageRowState extends State<_MessageRow> {
                 onTap: () => widget.state._toggleSelection(message),
                 child: content,
               );
+            }
+            if (message.scheduledFor != null) {
+              content = Opacity(opacity: 0.7, child: content);
             }
             return _Highlight(
               id: message.id,
@@ -193,7 +198,13 @@ class _MessageRowState extends State<_MessageRow> {
       );
     }
 
-    final hasReactions = message.reactions.isNotEmpty;
+    final deleted = message.deletedAt != null;
+    final hasReactions = !deleted && message.reactions.isNotEmpty;
+    final aiActions = !deleted &&
+        message is TextMessage &&
+        message.author.isBot &&
+        !message.isStreaming &&
+        (view.onFeedback != null || view.onRegenerate != null);
     final failed = outgoing && message.status == MessageStatus.failed;
     // The root of an open thread does not link to itself.
     final thread = message.id == view.threadRoot?.id ? null : message.thread;
@@ -201,7 +212,9 @@ class _MessageRowState extends State<_MessageRow> {
         view.showReadReceipts &&
         message.receipts.isNotEmpty &&
         message.id == widget.state._lastOutgoingId;
-    if (!hasReactions && !failed && thread == null && !seenBy) return row;
+    if (!hasReactions && !failed && thread == null && !seenBy && !aiActions) {
+      return row;
+    }
 
     final sideInset = EdgeInsetsDirectional.only(
       start: outgoing ? 0 : avatarInset + tailInset + 6,
@@ -220,6 +233,15 @@ class _MessageRowState extends State<_MessageRow> {
               message: message,
               currentUserId: view.currentUser.id,
               onTap: view.onReactionSelected,
+            ),
+          ),
+        if (aiActions)
+          Padding(
+            padding: sideInset,
+            child: _AiActions(
+              state: widget.state,
+              message: message,
+              canRegenerate: message.id == view.controller.messages.last.id,
             ),
           ),
         if (thread != null && thread.replyCount > 0)
@@ -263,11 +285,13 @@ class _Bubble extends StatelessWidget {
   ChatView get view => state.widget;
 
   bool _isJumbo(ChatMessage message) =>
+      message is StickerMessage && message.deletedAt == null ||
       view.enableJumboEmoji &&
-      message is TextMessage &&
-      !message.isStreaming &&
-      message.replyToId == null &&
-      (EmojiUtils.countIfOnlyEmoji(message.text) ?? 99) <= 3;
+          message.deletedAt == null &&
+          message is TextMessage &&
+          !message.isStreaming &&
+          message.replyToId == null &&
+          (EmojiUtils.countIfOnlyEmoji(message.text) ?? 99) <= 3;
 
   @override
   Widget build(BuildContext context) {
@@ -324,6 +348,7 @@ class _Bubble extends StatelessWidget {
       showStatus: outgoing,
       color: textColor.withValues(alpha: 0.72),
       style: theme.timestampTextStyle,
+      saved: view.controller.savedIds,
     );
 
     final replyToId = message.replyToId;
@@ -368,185 +393,265 @@ class _Bubble extends StatelessWidget {
 
     EdgeInsetsGeometry padding = basePadding.add(tailPadding);
     final Widget body;
-    switch (message) {
-      case TextMessage(:final linkPreview):
-        body = IntrinsicWidth(
-          child: withQuote(stretch: true, [
-            if (jumbo)
-              Text(
-                message.text.trim(),
-                textAlign: TextAlign.center,
-                style: textStyle.copyWith(
-                  fontSize: (textStyle.fontSize ?? 16) * 2.6,
-                  height: 1.15,
+    if (message.deletedAt != null) {
+      body = IntrinsicWidth(
+        child: withQuote(stretch: true, [
+          _DeletedContent(color: textColor.withValues(alpha: 0.75)),
+          const SizedBox(height: 3),
+          Align(alignment: AlignmentDirectional.centerEnd, child: footer),
+        ]),
+      );
+    } else {
+      switch (message) {
+        case TextMessage(:final linkPreview):
+          body = IntrinsicWidth(
+            child: withQuote(stretch: true, [
+              if (jumbo)
+                Text(
+                  message.text.trim(),
+                  textAlign: TextAlign.center,
+                  style: textStyle.copyWith(
+                    fontSize: (textStyle.fontSize ?? 16) * 2.6,
+                    height: 1.15,
+                  ),
+                )
+              else
+                _textContent(message, theme, textStyle, textColor),
+              if (message.buttons.isNotEmpty)
+                _MessageButtons(
+                  state: state,
+                  message: message,
+                  textColor: textColor,
+                  accent: accent,
                 ),
-              )
-            else
-              _textContent(message, theme, textStyle, textColor),
-            if (message.buttons.isNotEmpty)
-              _MessageButtons(
+              if (linkPreview != null) ...[
+                const SizedBox(height: 8),
+                _LinkPreviewCard(
+                  state: state,
+                  preview: linkPreview,
+                  textColor: textColor,
+                  accent: accent,
+                  maxWidth: innerWidth,
+                ),
+              ],
+              const SizedBox(height: 3),
+              Align(alignment: AlignmentDirectional.centerEnd, child: footer),
+            ]),
+          );
+        case ImageMessage(:final caption):
+          // Images go almost edge to edge; the caption keeps normal padding.
+          const inset = 3.0;
+          padding = const EdgeInsets.all(inset).add(tailPadding);
+          final gridWidth = maxWidth - inset * 2 - tailPadding.horizontal;
+          final grid = _ImageGrid(
+            state: state,
+            message: message,
+            width: gridWidth,
+            radius: math.max(0.0, theme.bubbleRadius - inset),
+          );
+          body = SizedBox(
+            width: gridWidth,
+            child: withQuote(stretch: true, [
+              if (caption == null)
+                Stack(
+                  children: [
+                    grid,
+                    PositionedDirectional(
+                      end: 8,
+                      bottom: 6,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Colors.black45,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          child: _Footer(
+                            message: message,
+                            showStatus: outgoing,
+                            color: Colors.white,
+                            style: theme.timestampTextStyle,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              else ...[
+                grid,
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    math.max(0, basePadding.left - inset),
+                    6,
+                    math.max(0, basePadding.right - inset),
+                    math.max(0, basePadding.bottom - inset),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _richText(caption, textStyle, theme),
+                      const SizedBox(height: 3),
+                      Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: footer,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ]),
+          );
+        case FileMessage():
+          body = withQuote([
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: innerWidth),
+              child: _FileContent(message: message, textColor: textColor),
+            ),
+            const SizedBox(height: 3),
+            footer,
+          ]);
+        case VoiceMessage():
+          body = SizedBox(
+            width: math.min(innerWidth, 280),
+            child: withQuote([
+              _VoiceContent(
                 state: state,
                 message: message,
                 textColor: textColor,
                 accent: accent,
               ),
-            if (linkPreview != null) ...[
-              const SizedBox(height: 8),
-              _LinkPreviewCard(
+              footer,
+            ]),
+          );
+        case PollMessage():
+          body = SizedBox(
+            width: math.min(innerWidth, 320),
+            child: withQuote([
+              _PollContent(
                 state: state,
-                preview: linkPreview,
+                message: message,
                 textColor: textColor,
                 accent: accent,
-                maxWidth: innerWidth,
               ),
-            ],
+              footer,
+            ]),
+          );
+        case CountdownMessage():
+          body = SizedBox(
+            width: math.min(innerWidth, 320),
+            child: withQuote([
+              _CountdownContent(
+                message: message,
+                textColor: textColor,
+                accent: accent,
+                textStyle: textStyle,
+                richText: (text) => _richText(text, textStyle, theme),
+              ),
+              const SizedBox(height: 3),
+              footer,
+            ]),
+          );
+        case SurveyMessage():
+          body = SizedBox(
+            width: math.min(innerWidth, 320),
+            child: withQuote([
+              _SurveyContent(
+                state: state,
+                message: message,
+                textColor: textColor,
+                accent: accent,
+                textStyle: textStyle,
+              ),
+              const SizedBox(height: 3),
+              footer,
+            ]),
+          );
+        case CustomMessage():
+          body = withQuote([
+            view.customMessageBuilder?.call(context, message, details) ??
+                Text(
+                  l10n.unsupportedMessage,
+                  style: textStyle.copyWith(fontStyle: FontStyle.italic),
+                ),
             const SizedBox(height: 3),
-            Align(alignment: AlignmentDirectional.centerEnd, child: footer),
-          ]),
-        );
-      case ImageMessage(:final caption):
-        // Images go almost edge to edge; the caption keeps normal padding.
-        const inset = 3.0;
-        padding = const EdgeInsets.all(inset).add(tailPadding);
-        final gridWidth = maxWidth - inset * 2 - tailPadding.horizontal;
-        final grid = _ImageGrid(
-          state: state,
-          message: message,
-          width: gridWidth,
-          radius: math.max(0.0, theme.bubbleRadius - inset),
-        );
-        body = SizedBox(
-          width: gridWidth,
-          child: withQuote(stretch: true, [
-            if (caption == null)
-              Stack(
-                children: [
-                  grid,
-                  PositionedDirectional(
-                    end: 8,
-                    bottom: 6,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Colors.black45,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        child: _Footer(
-                          message: message,
-                          showStatus: outgoing,
-                          color: Colors.white,
-                          style: theme.timestampTextStyle,
-                        ),
-                      ),
-                    ),
+            footer,
+          ]);
+        case LocationMessage():
+          final width = math.min(innerWidth, 300.0);
+          body = SizedBox(
+            width: width,
+            child: withQuote([
+              _LocationContent(
+                state: state,
+                message: message,
+                width: width,
+                textColor: textColor,
+                accent: accent,
+              ),
+              const SizedBox(height: 3),
+              footer,
+            ]),
+          );
+        case EventMessage():
+          body = SizedBox(
+            width: math.min(innerWidth, 320),
+            child: withQuote([
+              _EventContent(
+                state: state,
+                message: message,
+                textColor: textColor,
+                accent: accent,
+                textStyle: textStyle,
+              ),
+              const SizedBox(height: 3),
+              footer,
+            ]),
+          );
+        case ContactMessage():
+          body = SizedBox(
+            width: math.min(innerWidth, 300),
+            child: withQuote([
+              _ContactContent(
+                state: state,
+                message: message,
+                textColor: textColor,
+                accent: accent,
+              ),
+              footer,
+            ]),
+          );
+        case StickerMessage(:final uri, :final label):
+          final pixels = (150 * MediaQuery.devicePixelRatioOf(context)).round();
+          body = Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Semantics(
+                image: true,
+                label: label ?? l10n.sticker,
+                child: Image(
+                  key: Key('chatx_sticker_message_${message.id}'),
+                  image: ResizeImage.resizeIfNeeded(
+                    pixels,
+                    null,
+                    view.imageProviderBuilder?.call(uri) ?? NetworkImage(uri),
                   ),
-                ],
-              )
-            else ...[
-              grid,
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  math.max(0, basePadding.left - inset),
-                  6,
-                  math.max(0, basePadding.right - inset),
-                  math.max(0, basePadding.bottom - inset),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _richText(caption, textStyle, theme),
-                    const SizedBox(height: 3),
-                    Align(
-                      alignment: AlignmentDirectional.centerEnd,
-                      child: footer,
-                    ),
-                  ],
+                  width: 150,
+                  height: 150,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, _, __) =>
+                      const SizedBox.square(dimension: 150),
                 ),
               ),
+              footer,
             ],
-          ]),
-        );
-      case FileMessage():
-        body = withQuote([
-          ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: innerWidth),
-            child: _FileContent(message: message, textColor: textColor),
-          ),
-          const SizedBox(height: 3),
-          footer,
-        ]);
-      case VoiceMessage():
-        body = SizedBox(
-          width: math.min(innerWidth, 280),
-          child: withQuote([
-            _VoiceContent(
-              state: state,
-              message: message,
-              textColor: textColor,
-              accent: accent,
-            ),
-            footer,
-          ]),
-        );
-      case PollMessage():
-        body = SizedBox(
-          width: math.min(innerWidth, 320),
-          child: withQuote([
-            _PollContent(
-              state: state,
-              message: message,
-              textColor: textColor,
-              accent: accent,
-            ),
-            footer,
-          ]),
-        );
-      case CountdownMessage():
-        body = SizedBox(
-          width: math.min(innerWidth, 320),
-          child: withQuote([
-            _CountdownContent(
-              message: message,
-              textColor: textColor,
-              accent: accent,
-              textStyle: textStyle,
-              richText: (text) => _richText(text, textStyle, theme),
-            ),
-            const SizedBox(height: 3),
-            footer,
-          ]),
-        );
-      case SurveyMessage():
-        body = SizedBox(
-          width: math.min(innerWidth, 320),
-          child: withQuote([
-            _SurveyContent(
-              state: state,
-              message: message,
-              textColor: textColor,
-              accent: accent,
-              textStyle: textStyle,
-            ),
-            const SizedBox(height: 3),
-            footer,
-          ]),
-        );
-      case CustomMessage():
-        body = withQuote([
-          view.customMessageBuilder?.call(context, message, details) ??
-              Text(
-                l10n.unsupportedMessage,
-                style: textStyle.copyWith(fontStyle: FontStyle.italic),
-              ),
-          const SizedBox(height: 3),
-          footer,
-        ]);
-      case SystemMessage():
-        return const SizedBox.shrink();
+          );
+        case SystemMessage():
+          return const SizedBox.shrink();
+      }
     }
 
     final author = outgoing ? l10n.you : (message.author.name ?? l10n.someone);
@@ -596,6 +701,40 @@ class _Bubble extends StatelessWidget {
         ),
       );
     }
+    if (view.onTranslate != null) {
+      return ValueListenableBuilder<Map<String, _Translation>>(
+        valueListenable: state._translations,
+        builder: (context, translations, _) {
+          final translation = translations[message.id];
+          final translated = translation?.text;
+          final showTranslated =
+              translated != null && !translation!.showOriginal;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _richText(
+                showTranslated ? translated : message.text,
+                textStyle,
+                theme,
+              ),
+              if (translation != null)
+                _TranslationBar(
+                  translation: translation,
+                  color: textColor.withValues(alpha: 0.7),
+                  onToggle: () => state._translate(message),
+                  onRetry: () {
+                    state._translations.value = {
+                      ...state._translations.value,
+                    }..remove(message.id);
+                    state._translate(message);
+                  },
+                ),
+            ],
+          );
+        },
+      );
+    }
     return _richText(
       message.text,
       textStyle,
@@ -616,8 +755,9 @@ class _Bubble extends StatelessWidget {
     ChatThemeData theme, {
     InlineSpan? trailing,
   }) {
+    final filtered = view.wordFilter?.apply(text) ?? text;
     Widget build(String? query) => ChatText(
-          text,
+          filtered,
           style: textStyle,
           linkStyle: theme.linkStyle,
           codeStyle: theme.codeTextStyle,
@@ -729,6 +869,7 @@ class _ReplyQuote extends StatelessWidget {
 /// One-line, markdown-free summary of [message].
 String _messagePreview(ChatMessage message, ChatLocalizations l10n) =>
     switch (message) {
+      _ when message.deletedAt != null => l10n.messageDeleted,
       TextMessage(:final text) => MarkdownParser.toPlainText(text),
       SystemMessage(:final text) => text,
       ImageMessage(:final caption, :final images) => caption != null
@@ -742,6 +883,10 @@ String _messagePreview(ChatMessage message, ChatLocalizations l10n) =>
       PollMessage(:final question) => '📊 $question',
       CountdownMessage(:final title) => '⏳ $title',
       SurveyMessage(:final title) => '📋 $title',
+      LocationMessage(:final title) => '📍 ${title ?? l10n.location}',
+      EventMessage(:final title) => '📅 $title',
+      ContactMessage(:final name) => '👤 $name',
+      StickerMessage(:final label) => label ?? l10n.sticker,
       CustomMessage(:final type) => '📎 $type',
     };
 
@@ -855,34 +1000,86 @@ class _Footer extends StatelessWidget {
     required this.showStatus,
     required this.color,
     required this.style,
+    this.saved,
   });
 
   final ChatMessage message;
   final bool showStatus;
   final Color color;
   final TextStyle style;
+  final ValueListenable<Set<String>>? saved;
 
   @override
   Widget build(BuildContext context) {
     final message = this.message;
     final l10n = ChatLocalizations.of(context);
-    final localizations = MaterialLocalizations.of(context);
-    final time = localizations.formatTimeOfDay(
-      TimeOfDay.fromDateTime(message.createdAt.toLocal()),
-      alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
-    );
-    final edited = message is TextMessage && message.editedAt != null;
+    final textStyle = style.copyWith(color: style.color ?? color);
+    final scheduledFor = message.scheduledFor;
+    final time = _clock(context, message.createdAt);
+    final edited = message is TextMessage &&
+        message.editedAt != null &&
+        message.deletedAt == null;
     final status = message.status;
     final expiresAt = message.expiresAt;
+
+    final Widget label;
+    if (scheduledFor != null) {
+      label = Row(
+        key: const Key('chatx_scheduled'),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.schedule_send_rounded, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(
+            l10n.scheduledFor(
+              '${MaterialLocalizations.of(context).formatShortMonthDay(scheduledFor.toLocal())}'
+              ' ${_clock(context, scheduledFor)}',
+            ),
+            style: textStyle,
+          ),
+        ],
+      );
+    } else if (edited) {
+      label = GestureDetector(
+        key: Key('chatx_edited_${message.id}'),
+        behavior: HitTestBehavior.opaque,
+        onTap: message.editHistory.isEmpty
+            ? null
+            : () => _showEditHistory(context, message),
+        child: Text(
+          '${l10n.edited} · $time',
+          style: message.editHistory.isEmpty
+              ? textStyle
+              : textStyle.copyWith(decoration: TextDecoration.underline),
+        ),
+      );
+    } else {
+      label = Text(time, style: textStyle);
+    }
+
+    final saved = this.saved;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (saved != null)
+          ValueListenableBuilder<Set<String>>(
+            valueListenable: saved,
+            builder: (context, ids, _) => ids.contains(message.id)
+                ? Padding(
+                    padding: const EdgeInsetsDirectional.only(end: 4),
+                    child: Icon(
+                      Icons.bookmark_rounded,
+                      key: const Key('chatx_saved_icon'),
+                      size: 13,
+                      color: color,
+                      semanticLabel: l10n.saved,
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
         if (expiresAt != null) _ExpiryBadge(expiresAt: expiresAt, color: color),
-        Text(
-          edited ? '${l10n.edited} · $time' : time,
-          style: style.copyWith(color: style.color ?? color),
-        ),
-        if (showStatus && status != null) ...[
+        label,
+        if (showStatus && status != null && scheduledFor == null) ...[
           const SizedBox(width: 4),
           MessageStatusIcon(status: status, color: color),
         ],

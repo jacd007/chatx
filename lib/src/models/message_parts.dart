@@ -445,3 +445,100 @@ class ChatSurveyResponse {
   @override
   int get hashCode => Object.hash(surveyId, answers.length);
 }
+
+/// Rating of an AI answer.
+enum ChatFeedback {
+  /// Thumbs up.
+  positive,
+
+  /// Thumbs down.
+  negative,
+}
+
+/// A previous version of an edited [TextMessage].
+@immutable
+class ChatEdit {
+  /// Creates an edit record.
+  const ChatEdit({required this.text, required this.at});
+
+  /// The text before the edit.
+  final String text;
+
+  /// When this version was written.
+  final DateTime at;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ChatEdit && other.text == text && other.at == at;
+
+  @override
+  int get hashCode => Object.hash(text, at);
+}
+
+/// Answer to an [EventMessage].
+enum ChatRsvp {
+  /// Will attend.
+  going,
+
+  /// Might attend.
+  maybe,
+
+  /// Will not attend.
+  notGoing,
+}
+
+/// A sticker that can be sent from the picker.
+@immutable
+class ChatSticker {
+  /// Creates a sticker.
+  const ChatSticker({required this.id, required this.uri, this.label});
+
+  /// Identifier of the sticker.
+  final String id;
+
+  /// Image of the sticker, loaded like `ChatImage.uri`.
+  final String uri;
+
+  /// Description for screen readers.
+  final String? label;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ChatSticker &&
+      other.id == id &&
+      other.uri == uri &&
+      other.label == label;
+
+  @override
+  int get hashCode => Object.hash(id, uri, label);
+}
+
+/// A group of stickers shown as a tab in `ChatEmojiPicker`.
+@immutable
+class ChatStickerPack {
+  /// Creates a sticker pack.
+  const ChatStickerPack({
+    required this.id,
+    required this.name,
+    required this.stickers,
+  });
+
+  /// Identifier of the pack.
+  final String id;
+
+  /// Name shown as the tab tooltip.
+  final String name;
+
+  /// The stickers. The first one is used as the tab icon.
+  final List<ChatSticker> stickers;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ChatStickerPack &&
+      other.id == id &&
+      other.name == name &&
+      listEquals(other.stickers, stickers);
+
+  @override
+  int get hashCode => Object.hash(id, name, Object.hashAll(stickers));
+}

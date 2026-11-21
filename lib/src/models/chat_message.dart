@@ -28,6 +28,8 @@ sealed class ChatMessage {
     this.receipts = const [],
     this.forwardedFrom,
     this.expiresAt,
+    this.deletedAt,
+    this.scheduledFor,
     this.metadata,
   });
 
@@ -65,6 +67,14 @@ sealed class ChatMessage {
   /// controller removes the message when it expires.
   final DateTime? expiresAt;
 
+  /// When the message was deleted for everyone. The bubble shows a
+  /// "message deleted" placeholder instead of the content.
+  final DateTime? deletedAt;
+
+  /// When a scheduled message will be sent. The bubble is dimmed and shows
+  /// the scheduled time instead of the delivery status.
+  final DateTime? scheduledFor;
+
   /// Arbitrary data you want to carry with the message. Never read by chatx.
   final Map<String, Object?>? metadata;
 
@@ -78,10 +88,14 @@ sealed class ChatMessage {
     List<ChatReadReceipt>? receipts,
     String? forwardedFrom,
     DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
     Map<String, Object?>? metadata,
     bool clearStatus = false,
     bool clearThread = false,
     bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
   });
 
   /// Returns a copy of this message with [status] replaced.
@@ -103,6 +117,8 @@ sealed class ChatMessage {
       listEquals(other.receipts, receipts) &&
       other.forwardedFrom == forwardedFrom &&
       other.expiresAt == expiresAt &&
+      other.deletedAt == deletedAt &&
+      other.scheduledFor == scheduledFor &&
       mapEquals(other.metadata, metadata);
 
   int get _baseHash => Object.hashAll([
@@ -116,6 +132,8 @@ sealed class ChatMessage {
         Object.hashAll(receipts),
         forwardedFrom,
         expiresAt,
+        deletedAt,
+        scheduledFor,
       ]);
 }
 
@@ -140,6 +158,8 @@ final class TextMessage extends ChatMessage {
     super.receipts,
     super.forwardedFrom,
     super.expiresAt,
+    super.deletedAt,
+    super.scheduledFor,
     super.metadata,
     required this.text,
     this.isStreaming = false,
@@ -147,6 +167,8 @@ final class TextMessage extends ChatMessage {
     this.linkPreview,
     this.buttons = const [],
     this.quickReplies = const [],
+    this.feedback,
+    this.editHistory = const [],
   });
 
   /// Message body. Supports **bold**, _italic_, ~~strike~~, `code`, fenced
@@ -169,6 +191,13 @@ final class TextMessage extends ChatMessage {
   /// message.
   final List<ChatQuickReply> quickReplies;
 
+  /// Rating the current user gave to this answer, for AI assistants.
+  final ChatFeedback? feedback;
+
+  /// Previous versions, oldest first. Tapping "edited" shows them.
+  /// `ChatController.editText` records them for you.
+  final List<ChatEdit> editHistory;
+
   /// Returns a copy of this message with the given fields replaced.
   TextMessage copyWith({
     String? id,
@@ -181,6 +210,8 @@ final class TextMessage extends ChatMessage {
     List<ChatReadReceipt>? receipts,
     String? forwardedFrom,
     DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
     Map<String, Object?>? metadata,
     String? text,
     bool? isStreaming,
@@ -188,11 +219,16 @@ final class TextMessage extends ChatMessage {
     ChatLinkPreview? linkPreview,
     List<ChatMessageButton>? buttons,
     List<ChatQuickReply>? quickReplies,
+    ChatFeedback? feedback,
+    List<ChatEdit>? editHistory,
     bool clearStatus = false,
     bool clearThread = false,
     bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
     bool clearEditedAt = false,
     bool clearLinkPreview = false,
+    bool clearFeedback = false,
   }) {
     return TextMessage(
       id: id ?? this.id,
@@ -205,6 +241,9 @@ final class TextMessage extends ChatMessage {
       receipts: receipts ?? this.receipts,
       forwardedFrom: forwardedFrom ?? this.forwardedFrom,
       expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
+      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
+      scheduledFor:
+          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
       metadata: metadata ?? this.metadata,
       text: text ?? this.text,
       isStreaming: isStreaming ?? this.isStreaming,
@@ -212,6 +251,8 @@ final class TextMessage extends ChatMessage {
       linkPreview: clearLinkPreview ? null : linkPreview ?? this.linkPreview,
       buttons: buttons ?? this.buttons,
       quickReplies: quickReplies ?? this.quickReplies,
+      feedback: clearFeedback ? null : feedback ?? this.feedback,
+      editHistory: editHistory ?? this.editHistory,
     );
   }
 
@@ -224,10 +265,14 @@ final class TextMessage extends ChatMessage {
     List<ChatReadReceipt>? receipts,
     String? forwardedFrom,
     DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
     Map<String, Object?>? metadata,
     bool clearStatus = false,
     bool clearThread = false,
     bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
   }) {
     return copyWith(
       status: status,
@@ -237,10 +282,14 @@ final class TextMessage extends ChatMessage {
       receipts: receipts,
       forwardedFrom: forwardedFrom,
       expiresAt: expiresAt,
+      deletedAt: deletedAt,
+      scheduledFor: scheduledFor,
       metadata: metadata,
       clearStatus: clearStatus,
       clearThread: clearThread,
       clearExpiresAt: clearExpiresAt,
+      clearDeletedAt: clearDeletedAt,
+      clearScheduledFor: clearScheduledFor,
     );
   }
 
@@ -254,7 +303,9 @@ final class TextMessage extends ChatMessage {
           other.editedAt == editedAt &&
           other.linkPreview == linkPreview &&
           listEquals(other.buttons, buttons) &&
-          listEquals(other.quickReplies, quickReplies);
+          listEquals(other.quickReplies, quickReplies) &&
+          other.feedback == feedback &&
+          listEquals(other.editHistory, editHistory);
 
   @override
   int get hashCode => Object.hashAll([
@@ -265,6 +316,8 @@ final class TextMessage extends ChatMessage {
         linkPreview,
         Object.hashAll(buttons),
         Object.hashAll(quickReplies),
+        feedback,
+        Object.hashAll(editHistory),
       ]);
 
   @override
@@ -288,6 +341,8 @@ final class SystemMessage extends ChatMessage {
     super.receipts,
     super.forwardedFrom,
     super.expiresAt,
+    super.deletedAt,
+    super.scheduledFor,
     super.metadata,
     required this.text,
   });
@@ -310,11 +365,15 @@ final class SystemMessage extends ChatMessage {
     List<ChatReadReceipt>? receipts,
     String? forwardedFrom,
     DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
     Map<String, Object?>? metadata,
     String? text,
     bool clearStatus = false,
     bool clearThread = false,
     bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
   }) {
     return SystemMessage(
       id: id ?? this.id,
@@ -327,6 +386,9 @@ final class SystemMessage extends ChatMessage {
       receipts: receipts ?? this.receipts,
       forwardedFrom: forwardedFrom ?? this.forwardedFrom,
       expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
+      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
+      scheduledFor:
+          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
       metadata: metadata ?? this.metadata,
       text: text ?? this.text,
     );
@@ -341,10 +403,14 @@ final class SystemMessage extends ChatMessage {
     List<ChatReadReceipt>? receipts,
     String? forwardedFrom,
     DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
     Map<String, Object?>? metadata,
     bool clearStatus = false,
     bool clearThread = false,
     bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
   }) {
     return copyWith(
       status: status,
@@ -354,10 +420,14 @@ final class SystemMessage extends ChatMessage {
       receipts: receipts,
       forwardedFrom: forwardedFrom,
       expiresAt: expiresAt,
+      deletedAt: deletedAt,
+      scheduledFor: scheduledFor,
       metadata: metadata,
       clearStatus: clearStatus,
       clearThread: clearThread,
       clearExpiresAt: clearExpiresAt,
+      clearDeletedAt: clearDeletedAt,
+      clearScheduledFor: clearScheduledFor,
     );
   }
 
@@ -399,6 +469,8 @@ final class CustomMessage extends ChatMessage {
     super.receipts,
     super.forwardedFrom,
     super.expiresAt,
+    super.deletedAt,
+    super.scheduledFor,
     super.metadata,
     required this.type,
     this.payload,
@@ -422,12 +494,16 @@ final class CustomMessage extends ChatMessage {
     List<ChatReadReceipt>? receipts,
     String? forwardedFrom,
     DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
     Map<String, Object?>? metadata,
     String? type,
     Object? payload,
     bool clearStatus = false,
     bool clearThread = false,
     bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
   }) {
     return CustomMessage(
       id: id ?? this.id,
@@ -440,6 +516,9 @@ final class CustomMessage extends ChatMessage {
       receipts: receipts ?? this.receipts,
       forwardedFrom: forwardedFrom ?? this.forwardedFrom,
       expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
+      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
+      scheduledFor:
+          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
       metadata: metadata ?? this.metadata,
       type: type ?? this.type,
       payload: payload ?? this.payload,
@@ -455,10 +534,14 @@ final class CustomMessage extends ChatMessage {
     List<ChatReadReceipt>? receipts,
     String? forwardedFrom,
     DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
     Map<String, Object?>? metadata,
     bool clearStatus = false,
     bool clearThread = false,
     bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
   }) {
     return copyWith(
       status: status,
@@ -468,10 +551,14 @@ final class CustomMessage extends ChatMessage {
       receipts: receipts,
       forwardedFrom: forwardedFrom,
       expiresAt: expiresAt,
+      deletedAt: deletedAt,
+      scheduledFor: scheduledFor,
       metadata: metadata,
       clearStatus: clearStatus,
       clearThread: clearThread,
       clearExpiresAt: clearExpiresAt,
+      clearDeletedAt: clearDeletedAt,
+      clearScheduledFor: clearScheduledFor,
     );
   }
 
@@ -512,6 +599,8 @@ final class ImageMessage extends ChatMessage {
     super.receipts,
     super.forwardedFrom,
     super.expiresAt,
+    super.deletedAt,
+    super.scheduledFor,
     super.metadata,
     required this.images,
     this.caption,
@@ -543,6 +632,8 @@ final class ImageMessage extends ChatMessage {
     List<ChatReadReceipt>? receipts,
     String? forwardedFrom,
     DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
     Map<String, Object?>? metadata,
     List<ChatImage>? images,
     String? caption,
@@ -551,6 +642,8 @@ final class ImageMessage extends ChatMessage {
     bool clearStatus = false,
     bool clearThread = false,
     bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
     bool clearUploadProgress = false,
   }) {
     return ImageMessage(
@@ -564,6 +657,9 @@ final class ImageMessage extends ChatMessage {
       receipts: receipts ?? this.receipts,
       forwardedFrom: forwardedFrom ?? this.forwardedFrom,
       expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
+      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
+      scheduledFor:
+          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
       metadata: metadata ?? this.metadata,
       images: images ?? this.images,
       caption: caption ?? this.caption,
@@ -582,10 +678,14 @@ final class ImageMessage extends ChatMessage {
     List<ChatReadReceipt>? receipts,
     String? forwardedFrom,
     DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
     Map<String, Object?>? metadata,
     bool clearStatus = false,
     bool clearThread = false,
     bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
   }) {
     return copyWith(
       status: status,
@@ -595,10 +695,14 @@ final class ImageMessage extends ChatMessage {
       receipts: receipts,
       forwardedFrom: forwardedFrom,
       expiresAt: expiresAt,
+      deletedAt: deletedAt,
+      scheduledFor: scheduledFor,
       metadata: metadata,
       clearStatus: clearStatus,
       clearThread: clearThread,
       clearExpiresAt: clearExpiresAt,
+      clearDeletedAt: clearDeletedAt,
+      clearScheduledFor: clearScheduledFor,
     );
   }
 
@@ -642,6 +746,8 @@ final class FileMessage extends ChatMessage {
     super.receipts,
     super.forwardedFrom,
     super.expiresAt,
+    super.deletedAt,
+    super.scheduledFor,
     super.metadata,
     required this.name,
     this.uri,
@@ -685,6 +791,8 @@ final class FileMessage extends ChatMessage {
     List<ChatReadReceipt>? receipts,
     String? forwardedFrom,
     DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
     Map<String, Object?>? metadata,
     String? name,
     String? uri,
@@ -694,6 +802,8 @@ final class FileMessage extends ChatMessage {
     bool clearStatus = false,
     bool clearThread = false,
     bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
     bool clearUploadProgress = false,
   }) {
     return FileMessage(
@@ -707,6 +817,9 @@ final class FileMessage extends ChatMessage {
       receipts: receipts ?? this.receipts,
       forwardedFrom: forwardedFrom ?? this.forwardedFrom,
       expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
+      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
+      scheduledFor:
+          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
       metadata: metadata ?? this.metadata,
       name: name ?? this.name,
       uri: uri ?? this.uri,
@@ -726,10 +839,14 @@ final class FileMessage extends ChatMessage {
     List<ChatReadReceipt>? receipts,
     String? forwardedFrom,
     DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
     Map<String, Object?>? metadata,
     bool clearStatus = false,
     bool clearThread = false,
     bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
   }) {
     return copyWith(
       status: status,
@@ -739,10 +856,14 @@ final class FileMessage extends ChatMessage {
       receipts: receipts,
       forwardedFrom: forwardedFrom,
       expiresAt: expiresAt,
+      deletedAt: deletedAt,
+      scheduledFor: scheduledFor,
       metadata: metadata,
       clearStatus: clearStatus,
       clearThread: clearThread,
       clearExpiresAt: clearExpiresAt,
+      clearDeletedAt: clearDeletedAt,
+      clearScheduledFor: clearScheduledFor,
     );
   }
 
@@ -788,6 +909,8 @@ final class VoiceMessage extends ChatMessage {
     super.receipts,
     super.forwardedFrom,
     super.expiresAt,
+    super.deletedAt,
+    super.scheduledFor,
     super.metadata,
     required this.uri,
     required this.duration,
@@ -816,6 +939,8 @@ final class VoiceMessage extends ChatMessage {
     List<ChatReadReceipt>? receipts,
     String? forwardedFrom,
     DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
     Map<String, Object?>? metadata,
     String? uri,
     Duration? duration,
@@ -823,6 +948,8 @@ final class VoiceMessage extends ChatMessage {
     bool clearStatus = false,
     bool clearThread = false,
     bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
   }) {
     return VoiceMessage(
       id: id ?? this.id,
@@ -835,6 +962,9 @@ final class VoiceMessage extends ChatMessage {
       receipts: receipts ?? this.receipts,
       forwardedFrom: forwardedFrom ?? this.forwardedFrom,
       expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
+      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
+      scheduledFor:
+          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
       metadata: metadata ?? this.metadata,
       uri: uri ?? this.uri,
       duration: duration ?? this.duration,
@@ -851,10 +981,14 @@ final class VoiceMessage extends ChatMessage {
     List<ChatReadReceipt>? receipts,
     String? forwardedFrom,
     DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
     Map<String, Object?>? metadata,
     bool clearStatus = false,
     bool clearThread = false,
     bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
   }) {
     return copyWith(
       status: status,
@@ -864,10 +998,14 @@ final class VoiceMessage extends ChatMessage {
       receipts: receipts,
       forwardedFrom: forwardedFrom,
       expiresAt: expiresAt,
+      deletedAt: deletedAt,
+      scheduledFor: scheduledFor,
       metadata: metadata,
       clearStatus: clearStatus,
       clearThread: clearThread,
       clearExpiresAt: clearExpiresAt,
+      clearDeletedAt: clearDeletedAt,
+      clearScheduledFor: clearScheduledFor,
     );
   }
 
@@ -911,6 +1049,8 @@ final class PollMessage extends ChatMessage {
     super.receipts,
     super.forwardedFrom,
     super.expiresAt,
+    super.deletedAt,
+    super.scheduledFor,
     super.metadata,
     required this.question,
     required this.options,
@@ -949,6 +1089,8 @@ final class PollMessage extends ChatMessage {
     List<ChatReadReceipt>? receipts,
     String? forwardedFrom,
     DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
     Map<String, Object?>? metadata,
     String? question,
     List<PollOption>? options,
@@ -957,6 +1099,8 @@ final class PollMessage extends ChatMessage {
     bool clearStatus = false,
     bool clearThread = false,
     bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
   }) {
     return PollMessage(
       id: id ?? this.id,
@@ -969,6 +1113,9 @@ final class PollMessage extends ChatMessage {
       receipts: receipts ?? this.receipts,
       forwardedFrom: forwardedFrom ?? this.forwardedFrom,
       expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
+      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
+      scheduledFor:
+          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
       metadata: metadata ?? this.metadata,
       question: question ?? this.question,
       options: options ?? this.options,
@@ -987,10 +1134,14 @@ final class PollMessage extends ChatMessage {
     List<ChatReadReceipt>? receipts,
     String? forwardedFrom,
     DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
     Map<String, Object?>? metadata,
     bool clearStatus = false,
     bool clearThread = false,
     bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
   }) {
     return copyWith(
       status: status,
@@ -1000,10 +1151,14 @@ final class PollMessage extends ChatMessage {
       receipts: receipts,
       forwardedFrom: forwardedFrom,
       expiresAt: expiresAt,
+      deletedAt: deletedAt,
+      scheduledFor: scheduledFor,
       metadata: metadata,
       clearStatus: clearStatus,
       clearThread: clearThread,
       clearExpiresAt: clearExpiresAt,
+      clearDeletedAt: clearDeletedAt,
+      clearScheduledFor: clearScheduledFor,
     );
   }
 
@@ -1047,6 +1202,8 @@ final class CountdownMessage extends ChatMessage {
     super.receipts,
     super.forwardedFrom,
     super.expiresAt,
+    super.deletedAt,
+    super.scheduledFor,
     super.metadata,
     required this.title,
     required this.endsAt,
@@ -1078,6 +1235,8 @@ final class CountdownMessage extends ChatMessage {
     List<ChatReadReceipt>? receipts,
     String? forwardedFrom,
     DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
     Map<String, Object?>? metadata,
     String? title,
     DateTime? endsAt,
@@ -1086,6 +1245,8 @@ final class CountdownMessage extends ChatMessage {
     bool clearStatus = false,
     bool clearThread = false,
     bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
   }) {
     return CountdownMessage(
       id: id ?? this.id,
@@ -1098,6 +1259,9 @@ final class CountdownMessage extends ChatMessage {
       receipts: receipts ?? this.receipts,
       forwardedFrom: forwardedFrom ?? this.forwardedFrom,
       expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
+      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
+      scheduledFor:
+          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
       metadata: metadata ?? this.metadata,
       title: title ?? this.title,
       endsAt: endsAt ?? this.endsAt,
@@ -1115,10 +1279,14 @@ final class CountdownMessage extends ChatMessage {
     List<ChatReadReceipt>? receipts,
     String? forwardedFrom,
     DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
     Map<String, Object?>? metadata,
     bool clearStatus = false,
     bool clearThread = false,
     bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
   }) {
     return copyWith(
       status: status,
@@ -1128,10 +1296,14 @@ final class CountdownMessage extends ChatMessage {
       receipts: receipts,
       forwardedFrom: forwardedFrom,
       expiresAt: expiresAt,
+      deletedAt: deletedAt,
+      scheduledFor: scheduledFor,
       metadata: metadata,
       clearStatus: clearStatus,
       clearThread: clearThread,
       clearExpiresAt: clearExpiresAt,
+      clearDeletedAt: clearDeletedAt,
+      clearScheduledFor: clearScheduledFor,
     );
   }
 
@@ -1177,6 +1349,8 @@ final class SurveyMessage extends ChatMessage {
     super.receipts,
     super.forwardedFrom,
     super.expiresAt,
+    super.deletedAt,
+    super.scheduledFor,
     super.metadata,
     required this.title,
     required this.questions,
@@ -1216,6 +1390,8 @@ final class SurveyMessage extends ChatMessage {
     List<ChatReadReceipt>? receipts,
     String? forwardedFrom,
     DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
     Map<String, Object?>? metadata,
     String? title,
     List<SurveyQuestion>? questions,
@@ -1225,6 +1401,8 @@ final class SurveyMessage extends ChatMessage {
     bool clearStatus = false,
     bool clearThread = false,
     bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
   }) {
     return SurveyMessage(
       id: id ?? this.id,
@@ -1237,6 +1415,9 @@ final class SurveyMessage extends ChatMessage {
       receipts: receipts ?? this.receipts,
       forwardedFrom: forwardedFrom ?? this.forwardedFrom,
       expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
+      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
+      scheduledFor:
+          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
       metadata: metadata ?? this.metadata,
       title: title ?? this.title,
       questions: questions ?? this.questions,
@@ -1255,10 +1436,14 @@ final class SurveyMessage extends ChatMessage {
     List<ChatReadReceipt>? receipts,
     String? forwardedFrom,
     DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
     Map<String, Object?>? metadata,
     bool clearStatus = false,
     bool clearThread = false,
     bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
   }) {
     return copyWith(
       status: status,
@@ -1268,10 +1453,14 @@ final class SurveyMessage extends ChatMessage {
       receipts: receipts,
       forwardedFrom: forwardedFrom,
       expiresAt: expiresAt,
+      deletedAt: deletedAt,
+      scheduledFor: scheduledFor,
       metadata: metadata,
       clearStatus: clearStatus,
       clearThread: clearThread,
       clearExpiresAt: clearExpiresAt,
+      clearDeletedAt: clearDeletedAt,
+      clearScheduledFor: clearScheduledFor,
     );
   }
 
@@ -1298,4 +1487,612 @@ final class SurveyMessage extends ChatMessage {
 
   @override
   String toString() => 'SurveyMessage(id: $id, author: ${author.id})';
+}
+
+/// A place on a map, or the live location of the author.
+///
+/// chatx does not draw real maps. Provide an image with [mapImageUri] (for
+/// example from a static maps API) or a widget with
+/// `ChatView.locationMapBuilder`; otherwise a stylized placeholder is shown.
+final class LocationMessage extends ChatMessage {
+  /// Creates a location message.
+  const LocationMessage({
+    required super.id,
+    required super.author,
+    required super.createdAt,
+    super.status,
+    super.replyToId,
+    super.reactions,
+    super.thread,
+    super.receipts,
+    super.forwardedFrom,
+    super.expiresAt,
+    super.deletedAt,
+    super.scheduledFor,
+    super.metadata,
+    required this.latitude,
+    required this.longitude,
+    this.title,
+    this.address,
+    this.mapImageUri,
+    this.liveUntil,
+  });
+
+  /// Latitude in degrees.
+  final double latitude;
+
+  /// Longitude in degrees.
+  final double longitude;
+
+  /// Name of the place, for example "Café Central".
+  final String? title;
+
+  /// Street address shown under the title.
+  final String? address;
+
+  /// Static map image, loaded like `ChatImage.uri`.
+  final String? mapImageUri;
+
+  /// When set, the author shares a live location until this time.
+  final DateTime? liveUntil;
+
+  /// Returns a copy of this message with the given fields replaced.
+  LocationMessage copyWith({
+    String? id,
+    ChatUser? author,
+    DateTime? createdAt,
+    MessageStatus? status,
+    String? replyToId,
+    List<ChatReaction>? reactions,
+    ChatThreadSummary? thread,
+    List<ChatReadReceipt>? receipts,
+    String? forwardedFrom,
+    DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
+    Map<String, Object?>? metadata,
+    double? latitude,
+    double? longitude,
+    String? title,
+    String? address,
+    String? mapImageUri,
+    DateTime? liveUntil,
+    bool clearStatus = false,
+    bool clearThread = false,
+    bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
+    bool clearLiveUntil = false,
+  }) {
+    return LocationMessage(
+      id: id ?? this.id,
+      author: author ?? this.author,
+      createdAt: createdAt ?? this.createdAt,
+      status: clearStatus ? null : status ?? this.status,
+      replyToId: replyToId ?? this.replyToId,
+      reactions: reactions ?? this.reactions,
+      thread: clearThread ? null : thread ?? this.thread,
+      receipts: receipts ?? this.receipts,
+      forwardedFrom: forwardedFrom ?? this.forwardedFrom,
+      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
+      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
+      scheduledFor:
+          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
+      metadata: metadata ?? this.metadata,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      title: title ?? this.title,
+      address: address ?? this.address,
+      mapImageUri: mapImageUri ?? this.mapImageUri,
+      liveUntil: clearLiveUntil ? null : liveUntil ?? this.liveUntil,
+    );
+  }
+
+  @override
+  LocationMessage copyWithMeta({
+    MessageStatus? status,
+    String? replyToId,
+    List<ChatReaction>? reactions,
+    ChatThreadSummary? thread,
+    List<ChatReadReceipt>? receipts,
+    String? forwardedFrom,
+    DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
+    Map<String, Object?>? metadata,
+    bool clearStatus = false,
+    bool clearThread = false,
+    bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
+  }) {
+    return copyWith(
+      status: status,
+      replyToId: replyToId,
+      reactions: reactions,
+      thread: thread,
+      receipts: receipts,
+      forwardedFrom: forwardedFrom,
+      expiresAt: expiresAt,
+      deletedAt: deletedAt,
+      scheduledFor: scheduledFor,
+      metadata: metadata,
+      clearStatus: clearStatus,
+      clearThread: clearThread,
+      clearExpiresAt: clearExpiresAt,
+      clearDeletedAt: clearDeletedAt,
+      clearScheduledFor: clearScheduledFor,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LocationMessage &&
+          _baseEquals(other) &&
+          other.latitude == latitude &&
+          other.longitude == longitude &&
+          other.title == title &&
+          other.address == address &&
+          other.mapImageUri == mapImageUri &&
+          other.liveUntil == liveUntil;
+
+  @override
+  int get hashCode => Object.hashAll([
+        _baseHash,
+        latitude,
+        longitude,
+        title,
+        address,
+        mapImageUri,
+        liveUntil,
+      ]);
+
+  @override
+  String toString() => 'LocationMessage(id: $id, author: ${author.id})';
+}
+
+/// An event invitation with RSVP: going, maybe or not going.
+///
+/// Answers go to `ChatView.onRsvp`; record them with
+/// `ChatController.setRsvp`.
+final class EventMessage extends ChatMessage {
+  /// Creates an event invitation.
+  const EventMessage({
+    required super.id,
+    required super.author,
+    required super.createdAt,
+    super.status,
+    super.replyToId,
+    super.reactions,
+    super.thread,
+    super.receipts,
+    super.forwardedFrom,
+    super.expiresAt,
+    super.deletedAt,
+    super.scheduledFor,
+    super.metadata,
+    required this.title,
+    required this.startsAt,
+    this.endsAt,
+    this.location,
+    this.description,
+    this.rsvps = const {},
+  });
+
+  /// Name of the event.
+  final String title;
+
+  /// When the event starts.
+  final DateTime startsAt;
+
+  /// When the event ends.
+  final DateTime? endsAt;
+
+  /// Where it happens.
+  final String? location;
+
+  /// Details. Supports markdown.
+  final String? description;
+
+  /// Answers by user ID.
+  final Map<String, ChatRsvp> rsvps;
+
+  /// IDs of users who answered [rsvp].
+  List<String> usersWith(ChatRsvp rsvp) => [
+        for (final entry in rsvps.entries)
+          if (entry.value == rsvp) entry.key,
+      ];
+
+  /// Returns a copy of this message with the given fields replaced.
+  EventMessage copyWith({
+    String? id,
+    ChatUser? author,
+    DateTime? createdAt,
+    MessageStatus? status,
+    String? replyToId,
+    List<ChatReaction>? reactions,
+    ChatThreadSummary? thread,
+    List<ChatReadReceipt>? receipts,
+    String? forwardedFrom,
+    DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
+    Map<String, Object?>? metadata,
+    String? title,
+    DateTime? startsAt,
+    DateTime? endsAt,
+    String? location,
+    String? description,
+    Map<String, ChatRsvp>? rsvps,
+    bool clearStatus = false,
+    bool clearThread = false,
+    bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
+  }) {
+    return EventMessage(
+      id: id ?? this.id,
+      author: author ?? this.author,
+      createdAt: createdAt ?? this.createdAt,
+      status: clearStatus ? null : status ?? this.status,
+      replyToId: replyToId ?? this.replyToId,
+      reactions: reactions ?? this.reactions,
+      thread: clearThread ? null : thread ?? this.thread,
+      receipts: receipts ?? this.receipts,
+      forwardedFrom: forwardedFrom ?? this.forwardedFrom,
+      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
+      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
+      scheduledFor:
+          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
+      metadata: metadata ?? this.metadata,
+      title: title ?? this.title,
+      startsAt: startsAt ?? this.startsAt,
+      endsAt: endsAt ?? this.endsAt,
+      location: location ?? this.location,
+      description: description ?? this.description,
+      rsvps: rsvps ?? this.rsvps,
+    );
+  }
+
+  @override
+  EventMessage copyWithMeta({
+    MessageStatus? status,
+    String? replyToId,
+    List<ChatReaction>? reactions,
+    ChatThreadSummary? thread,
+    List<ChatReadReceipt>? receipts,
+    String? forwardedFrom,
+    DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
+    Map<String, Object?>? metadata,
+    bool clearStatus = false,
+    bool clearThread = false,
+    bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
+  }) {
+    return copyWith(
+      status: status,
+      replyToId: replyToId,
+      reactions: reactions,
+      thread: thread,
+      receipts: receipts,
+      forwardedFrom: forwardedFrom,
+      expiresAt: expiresAt,
+      deletedAt: deletedAt,
+      scheduledFor: scheduledFor,
+      metadata: metadata,
+      clearStatus: clearStatus,
+      clearThread: clearThread,
+      clearExpiresAt: clearExpiresAt,
+      clearDeletedAt: clearDeletedAt,
+      clearScheduledFor: clearScheduledFor,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EventMessage &&
+          _baseEquals(other) &&
+          other.title == title &&
+          other.startsAt == startsAt &&
+          other.endsAt == endsAt &&
+          other.location == location &&
+          other.description == description &&
+          mapEquals(other.rsvps, rsvps);
+
+  @override
+  int get hashCode => Object.hashAll([
+        _baseHash,
+        title,
+        startsAt,
+        endsAt,
+        location,
+        description,
+        Object.hashAllUnordered(
+            rsvps.entries.map((e) => Object.hash(e.key, e.value))),
+      ]);
+
+  @override
+  String toString() => 'EventMessage(id: $id, author: ${author.id})';
+}
+
+/// A shared contact card.
+final class ContactMessage extends ChatMessage {
+  /// Creates a contact card.
+  const ContactMessage({
+    required super.id,
+    required super.author,
+    required super.createdAt,
+    super.status,
+    super.replyToId,
+    super.reactions,
+    super.thread,
+    super.receipts,
+    super.forwardedFrom,
+    super.expiresAt,
+    super.deletedAt,
+    super.scheduledFor,
+    super.metadata,
+    required this.name,
+    this.phone,
+    this.email,
+    this.organization,
+    this.avatarUrl,
+  });
+
+  /// Full name of the contact.
+  final String name;
+
+  /// Phone number.
+  final String? phone;
+
+  /// Email address.
+  final String? email;
+
+  /// Company or organization.
+  final String? organization;
+
+  /// Photo of the contact.
+  final String? avatarUrl;
+
+  /// Returns a copy of this message with the given fields replaced.
+  ContactMessage copyWith({
+    String? id,
+    ChatUser? author,
+    DateTime? createdAt,
+    MessageStatus? status,
+    String? replyToId,
+    List<ChatReaction>? reactions,
+    ChatThreadSummary? thread,
+    List<ChatReadReceipt>? receipts,
+    String? forwardedFrom,
+    DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
+    Map<String, Object?>? metadata,
+    String? name,
+    String? phone,
+    String? email,
+    String? organization,
+    String? avatarUrl,
+    bool clearStatus = false,
+    bool clearThread = false,
+    bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
+  }) {
+    return ContactMessage(
+      id: id ?? this.id,
+      author: author ?? this.author,
+      createdAt: createdAt ?? this.createdAt,
+      status: clearStatus ? null : status ?? this.status,
+      replyToId: replyToId ?? this.replyToId,
+      reactions: reactions ?? this.reactions,
+      thread: clearThread ? null : thread ?? this.thread,
+      receipts: receipts ?? this.receipts,
+      forwardedFrom: forwardedFrom ?? this.forwardedFrom,
+      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
+      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
+      scheduledFor:
+          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
+      metadata: metadata ?? this.metadata,
+      name: name ?? this.name,
+      phone: phone ?? this.phone,
+      email: email ?? this.email,
+      organization: organization ?? this.organization,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+    );
+  }
+
+  @override
+  ContactMessage copyWithMeta({
+    MessageStatus? status,
+    String? replyToId,
+    List<ChatReaction>? reactions,
+    ChatThreadSummary? thread,
+    List<ChatReadReceipt>? receipts,
+    String? forwardedFrom,
+    DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
+    Map<String, Object?>? metadata,
+    bool clearStatus = false,
+    bool clearThread = false,
+    bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
+  }) {
+    return copyWith(
+      status: status,
+      replyToId: replyToId,
+      reactions: reactions,
+      thread: thread,
+      receipts: receipts,
+      forwardedFrom: forwardedFrom,
+      expiresAt: expiresAt,
+      deletedAt: deletedAt,
+      scheduledFor: scheduledFor,
+      metadata: metadata,
+      clearStatus: clearStatus,
+      clearThread: clearThread,
+      clearExpiresAt: clearExpiresAt,
+      clearDeletedAt: clearDeletedAt,
+      clearScheduledFor: clearScheduledFor,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ContactMessage &&
+          _baseEquals(other) &&
+          other.name == name &&
+          other.phone == phone &&
+          other.email == email &&
+          other.organization == organization &&
+          other.avatarUrl == avatarUrl;
+
+  @override
+  int get hashCode => Object.hashAll([
+        _baseHash,
+        name,
+        phone,
+        email,
+        organization,
+        avatarUrl,
+      ]);
+
+  @override
+  String toString() => 'ContactMessage(id: $id, author: ${author.id})';
+}
+
+/// A sticker or GIF, shown large and without a bubble.
+final class StickerMessage extends ChatMessage {
+  /// Creates a sticker message.
+  const StickerMessage({
+    required super.id,
+    required super.author,
+    required super.createdAt,
+    super.status,
+    super.replyToId,
+    super.reactions,
+    super.thread,
+    super.receipts,
+    super.forwardedFrom,
+    super.expiresAt,
+    super.deletedAt,
+    super.scheduledFor,
+    super.metadata,
+    required this.uri,
+    this.label,
+  });
+
+  /// Image of the sticker, loaded like `ChatImage.uri`. Animated GIF and WebP
+  /// files play automatically.
+  final String uri;
+
+  /// Description read by screen readers, for example "Cat waving".
+  final String? label;
+
+  /// Returns a copy of this message with the given fields replaced.
+  StickerMessage copyWith({
+    String? id,
+    ChatUser? author,
+    DateTime? createdAt,
+    MessageStatus? status,
+    String? replyToId,
+    List<ChatReaction>? reactions,
+    ChatThreadSummary? thread,
+    List<ChatReadReceipt>? receipts,
+    String? forwardedFrom,
+    DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
+    Map<String, Object?>? metadata,
+    String? uri,
+    String? label,
+    bool clearStatus = false,
+    bool clearThread = false,
+    bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
+  }) {
+    return StickerMessage(
+      id: id ?? this.id,
+      author: author ?? this.author,
+      createdAt: createdAt ?? this.createdAt,
+      status: clearStatus ? null : status ?? this.status,
+      replyToId: replyToId ?? this.replyToId,
+      reactions: reactions ?? this.reactions,
+      thread: clearThread ? null : thread ?? this.thread,
+      receipts: receipts ?? this.receipts,
+      forwardedFrom: forwardedFrom ?? this.forwardedFrom,
+      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
+      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
+      scheduledFor:
+          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
+      metadata: metadata ?? this.metadata,
+      uri: uri ?? this.uri,
+      label: label ?? this.label,
+    );
+  }
+
+  @override
+  StickerMessage copyWithMeta({
+    MessageStatus? status,
+    String? replyToId,
+    List<ChatReaction>? reactions,
+    ChatThreadSummary? thread,
+    List<ChatReadReceipt>? receipts,
+    String? forwardedFrom,
+    DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
+    Map<String, Object?>? metadata,
+    bool clearStatus = false,
+    bool clearThread = false,
+    bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
+  }) {
+    return copyWith(
+      status: status,
+      replyToId: replyToId,
+      reactions: reactions,
+      thread: thread,
+      receipts: receipts,
+      forwardedFrom: forwardedFrom,
+      expiresAt: expiresAt,
+      deletedAt: deletedAt,
+      scheduledFor: scheduledFor,
+      metadata: metadata,
+      clearStatus: clearStatus,
+      clearThread: clearThread,
+      clearExpiresAt: clearExpiresAt,
+      clearDeletedAt: clearDeletedAt,
+      clearScheduledFor: clearScheduledFor,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is StickerMessage &&
+          _baseEquals(other) &&
+          other.uri == uri &&
+          other.label == label;
+
+  @override
+  int get hashCode => Object.hashAll([
+        _baseHash,
+        uri,
+        label,
+      ]);
+
+  @override
+  String toString() => 'StickerMessage(id: $id, author: ${author.id})';
 }

@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 
 import '../l10n/chat_localizations.dart';
 import '../material.dart';
+import '../models/chat_message.dart';
 import '../theme/chat_theme.dart';
 import 'emoji_data.dart';
 
@@ -21,6 +22,9 @@ class ChatEmojiPicker extends StatefulWidget {
     required this.onSelected,
     this.height = 300,
     this.showSearch = true,
+    this.stickerPacks = const [],
+    this.onStickerSelected,
+    this.imageProviderBuilder,
   });
 
   /// Called with the chosen emoji.
@@ -31,6 +35,16 @@ class ChatEmojiPicker extends StatefulWidget {
 
   /// Whether to show the search field.
   final bool showSearch;
+
+  /// Sticker packs shown as extra tabs after the emoji.
+  final List<ChatStickerPack> stickerPacks;
+
+  /// Called when the user picks a sticker. Sticker tabs are hidden when
+  /// `null`.
+  final ValueChanged<ChatSticker>? onStickerSelected;
+
+  /// Loads sticker images. Defaults to [NetworkImage].
+  final ImageProvider Function(String uri)? imageProviderBuilder;
 
   /// Recently used emoji, most recent first, shared by every picker while
   /// the app runs. Persist and restore it yourself if you want it to
@@ -58,12 +72,71 @@ class _ChatEmojiPickerState extends State<ChatEmojiPicker>
     Icons.flag_outlined,
   ];
 
-  late final TabController _tabs = TabController(
-    length: emojiCategoryIds.length + 1,
-    vsync: this,
-    // Open on "recent" only when there is something in it.
-    initialIndex: ChatEmojiPicker.recent.isEmpty ? 1 : 0,
-  );
+  late TabController _tabs = _createTabs();
+
+  List<ChatStickerPack> get _packs => widget.onStickerSelected == null
+      ? const []
+      : widget.stickerPacks.where((p) => p.stickers.isNotEmpty).toList();
+
+  TabController _createTabs() => TabController(
+        length: emojiCategoryIds.length + 1 + _packs.length,
+        vsync: this,
+        // Open on "recent" only when there is something in it.
+        initialIndex: ChatEmojiPicker.recent.isEmpty ? 1 : 0,
+      );
+
+  @override
+  void didUpdateWidget(ChatEmojiPicker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_tabs.length != emojiCategoryIds.length + 1 + _packs.length) {
+      _tabs.dispose();
+      _tabs = _createTabs();
+    }
+  }
+
+  ImageProvider _image(String uri) =>
+      widget.imageProviderBuilder?.call(uri) ?? NetworkImage(uri);
+
+  Widget _stickerGrid(ChatStickerPack pack) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(8),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 88,
+        mainAxisSpacing: 4,
+        crossAxisSpacing: 4,
+      ),
+      itemCount: pack.stickers.length,
+      itemBuilder: (context, i) {
+        final sticker = pack.stickers[i];
+        final pixels = (88 * MediaQuery.devicePixelRatioOf(context)).round();
+        return Semantics(
+          button: true,
+          label: sticker.label ?? pack.name,
+          excludeSemantics: true,
+          child: InkWell(
+            key: Key('chatx_sticker_${sticker.id}'),
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              HapticFeedback.selectionClick();
+              widget.onStickerSelected?.call(sticker);
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Image(
+                image: ResizeImage.resizeIfNeeded(
+                  pixels,
+                  null,
+                  _image(sticker.uri),
+                ),
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   final TextEditingController _search = TextEditingController();
   String _query = '';
 
@@ -177,6 +250,19 @@ class _ChatEmojiPickerState extends State<ChatEmojiPicker>
                         child: Icon(_icons[i], size: 20),
                       ),
                     ),
+                  for (final pack in _packs)
+                    Tab(
+                      key: Key('chatx_sticker_pack_${pack.id}'),
+                      height: 40,
+                      child: Tooltip(
+                        message: pack.name,
+                        child: Image(
+                          image: _image(pack.stickers.first.uri),
+                          width: 24,
+                          height: 24,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             Expanded(
@@ -191,6 +277,7 @@ class _ChatEmojiPickerState extends State<ChatEmojiPicker>
                         ]),
                         for (final id in emojiCategoryIds)
                           grid(emojiCatalog[id]!),
+                        for (final pack in _packs) _stickerGrid(pack),
                       ],
                     ),
             ),

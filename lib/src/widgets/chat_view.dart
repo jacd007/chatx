@@ -31,7 +31,9 @@ import 'chat_input.dart';
 import 'message_status_icon.dart';
 import 'typing_indicator.dart';
 
+part 'chat_view/ai_and_moderation.dart';
 part 'chat_view/composer_banner.dart';
+part 'chat_view/content_cards.dart';
 part 'chat_view/conversation_chrome.dart';
 part 'chat_view/conversation_extras.dart';
 part 'chat_view/decorations.dart';
@@ -139,6 +141,26 @@ class ChatView extends StatefulWidget {
     this.onForwardMessages,
     this.showReadReceipts = true,
     this.enableEmojiPicker = true,
+    this.onRegenerate,
+    this.onFeedback,
+    this.onStopGenerating,
+    this.onTranslate,
+    this.locationMapBuilder,
+    this.onLocationTap,
+    this.onRsvp,
+    this.onContactAction,
+    this.stickerPacks = const [],
+    this.onSendSticker,
+    this.onDeleteForEveryone,
+    this.onScheduleMessage,
+    this.onSendScheduledNow,
+    this.readOnly = false,
+    this.readOnlyMessage,
+    this.slowMode,
+    this.onReportMessage,
+    this.onBlockUser,
+    this.onSaveMessage,
+    this.wordFilter,
   });
 
   /// Reactions offered in the message menu by default.
@@ -400,6 +422,78 @@ class ChatView extends StatefulWidget {
   /// emoji picker.
   final bool enableEmojiPicker;
 
+  /// Called when the user asks for a new answer to the newest message of a
+  /// bot ([ChatUser.isBot]). Shows a regenerate button under it.
+  final ValueChanged<TextMessage>? onRegenerate;
+
+  /// Called when the user rates an answer of a bot. Shows thumbs up and down
+  /// under bot answers.
+  final ChatFeedbackCallback? onFeedback;
+
+  /// Called when the user taps stop while the newest incoming message is
+  /// streaming. The send button turns into a stop button meanwhile.
+  final ValueChanged<TextMessage>? onStopGenerating;
+
+  /// Translates a message. When set, the menu offers "Translate" and the
+  /// bubble can switch between the translation and the original.
+  final Future<String> Function(TextMessage message)? onTranslate;
+
+  /// Draws the map of a [LocationMessage], for example with your maps SDK.
+  final Widget Function(BuildContext context, LocationMessage message)?
+      locationMapBuilder;
+
+  /// Called when a location card is tapped, for example to open a maps app.
+  final ValueChanged<LocationMessage>? onLocationTap;
+
+  /// Called when the user answers an [EventMessage].
+  final ChatRsvpCallback? onRsvp;
+
+  /// Called when the user taps a button of a [ContactMessage].
+  final void Function(ContactMessage message, ChatContactAction action)?
+      onContactAction;
+
+  /// Sticker packs shown as tabs in the emoji picker. Requires
+  /// [onSendSticker].
+  final List<ChatStickerPack> stickerPacks;
+
+  /// Called when the user picks a sticker. Insert a [StickerMessage].
+  final ValueChanged<ChatSticker>? onSendSticker;
+
+  /// Called when the user deletes their message for everyone. Offered in
+  /// the menu when set; usually calls [ChatController.markDeleted].
+  final ValueChanged<ChatMessage>? onDeleteForEveryone;
+
+  /// Called when the user schedules a message by long-pressing send.
+  final ChatScheduleCallback? onScheduleMessage;
+
+  /// Called when the user chooses "Send now" on a scheduled message.
+  final ValueChanged<ChatMessage>? onSendScheduledNow;
+
+  /// Replaces the input with a banner, for channels where only some people
+  /// can write.
+  final bool readOnly;
+
+  /// Text of the read-only banner. Defaults to the localized "Only admins
+  /// can send messages".
+  final String? readOnlyMessage;
+
+  /// Minimum time between two messages of the current user. The input is
+  /// disabled with a countdown in between.
+  final Duration? slowMode;
+
+  /// Called when the user reports a message of someone else.
+  final ValueChanged<ChatMessage>? onReportMessage;
+
+  /// Called when the user blocks the author of a message.
+  final ValueChanged<ChatUser>? onBlockUser;
+
+  /// Called when the user saves or unsaves a message. Usually calls
+  /// [ChatController.toggleSaved].
+  final void Function(ChatMessage message, bool saved)? onSaveMessage;
+
+  /// Masks offensive words in messages.
+  final ChatWordFilter? wordFilter;
+
   @override
   State<ChatView> createState() => _ChatViewState();
 }
@@ -450,6 +544,10 @@ class _ChatViewState extends State<ChatView> {
   Timer? _floatingDateTimer;
   final GlobalKey _listKey = GlobalKey();
   final ValueNotifier<_MentionQuery?> _mentionQuery = ValueNotifier(null);
+  final ValueNotifier<Map<String, _Translation>> _translations =
+      ValueNotifier(const {});
+  Duration? _slowRemaining;
+  Timer? _slowTimer;
 
   ScrollController get _scrollController =>
       widget.scrollController ?? (_ownScrollController ??= ScrollController());
@@ -513,6 +611,8 @@ class _ChatViewState extends State<ChatView> {
     _floatingDate.dispose();
     _floatingDateTimer?.cancel();
     _mentionQuery.dispose();
+    _translations.dispose();
+    _slowTimer?.cancel();
     super.dispose();
   }
 
@@ -933,7 +1033,31 @@ class _ChatViewState extends State<ChatView> {
     final replyTo = controller.replyingTo.value;
     widget.onSendMessage(text, replyTo);
     controller.cancelReply();
+    _startSlowMode();
     _scrollToBottom();
+  }
+
+  void _startSlowMode() {
+    final slowMode = widget.slowMode;
+    if (slowMode == null || slowMode <= Duration.zero) return;
+    _slowTimer?.cancel();
+    setState(() => _slowRemaining = slowMode);
+    _slowTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return timer.cancel();
+      final left = _slowRemaining! - const Duration(seconds: 1);
+      if (left <= Duration.zero) timer.cancel();
+      setState(() => _slowRemaining = left <= Duration.zero ? null : left);
+    });
+  }
+
+  Future<void> _schedule(String text) async {
+    final onSchedule = widget.onScheduleMessage;
+    if (onSchedule == null) return;
+    final at = await _pickScheduleTime(context);
+    if (at == null || !mounted) return;
+    onSchedule(text, at, widget.controller.replyingTo.value);
+    widget.controller.cancelReply();
+    _textController.clear();
   }
 
   void _startReply(ChatMessage message) {
@@ -955,6 +1079,31 @@ class _ChatViewState extends State<ChatView> {
     final l10n = _l10n;
     final mine = _isOutgoing(message);
     final streaming = message is TextMessage && message.isStreaming;
+    if (message.deletedAt != null) return const [];
+    if (message.scheduledFor != null) {
+      return [
+        if (widget.onSendScheduledNow != null)
+          ChatMessageAction(
+            label: l10n.sendNow,
+            icon: Icons.send_rounded,
+            onSelected: widget.onSendScheduledNow!,
+          ),
+        if (message is TextMessage && widget.onEditMessage != null)
+          ChatMessageAction(
+            label: l10n.edit,
+            icon: Icons.edit_outlined,
+            onSelected: (m) => widget.controller.startEditing(m as TextMessage),
+          ),
+        if (widget.onDeleteMessage != null)
+          ChatMessageAction(
+            label: l10n.delete,
+            icon: Icons.delete_outline_rounded,
+            isDestructive: true,
+            onSelected: widget.onDeleteMessage!,
+          ),
+      ];
+    }
+    final saved = widget.controller.isSaved(message.id);
     return [
       if (!streaming)
         ChatMessageAction(
@@ -964,6 +1113,12 @@ class _ChatViewState extends State<ChatView> {
         ),
       if (message is TextMessage)
         ChatMessageAction.copyText(label: l10n.copy, icon: Icons.copy_rounded),
+      if (message is TextMessage && !streaming && widget.onTranslate != null)
+        ChatMessageAction(
+          label: l10n.translate,
+          icon: Icons.translate_rounded,
+          onSelected: (m) => _translate(m as TextMessage),
+        ),
       if (mine &&
           !streaming &&
           message is TextMessage &&
@@ -997,11 +1152,33 @@ class _ChatViewState extends State<ChatView> {
           icon: Icons.info_outline_rounded,
           onSelected: (m) => _showMessageInfo(context, m, l10n),
         ),
+      if (widget.onSaveMessage != null)
+        ChatMessageAction(
+          label: saved ? l10n.unsave : l10n.save,
+          icon: saved
+              ? Icons.bookmark_remove_outlined
+              : Icons.bookmark_add_outlined,
+          onSelected: (m) => widget.onSaveMessage!(m, !saved),
+        ),
       if (widget.enableSelection)
         ChatMessageAction(
           label: l10n.select,
           icon: Icons.check_circle_outline_rounded,
           onSelected: (m) => widget.controller.toggleSelection(m.id),
+        ),
+      if (!mine && widget.onReportMessage != null)
+        ChatMessageAction(
+          label: l10n.report,
+          icon: Icons.flag_outlined,
+          isDestructive: true,
+          onSelected: widget.onReportMessage!,
+        ),
+      if (!mine && widget.onBlockUser != null)
+        ChatMessageAction(
+          label: l10n.block(message.author.name ?? l10n.someone),
+          icon: Icons.block_rounded,
+          isDestructive: true,
+          onSelected: (m) => widget.onBlockUser!(m.author),
         ),
       if (mine && widget.onDeleteMessage != null)
         ChatMessageAction(
@@ -1009,6 +1186,13 @@ class _ChatViewState extends State<ChatView> {
           icon: Icons.delete_outline_rounded,
           isDestructive: true,
           onSelected: widget.onDeleteMessage!,
+        ),
+      if (mine && widget.onDeleteForEveryone != null)
+        ChatMessageAction(
+          label: l10n.deleteForEveryone,
+          icon: Icons.delete_forever_outlined,
+          isDestructive: true,
+          onSelected: widget.onDeleteForEveryone!,
         ),
     ];
   }
@@ -1043,6 +1227,10 @@ class _ChatViewState extends State<ChatView> {
     }
     if (message is FileMessage && widget.onFileTap != null) {
       widget.onFileTap!(message);
+      return;
+    }
+    if (message is LocationMessage && widget.onLocationTap != null) {
+      widget.onLocationTap!(message);
       return;
     }
     if (widget.messageMenuTrigger == ChatMessageMenuTrigger.tap) {
@@ -1107,20 +1295,71 @@ class _ChatViewState extends State<ChatView> {
     final l10n = _l10n;
     final editing = _editingMessage != null;
 
-    final input =
-        widget.inputBuilder?.call(context, _handleSend, _textController) ??
-            ChatInput(
-              onSend: _handleSend,
-              controller: _textController,
-              focusNode: _focusNode,
-              enabled: widget.inputEnabled,
-              onTypingChanged: widget.onTypingChanged,
-              sendIcon:
-                  editing ? Icons.check_rounded : Icons.arrow_upward_rounded,
-              onRecordStart: editing ? null : widget.onVoiceRecordStart,
-              onRecordEnd: widget.onVoiceRecordEnd,
-              showEmojiButton: widget.enableEmojiPicker,
-            );
+    final messages = widget.controller.messages;
+    final newest = messages.isEmpty ? null : messages.last;
+    final slowLeft = _slowRemaining;
+    final slowed = slowLeft != null;
+
+    Widget buildInput(ChatMessage? latest) {
+      final generating = latest is TextMessage &&
+          latest.isStreaming &&
+          !_isOutgoing(latest) &&
+          widget.onStopGenerating != null;
+      return widget.inputBuilder?.call(context, _handleSend, _textController) ??
+          ChatInput(
+            onSend: _handleSend,
+            controller: _textController,
+            focusNode: _focusNode,
+            enabled: widget.inputEnabled && !slowed,
+            hintText: slowed
+                ? l10n.slowModeWait(
+                    _formatDuration(slowLeft),
+                  )
+                : null,
+            onTypingChanged: widget.onTypingChanged,
+            sendIcon:
+                editing ? Icons.check_rounded : Icons.arrow_upward_rounded,
+            onRecordStart: editing ? null : widget.onVoiceRecordStart,
+            onRecordEnd: widget.onVoiceRecordEnd,
+            showEmojiButton: widget.enableEmojiPicker,
+            onStop: generating ? () => widget.onStopGenerating!(latest) : null,
+            onSchedule:
+                widget.onScheduleMessage == null || editing ? null : _schedule,
+            stickerPacks: widget.stickerPacks,
+            onSticker: widget.onSendSticker,
+            imageProviderBuilder: widget.imageProviderBuilder,
+          );
+    }
+
+    final Widget input;
+    if (widget.readOnly) {
+      input = Padding(
+        key: const Key('chatx_read_only'),
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.lock_outline_rounded,
+                size: 18, color: theme.typingIndicatorColor),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                widget.readOnlyMessage ?? l10n.readOnly,
+                textAlign: TextAlign.center,
+                style: theme.systemMessageTextStyle,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (newest == null) {
+      input = buildInput(null);
+    } else {
+      input = ValueListenableBuilder<ChatMessage>(
+        valueListenable: widget.controller.watch(newest.id),
+        builder: (context, latest, _) => buildInput(latest),
+      );
+    }
     final selecting = widget.controller.isSelecting;
 
     return ChatScope(

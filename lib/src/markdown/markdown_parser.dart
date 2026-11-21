@@ -182,6 +182,32 @@ final class MdList extends MdBlock {
       Object.hash(ordered, start, Object.hashAll(items.map(Object.hashAll)));
 }
 
+/// Alignment of a table column.
+enum MdAlign { left, center, right }
+
+/// A table with a header row.
+final class MdTable extends MdBlock {
+  const MdTable({
+    required this.header,
+    required this.alignments,
+    required this.rows,
+  });
+  final List<List<MdInline>> header;
+  final List<MdAlign> alignments;
+  final List<List<List<MdInline>>> rows;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MdTable &&
+      listEquals(other.alignments, alignments) &&
+      other.header.length == header.length &&
+      other.rows.length == rows.length;
+
+  @override
+  int get hashCode =>
+      Object.hash(Object.hashAll(alignments), header.length, rows.length);
+}
+
 /// Parses the markdown subset supported by chatx.
 ///
 /// The parser never throws and is safe on partial input, which matters for
@@ -193,6 +219,31 @@ abstract final class MarkdownParser {
       RegExp(r'^ {0,3}([-*+]|(\d{1,9})[.)])[ \t]+(.*)$');
   static final RegExp _quote = RegExp(r'^ {0,3}> ?(.*)$');
   static final RegExp _fence = RegExp(r'^ {0,3}(```+|~~~+)[ \t]*([^`\s]*)');
+  static final RegExp _tableSeparator =
+      RegExp(r'^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$');
+
+  static List<String> _cells(String line) {
+    var text = line.trim();
+    if (text.startsWith('|')) text = text.substring(1);
+    if (text.endsWith('|') && !text.endsWith(r'\|')) {
+      text = text.substring(0, text.length - 1);
+    }
+    final cells = <String>[];
+    final current = StringBuffer();
+    for (var i = 0; i < text.length; i++) {
+      if (text[i] == r'\' && i + 1 < text.length && text[i + 1] == '|') {
+        current.write('|');
+        i++;
+      } else if (text[i] == '|') {
+        cells.add(current.toString().trim());
+        current.clear();
+      } else {
+        current.write(text[i]);
+      }
+    }
+    cells.add(current.toString().trim());
+    return cells;
+  }
 
   static final Map<String, List<MdBlock>> _cache = {};
   static const int _cacheSize = 512;
@@ -264,6 +315,11 @@ abstract final class MarkdownParser {
           children.forEach(block);
         case MdList(:final items):
           parts.addAll(items.map(inlines));
+        case MdTable(:final header, :final rows):
+          parts.add(header.map(inlines).join(' | '));
+          for (final row in rows) {
+            parts.add(row.map(inlines).join(' | '));
+          }
       }
     }
 
@@ -309,6 +365,44 @@ abstract final class MarkdownParser {
       if (line.trim().isEmpty) {
         flushParagraph();
         i++;
+        continue;
+      }
+
+      if (line.contains('|') &&
+          i + 1 < lines.length &&
+          _tableSeparator.hasMatch(lines[i + 1])) {
+        flushParagraph();
+        final header = _cells(line);
+        final alignments = [
+          for (final cell in _cells(lines[i + 1]))
+            cell.startsWith(':') && cell.endsWith(':')
+                ? MdAlign.center
+                : cell.endsWith(':')
+                    ? MdAlign.right
+                    : MdAlign.left,
+        ];
+        i += 2;
+        final rows = <List<List<MdInline>>>[];
+        while (i < lines.length &&
+            lines[i].contains('|') &&
+            lines[i].trim().isNotEmpty) {
+          final cells = _cells(lines[i]);
+          rows.add([
+            for (var c = 0; c < header.length; c++)
+              parseInline(c < cells.length ? cells[c] : ''),
+          ]);
+          i++;
+        }
+        blocks.add(
+          MdTable(
+            header: [for (final cell in header) parseInline(cell)],
+            alignments: [
+              for (var c = 0; c < header.length; c++)
+                c < alignments.length ? alignments[c] : MdAlign.left,
+            ],
+            rows: rows,
+          ),
+        );
         continue;
       }
 

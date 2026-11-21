@@ -14,6 +14,9 @@ typedef ChatNameLabel = String Function(String name);
 /// Formats a step label such as "Question 2 of 5".
 typedef ChatStepLabel = String Function(int current, int total);
 
+/// Formats the RSVP counters of an event.
+typedef ChatRsvpLabel = String Function(int going, int maybe);
+
 /// Formats the accessibility label of a reaction chip.
 typedef ChatReactionLabel = String Function(
   String emoji,
@@ -138,6 +141,49 @@ class ChatLocalizations {
     required this.emojiCategories,
     required this.moreReactions,
     required this.typingShort,
+    required this.regenerate,
+    required this.goodResponse,
+    required this.badResponse,
+    required this.stopGenerating,
+    required this.copyCode,
+    required this.copied,
+    required this.translate,
+    required this.translated,
+    required this.showOriginal,
+    required this.showTranslation,
+    required this.translating,
+    required this.translationFailed,
+    required this.location,
+    required this.liveLocation,
+    required this.liveUntil,
+    required this.event,
+    required this.rsvpGoing,
+    required this.rsvpMaybe,
+    required this.rsvpNotGoing,
+    required this.rsvpSummary,
+    required this.contact,
+    required this.call,
+    required this.sendEmail,
+    required this.addContact,
+    required this.sticker,
+    required this.deleteForEveryone,
+    required this.messageDeleted,
+    required this.editHistory,
+    required this.currentVersion,
+    required this.scheduledFor,
+    required this.scheduleMessage,
+    required this.sendNow,
+    required this.inOneHour,
+    required this.tonight,
+    required this.tomorrowMorning,
+    required this.pickDateTime,
+    required this.readOnly,
+    required this.slowModeWait,
+    required this.report,
+    required this.block,
+    required this.save,
+    required this.unsave,
+    required this.saved,
   });
 
   /// Placeholder of the message input.
@@ -426,6 +472,135 @@ class ChatLocalizations {
   /// Typing label of one-to-one chats in `ChatHeader`.
   final String typingShort;
 
+  /// Action that asks the assistant for a new answer.
+  final String regenerate;
+
+  /// Thumbs-up button of AI answers.
+  final String goodResponse;
+
+  /// Thumbs-down button of AI answers.
+  final String badResponse;
+
+  /// Button that stops a streamed answer.
+  final String stopGenerating;
+
+  /// Button on code blocks.
+  final String copyCode;
+
+  /// Confirmation after copying.
+  final String copied;
+
+  /// Action that translates a message.
+  final String translate;
+
+  /// Label of translated messages.
+  final String translated;
+
+  /// Shows the original text of a translated message.
+  final String showOriginal;
+
+  /// Shows the translation again.
+  final String showTranslation;
+
+  /// Shown while a translation loads.
+  final String translating;
+
+  /// Shown when a translation fails.
+  final String translationFailed;
+
+  /// Label of location messages.
+  final String location;
+
+  /// Label of live locations.
+  final String liveLocation;
+
+  /// End time of a live location.
+  final ChatNameLabel liveUntil;
+
+  /// Label of event messages.
+  final String event;
+
+  /// RSVP: will attend.
+  final String rsvpGoing;
+
+  /// RSVP: might attend.
+  final String rsvpMaybe;
+
+  /// RSVP: will not attend.
+  final String rsvpNotGoing;
+
+  /// Counters under an event.
+  final ChatRsvpLabel rsvpSummary;
+
+  /// Label of contact cards.
+  final String contact;
+
+  /// Button that calls a contact.
+  final String call;
+
+  /// Button that emails a contact.
+  final String sendEmail;
+
+  /// Button that saves a contact.
+  final String addContact;
+
+  /// Preview label of stickers.
+  final String sticker;
+
+  /// Action that deletes a message for everyone.
+  final String deleteForEveryone;
+
+  /// Placeholder of deleted messages.
+  final String messageDeleted;
+
+  /// Title of the edit history sheet.
+  final String editHistory;
+
+  /// Marks the current version in the edit history.
+  final String currentVersion;
+
+  /// Label of scheduled messages.
+  final ChatNameLabel scheduledFor;
+
+  /// Title of the schedule sheet.
+  final String scheduleMessage;
+
+  /// Sends a scheduled message right away.
+  final String sendNow;
+
+  /// Schedule option.
+  final String inOneHour;
+
+  /// Schedule option: today at 8 PM.
+  final String tonight;
+
+  /// Schedule option: tomorrow at 9 AM.
+  final String tomorrowMorning;
+
+  /// Schedule option that opens date and time pickers.
+  final String pickDateTime;
+
+  /// Default banner when only admins can write.
+  final String readOnly;
+
+  /// Shown while slow mode blocks the input.
+  final ChatNameLabel slowModeWait;
+
+  /// Action that reports a message.
+  final String report;
+
+  /// Action that blocks the author.
+  final ChatNameLabel block;
+
+  /// Action that saves a message.
+  final String save;
+
+  /// Action that removes a message from saved.
+  final String unsave;
+
+  /// Accessibility label of the saved icon.
+  final String saved;
+
   /// English strings.
   static const ChatLocalizations en = ChatLocalizations(
     inputHint: 'Message',
@@ -523,6 +698,49 @@ class ChatLocalizations {
     emojiCategories: _emojiCategoriesEn,
     moreReactions: 'More reactions',
     typingShort: 'typing…',
+    regenerate: 'Regenerate',
+    goodResponse: 'Good response',
+    badResponse: 'Bad response',
+    stopGenerating: 'Stop generating',
+    copyCode: 'Copy code',
+    copied: 'Copied',
+    translate: 'Translate',
+    translated: 'Translated',
+    showOriginal: 'Show original',
+    showTranslation: 'Show translation',
+    translating: 'Translating…',
+    translationFailed: "Couldn't translate",
+    location: 'Location',
+    liveLocation: 'Live location',
+    liveUntil: _liveUntilEn,
+    event: 'Event',
+    rsvpGoing: 'Going',
+    rsvpMaybe: 'Maybe',
+    rsvpNotGoing: "Can't go",
+    rsvpSummary: _rsvpEn,
+    contact: 'Contact',
+    call: 'Call',
+    sendEmail: 'Email',
+    addContact: 'Add contact',
+    sticker: 'Sticker',
+    deleteForEveryone: 'Delete for everyone',
+    messageDeleted: 'This message was deleted',
+    editHistory: 'Edit history',
+    currentVersion: 'Current',
+    scheduledFor: _scheduledEn,
+    scheduleMessage: 'Schedule message',
+    sendNow: 'Send now',
+    inOneHour: 'In 1 hour',
+    tonight: 'Tonight',
+    tomorrowMorning: 'Tomorrow morning',
+    pickDateTime: 'Pick date and time',
+    readOnly: 'Only admins can send messages',
+    slowModeWait: _slowEn,
+    report: 'Report',
+    block: _blockEn,
+    save: 'Save',
+    unsave: 'Remove from saved',
+    saved: 'Saved',
   );
 
   /// Spanish strings.
@@ -622,6 +840,49 @@ class ChatLocalizations {
     emojiCategories: _emojiCategoriesEs,
     moreReactions: 'Más reacciones',
     typingShort: 'escribiendo…',
+    regenerate: 'Regenerar',
+    goodResponse: 'Buena respuesta',
+    badResponse: 'Mala respuesta',
+    stopGenerating: 'Detener',
+    copyCode: 'Copiar código',
+    copied: 'Copiado',
+    translate: 'Traducir',
+    translated: 'Traducido',
+    showOriginal: 'Ver original',
+    showTranslation: 'Ver traducción',
+    translating: 'Traduciendo…',
+    translationFailed: 'No se pudo traducir',
+    location: 'Ubicación',
+    liveLocation: 'Ubicación en vivo',
+    liveUntil: _liveUntilEs,
+    event: 'Evento',
+    rsvpGoing: 'Asistiré',
+    rsvpMaybe: 'Tal vez',
+    rsvpNotGoing: 'No puedo',
+    rsvpSummary: _rsvpEs,
+    contact: 'Contacto',
+    call: 'Llamar',
+    sendEmail: 'Correo',
+    addContact: 'Agregar',
+    sticker: 'Sticker',
+    deleteForEveryone: 'Eliminar para todos',
+    messageDeleted: 'Este mensaje fue eliminado',
+    editHistory: 'Historial de ediciones',
+    currentVersion: 'Actual',
+    scheduledFor: _scheduledEs,
+    scheduleMessage: 'Programar mensaje',
+    sendNow: 'Enviar ahora',
+    inOneHour: 'En 1 hora',
+    tonight: 'Esta noche',
+    tomorrowMorning: 'Mañana por la mañana',
+    pickDateTime: 'Elegir fecha y hora',
+    readOnly: 'Solo los administradores pueden enviar mensajes',
+    slowModeWait: _slowEs,
+    report: 'Reportar',
+    block: _blockEs,
+    save: 'Guardar',
+    unsave: 'Quitar de guardados',
+    saved: 'Guardado',
   );
 
   /// Built-in strings by language code.
@@ -728,6 +989,19 @@ class ChatLocalizations {
     'Símbolos',
     'Banderas',
   ];
+
+  static String _liveUntilEn(String time) => 'until $time';
+  static String _liveUntilEs(String time) => 'hasta las $time';
+  static String _rsvpEn(int going, int maybe) =>
+      maybe == 0 ? '$going going' : '$going going · $maybe maybe';
+  static String _rsvpEs(int going, int maybe) =>
+      maybe == 0 ? '$going asistirán' : '$going asistirán · $maybe tal vez';
+  static String _scheduledEn(String time) => 'Scheduled for $time';
+  static String _scheduledEs(String time) => 'Programado para $time';
+  static String _slowEn(String time) => 'Slow mode: wait $time';
+  static String _slowEs(String time) => 'Modo lento: espera $time';
+  static String _blockEn(String name) => 'Block $name';
+  static String _blockEs(String name) => 'Bloquear a $name';
 
   static String _votesEn(int count) => count == 1 ? '1 vote' : '$count votes';
 
@@ -841,6 +1115,49 @@ class ChatLocalizations {
     List<String>? emojiCategories,
     String? moreReactions,
     String? typingShort,
+    String? regenerate,
+    String? goodResponse,
+    String? badResponse,
+    String? stopGenerating,
+    String? copyCode,
+    String? copied,
+    String? translate,
+    String? translated,
+    String? showOriginal,
+    String? showTranslation,
+    String? translating,
+    String? translationFailed,
+    String? location,
+    String? liveLocation,
+    ChatNameLabel? liveUntil,
+    String? event,
+    String? rsvpGoing,
+    String? rsvpMaybe,
+    String? rsvpNotGoing,
+    ChatRsvpLabel? rsvpSummary,
+    String? contact,
+    String? call,
+    String? sendEmail,
+    String? addContact,
+    String? sticker,
+    String? deleteForEveryone,
+    String? messageDeleted,
+    String? editHistory,
+    String? currentVersion,
+    ChatNameLabel? scheduledFor,
+    String? scheduleMessage,
+    String? sendNow,
+    String? inOneHour,
+    String? tonight,
+    String? tomorrowMorning,
+    String? pickDateTime,
+    String? readOnly,
+    ChatNameLabel? slowModeWait,
+    String? report,
+    ChatNameLabel? block,
+    String? save,
+    String? unsave,
+    String? saved,
   }) {
     return ChatLocalizations(
       inputHint: inputHint ?? this.inputHint,
@@ -938,6 +1255,49 @@ class ChatLocalizations {
       emojiCategories: emojiCategories ?? this.emojiCategories,
       moreReactions: moreReactions ?? this.moreReactions,
       typingShort: typingShort ?? this.typingShort,
+      regenerate: regenerate ?? this.regenerate,
+      goodResponse: goodResponse ?? this.goodResponse,
+      badResponse: badResponse ?? this.badResponse,
+      stopGenerating: stopGenerating ?? this.stopGenerating,
+      copyCode: copyCode ?? this.copyCode,
+      copied: copied ?? this.copied,
+      translate: translate ?? this.translate,
+      translated: translated ?? this.translated,
+      showOriginal: showOriginal ?? this.showOriginal,
+      showTranslation: showTranslation ?? this.showTranslation,
+      translating: translating ?? this.translating,
+      translationFailed: translationFailed ?? this.translationFailed,
+      location: location ?? this.location,
+      liveLocation: liveLocation ?? this.liveLocation,
+      liveUntil: liveUntil ?? this.liveUntil,
+      event: event ?? this.event,
+      rsvpGoing: rsvpGoing ?? this.rsvpGoing,
+      rsvpMaybe: rsvpMaybe ?? this.rsvpMaybe,
+      rsvpNotGoing: rsvpNotGoing ?? this.rsvpNotGoing,
+      rsvpSummary: rsvpSummary ?? this.rsvpSummary,
+      contact: contact ?? this.contact,
+      call: call ?? this.call,
+      sendEmail: sendEmail ?? this.sendEmail,
+      addContact: addContact ?? this.addContact,
+      sticker: sticker ?? this.sticker,
+      deleteForEveryone: deleteForEveryone ?? this.deleteForEveryone,
+      messageDeleted: messageDeleted ?? this.messageDeleted,
+      editHistory: editHistory ?? this.editHistory,
+      currentVersion: currentVersion ?? this.currentVersion,
+      scheduledFor: scheduledFor ?? this.scheduledFor,
+      scheduleMessage: scheduleMessage ?? this.scheduleMessage,
+      sendNow: sendNow ?? this.sendNow,
+      inOneHour: inOneHour ?? this.inOneHour,
+      tonight: tonight ?? this.tonight,
+      tomorrowMorning: tomorrowMorning ?? this.tomorrowMorning,
+      pickDateTime: pickDateTime ?? this.pickDateTime,
+      readOnly: readOnly ?? this.readOnly,
+      slowModeWait: slowModeWait ?? this.slowModeWait,
+      report: report ?? this.report,
+      block: block ?? this.block,
+      save: save ?? this.save,
+      unsave: unsave ?? this.unsave,
+      saved: saved ?? this.saved,
     );
   }
 }

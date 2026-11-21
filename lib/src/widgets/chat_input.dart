@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../emoji/chat_emoji_picker.dart';
 import '../l10n/chat_localizations.dart';
 import '../material.dart';
+import '../models/chat_message.dart';
 import '../theme/chat_theme.dart';
 import 'chat_builders.dart';
 
@@ -49,6 +50,11 @@ class ChatInput extends StatefulWidget {
     this.onRecordStart,
     this.onRecordEnd,
     this.showEmojiButton = false,
+    this.onStop,
+    this.onSchedule,
+    this.stickerPacks = const [],
+    this.onSticker,
+    this.imageProviderBuilder,
   });
 
   /// Called with the trimmed text when the user sends a non-empty message.
@@ -113,6 +119,23 @@ class ChatInput extends StatefulWidget {
   /// Whether to show a button that swaps the keyboard for
   /// [ChatEmojiPicker]. `ChatView` turns it on by default.
   final bool showEmojiButton;
+
+  /// When set, the send button becomes a stop button that calls this, for
+  /// example while an AI answer streams.
+  final VoidCallback? onStop;
+
+  /// When set, long-pressing the send button calls this with the text, so
+  /// the app can offer to schedule the message.
+  final ValueChanged<String>? onSchedule;
+
+  /// Sticker packs shown as extra tabs in the emoji picker.
+  final List<ChatStickerPack> stickerPacks;
+
+  /// Called when the user picks a sticker.
+  final ValueChanged<ChatSticker>? onSticker;
+
+  /// Loads sticker images. Defaults to [NetworkImage].
+  final ImageProvider Function(String uri)? imageProviderBuilder;
 
   @override
   State<ChatInput> createState() => _ChatInputState();
@@ -386,6 +409,21 @@ class _ChatInputState extends State<ChatInput> {
                 ValueListenableBuilder<bool>(
                   valueListenable: _canSend,
                   builder: (context, canSend, _) {
+                    final onStop = widget.onStop;
+                    if (onStop != null) {
+                      return _SendButton(
+                        key: const Key('chatx_stop_button'),
+                        enabled: true,
+                        color: theme.sendButtonColor,
+                        iconColor: theme.sendButtonIconColor,
+                        label: l10n.stopGenerating,
+                        icon: Icons.stop_rounded,
+                        onPressed: () {
+                          HapticFeedback.mediumImpact();
+                          onStop();
+                        },
+                      );
+                    }
                     if (!canSend && widget.onRecordStart != null) {
                       return _RecordButton(
                         recording: _recording,
@@ -402,6 +440,14 @@ class _ChatInputState extends State<ChatInput> {
                     }
                     return _SendButton(
                       enabled: widget.enabled && canSend,
+                      onLongPress: widget.onSchedule == null
+                          ? null
+                          : () {
+                              final text = _controller.text.trim();
+                              if (text.isEmpty) return;
+                              HapticFeedback.mediumImpact();
+                              widget.onSchedule!(text);
+                            },
                       color: theme.sendButtonColor,
                       iconColor: theme.sendButtonIconColor,
                       label: l10n.sendButton,
@@ -419,7 +465,12 @@ class _ChatInputState extends State<ChatInput> {
                 : const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
             child: _emojiOpen
-                ? ChatEmojiPicker(onSelected: _insertEmoji)
+                ? ChatEmojiPicker(
+                    onSelected: _insertEmoji,
+                    stickerPacks: widget.stickerPacks,
+                    onStickerSelected: widget.onSticker,
+                    imageProviderBuilder: widget.imageProviderBuilder,
+                  )
                 : const SizedBox(width: double.infinity),
           ),
         ],
@@ -430,6 +481,8 @@ class _ChatInputState extends State<ChatInput> {
 
 class _SendButton extends StatelessWidget {
   const _SendButton({
+    super.key,
+    this.onLongPress,
     required this.enabled,
     required this.color,
     required this.iconColor,
@@ -439,6 +492,7 @@ class _SendButton extends StatelessWidget {
   });
 
   final IconData icon;
+  final VoidCallback? onLongPress;
   final bool enabled;
   final Color color;
   final Color iconColor;
@@ -469,6 +523,7 @@ class _SendButton extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: enabled ? onPressed : null,
+              onLongPress: enabled ? onLongPress : null,
               child: SizedBox.square(
                 dimension: 48,
                 child: AnimatedSwitcher(

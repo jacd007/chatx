@@ -67,6 +67,8 @@ class ChatController extends ChangeNotifier {
   final ValueNotifier<ChatMessage?> _editing = ValueNotifier(null);
   final ValueNotifier<List<String>> _pinnedIds =
       ValueNotifier<List<String>>(const []);
+  final ValueNotifier<Set<String>> _savedIds =
+      ValueNotifier<Set<String>>(const {});
   final ValueNotifier<Set<String>> _selectedIds =
       ValueNotifier<Set<String>>(const {});
   final StreamController<ChatScrollRequest> _scrollRequests =
@@ -99,6 +101,9 @@ class ChatController extends ChangeNotifier {
   /// IDs of pinned messages, oldest pin first. `ChatView` shows a banner for
   /// them at the top of the list.
   ValueListenable<List<String>> get pinnedIds => _pinnedIds;
+
+  /// IDs of messages the current user saved (bookmarked).
+  ValueListenable<Set<String>> get savedIds => _savedIds;
 
   /// IDs of the messages selected in selection mode.
   ValueListenable<Set<String>> get selectedIds => _selectedIds;
@@ -231,8 +236,16 @@ class ChatController extends ChangeNotifier {
     final message = messageById(id);
     if (message is! TextMessage) return false;
     if (message.text == text) return true;
+    final previous = ChatEdit(
+      text: message.text,
+      at: message.editedAt ?? message.createdAt,
+    );
     return update(
-      message.copyWith(text: text, editedAt: editedAt ?? DateTime.now()),
+      message.copyWith(
+        text: text,
+        editedAt: editedAt ?? DateTime.now(),
+        editHistory: List.unmodifiable([...message.editHistory, previous]),
+      ),
     );
   }
 
@@ -313,6 +326,39 @@ class ChatController extends ChangeNotifier {
     );
   }
 
+  /// Records the answer of [userId] to the [EventMessage] with [id]. Pass
+  /// `null` to remove it. Returns `false` if the message is not an event.
+  bool setRsvp(String id, String userId, ChatRsvp? rsvp) {
+    final event = messageById(id);
+    if (event is! EventMessage) return false;
+    final rsvps = Map<String, ChatRsvp>.of(event.rsvps);
+    if (rsvp == null) {
+      rsvps.remove(userId);
+    } else {
+      rsvps[userId] = rsvp;
+    }
+    return update(event.copyWith(rsvps: Map.unmodifiable(rsvps)));
+  }
+
+  /// Marks the message with [id] as deleted for everyone. The view shows a
+  /// placeholder; your backend should stop sending its content.
+  bool markDeleted(String id, {DateTime? at}) {
+    final message = messageById(id);
+    if (message == null) return false;
+    return update(message.copyWithMeta(deletedAt: at ?? DateTime.now()));
+  }
+
+  /// Saves the message with [id], or removes it from the saved messages.
+  void toggleSaved(String id) {
+    if (!contains(id)) return;
+    final saved = {..._savedIds.value};
+    if (!saved.remove(id)) saved.add(id);
+    _savedIds.value = Set.unmodifiable(saved);
+  }
+
+  /// Whether the message with [id] is saved.
+  bool isSaved(String id) => _savedIds.value.contains(id);
+
   /// Pins the message with [id]. Returns `false` if it does not exist.
   bool pin(String id) {
     if (!contains(id)) return false;
@@ -375,7 +421,10 @@ class ChatController extends ChangeNotifier {
   }
 
   /// Plain text of [message] used by [search].
-  static String searchableText(ChatMessage message) => switch (message) {
+  static String searchableText(ChatMessage message) =>
+      message.deletedAt != null ? '' : _searchable(message);
+
+  static String _searchable(ChatMessage message) => switch (message) {
         TextMessage(:final text) => MarkdownParser.toPlainText(text),
         SystemMessage(:final text) => text,
         ImageMessage(:final caption) =>
@@ -390,6 +439,13 @@ class ChatController extends ChangeNotifier {
             description ?? '',
             ...questions.map((q) => q.title)
           ].join(' '),
+        LocationMessage(:final title, :final address) =>
+          '${title ?? ''} ${address ?? ''}',
+        EventMessage(:final title, :final location, :final description) =>
+          '$title ${location ?? ''} ${description ?? ''}',
+        ContactMessage(:final name, :final organization) =>
+          '$name ${organization ?? ''}',
+        StickerMessage(:final label) => label ?? '',
         VoiceMessage() || CustomMessage() => '',
       };
 
@@ -463,6 +519,7 @@ class ChatController extends ChangeNotifier {
     _forget({
       ..._pinnedIds.value,
       ..._selectedIds.value,
+      ..._savedIds.value,
     }.where((id) => !ids.contains(id)).toSet());
     notifyListeners();
   }
@@ -507,6 +564,7 @@ class ChatController extends ChangeNotifier {
     _editing.dispose();
     _pinnedIds.dispose();
     _selectedIds.dispose();
+    _savedIds.dispose();
     _scrollRequests.close();
     _draft.dispose();
     for (final timer in _expiryTimers.values) {
@@ -537,6 +595,11 @@ class ChatController extends ChangeNotifier {
     if (_pinnedIds.value.any(ids.contains)) {
       _pinnedIds.value = List.unmodifiable(
         _pinnedIds.value.where((id) => !ids.contains(id)),
+      );
+    }
+    if (_savedIds.value.any(ids.contains)) {
+      _savedIds.value = Set.unmodifiable(
+        _savedIds.value.where((id) => !ids.contains(id)),
       );
     }
     if (_selectedIds.value.any(ids.contains)) {

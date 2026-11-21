@@ -28,7 +28,9 @@ void main() {
                     'and enough words to wrap over a couple of lines.'
                 : 'Message $i',
             reactions: i % 11 == 0
-                ? const [ChatReaction(emoji: '👍', userIds: ['me'])]
+                ? const [
+                    ChatReaction(emoji: '👍', userIds: ['me'])
+                  ]
                 : const [],
             status: i % 3 == 0 ? MessageStatus.read : null,
           ),

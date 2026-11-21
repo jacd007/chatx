@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../material.dart';
@@ -265,3 +266,86 @@ typedef ChatVoiceRecordEndCallback = void Function(
 
 /// Called when the user pins or unpins a message.
 typedef ChatPinCallback = void Function(ChatMessage message, bool pinned);
+
+/// What the user chose on a contact card.
+enum ChatContactAction {
+  /// Call the phone number.
+  call,
+
+  /// Write to the email address.
+  email,
+
+  /// Save the contact to the device.
+  save,
+}
+
+/// Called when the user answers an event invitation. `null` removes the
+/// answer.
+typedef ChatRsvpCallback = void Function(EventMessage message, ChatRsvp? rsvp);
+
+/// Called when the user rates an AI answer. `null` removes the rating.
+typedef ChatFeedbackCallback = void Function(
+  TextMessage message,
+  ChatFeedback? feedback,
+);
+
+/// Called when the user schedules a message.
+typedef ChatScheduleCallback = void Function(
+  String text,
+  DateTime at,
+  ChatMessage? replyTo,
+);
+
+/// Hides offensive words by replacing their letters with asterisks.
+///
+/// chatx ships no word list: provide the words for your audience and
+/// languages. Matching ignores case and only affects whole words.
+///
+/// ```dart
+/// ChatView(wordFilter: ChatWordFilter({'darn', 'heck'}), ...)
+/// ```
+@immutable
+class ChatWordFilter {
+  /// Creates a filter for [words].
+  ChatWordFilter(Set<String> words, {this.mask = '*'})
+      : words = Set.unmodifiable({
+          for (final w in words)
+            if (w.trim().isNotEmpty) w.trim().toLowerCase(),
+        });
+
+  /// Lowercase words to hide.
+  final Set<String> words;
+
+  /// Character that replaces each hidden letter.
+  final String mask;
+
+  late final RegExp? _pattern = words.isEmpty
+      ? null
+      : RegExp(
+          '(?<![\\p{L}\\p{N}_])(${words.map(RegExp.escape).join('|')})'
+          '(?![\\p{L}\\p{N}_])',
+          caseSensitive: false,
+          unicode: true,
+        );
+
+  /// Returns [text] with filtered words masked. The first letter stays, so
+  /// readers still get the tone: "d***".
+  String apply(String text) {
+    final pattern = _pattern;
+    if (pattern == null) return text;
+    return text.replaceAllMapped(pattern, (m) {
+      final word = m[0]!;
+      final runes = word.runes.toList();
+      return String.fromCharCode(runes.first) + mask * (runes.length - 1);
+    });
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is ChatWordFilter &&
+      setEquals(other.words, words) &&
+      other.mask == mask;
+
+  @override
+  int get hashCode => Object.hash(Object.hashAllUnordered(words), mask);
+}

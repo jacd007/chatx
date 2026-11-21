@@ -11,6 +11,7 @@ class ChatUser {
     required this.id,
     this.name,
     this.avatarUrl,
+    this.isBot = false,
     this.metadata,
   });
 
@@ -24,6 +25,10 @@ class ChatUser {
   /// Network URL of the avatar image. When `null` or when the image fails to
   /// load, the avatar shows [initials].
   final String? avatarUrl;
+
+  /// Whether the user is a bot or AI assistant. Its answers get the AI
+  /// actions (copy, rate, regenerate) when `ChatView` enables them.
+  final bool isBot;
 
   /// Arbitrary data you want to carry with the user. Never read by chatx.
   final Map<String, Object?>? metadata;
@@ -45,12 +50,14 @@ class ChatUser {
     String? id,
     String? name,
     String? avatarUrl,
+    bool? isBot,
     Map<String, Object?>? metadata,
   }) {
     return ChatUser(
       id: id ?? this.id,
       name: name ?? this.name,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      isBot: isBot ?? this.isBot,
       metadata: metadata ?? this.metadata,
     );
   }
@@ -62,10 +69,11 @@ class ChatUser {
           other.id == id &&
           other.name == name &&
           other.avatarUrl == avatarUrl &&
+          other.isBot == isBot &&
           mapEquals(other.metadata, metadata);
 
   @override
-  int get hashCode => Object.hash(id, name, avatarUrl);
+  int get hashCode => Object.hash(id, name, avatarUrl, isBot);
 
   @override
   String toString() => 'ChatUser(id: $id, name: $name)';

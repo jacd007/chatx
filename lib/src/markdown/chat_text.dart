@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 
 import '../l10n/chat_localizations.dart';
 import '../material.dart';
 import '../models/chat_user.dart';
 import 'chat_link_policy.dart';
 import 'markdown_parser.dart';
+import 'syntax_highlighter.dart';
 
 /// Renders message text with chatx's markdown subset.
 ///
@@ -257,27 +261,15 @@ class _ChatTextState extends State<ChatText> {
           trailing: tail,
         );
       case MdCodeBlock(:final code, :final language):
-        return Semantics(
-          label: language,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: style.codeBackground,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              child: Text.rich(
-                TextSpan(
-                  text: code,
-                  style: style.code,
-                  children: [if (tail != null) tail],
-                ),
-                softWrap: false,
-              ),
-            ),
-          ),
+        return _CodeBlock(
+          code: code,
+          language: language,
+          style: style.code,
+          background: style.codeBackground,
+          trailing: tail,
         );
+      case MdTable():
+        return _table(block, style);
       case MdQuote(:final children):
         final quoteStyle = style.copyWithBase(
           style.base.copyWith(
@@ -337,6 +329,56 @@ class _ChatTextState extends State<ChatText> {
           ],
         );
     }
+  }
+
+  Widget _table(MdTable table, _Styles style) {
+    final border = style.quoteBar.withValues(alpha: 0.35);
+    TextAlign align(int column) => switch (table.alignments[column]) {
+          MdAlign.left => TextAlign.start,
+          MdAlign.center => TextAlign.center,
+          MdAlign.right => TextAlign.end,
+        };
+    Widget cell(List<MdInline> nodes, int column, {bool header = false}) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Text.rich(
+          TextSpan(
+            style: header
+                ? style.base.copyWith(fontWeight: FontWeight.w700)
+                : style.base,
+            children: [for (final node in nodes) _inline(node, style)],
+          ),
+          textAlign: align(column),
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Table(
+          defaultColumnWidth: const IntrinsicColumnWidth(),
+          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+          border: TableBorder.all(color: border),
+          children: [
+            TableRow(
+              decoration: BoxDecoration(color: style.codeBackground),
+              children: [
+                for (var c = 0; c < table.header.length; c++)
+                  cell(table.header[c], c, header: true),
+              ],
+            ),
+            for (final row in table.rows)
+              TableRow(
+                children: [
+                  for (var c = 0; c < row.length; c++) cell(row[c], c),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _richText(
@@ -542,4 +584,131 @@ class _Styles {
         highlightBackground: highlightBackground,
         spoilerLabel: spoilerLabel,
       );
+}
+
+/// Fenced code block with syntax colors, language label and copy button.
+class _CodeBlock extends StatefulWidget {
+  const _CodeBlock({
+    required this.code,
+    required this.language,
+    required this.style,
+    required this.background,
+    required this.trailing,
+  });
+
+  final String code;
+  final String? language;
+  final TextStyle style;
+  final Color background;
+  final InlineSpan? trailing;
+
+  @override
+  State<_CodeBlock> createState() => _CodeBlockState();
+}
+
+class _CodeBlockState extends State<_CodeBlock> {
+  bool _copied = false;
+  Timer? _reset;
+
+  @override
+  void dispose() {
+    _reset?.cancel();
+    super.dispose();
+  }
+
+  void _copy() {
+    Clipboard.setData(ClipboardData(text: widget.code));
+    HapticFeedback.selectionClick();
+    setState(() => _copied = true);
+    _reset?.cancel();
+    _reset = Timer(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _copied = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = ChatLocalizations.of(context);
+    final color = widget.style.color ?? Theme.of(context).colorScheme.onSurface;
+    // Light text means a dark background, and the other way around.
+    final palette = color.computeLuminance() > 0.5
+        ? SyntaxPalette.dark
+        : SyntaxPalette.light;
+    final label = widget.language;
+    final muted = color.withValues(alpha: 0.65);
+    return DecoratedBox(
+      key: const Key('chatx_code_block'),
+      decoration: BoxDecoration(
+        color: widget.background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Padding(
+                padding: const EdgeInsetsDirectional.only(start: 10),
+                child: Text(
+                  label ?? '',
+                  style: TextStyle(fontSize: 11, color: muted),
+                ),
+              ),
+              const Spacer(),
+              Semantics(
+                button: true,
+                label: _copied ? l10n.copied : l10n.copyCode,
+                excludeSemantics: true,
+                child: InkWell(
+                  key: const Key('chatx_copy_code'),
+                  onTap: _copy,
+                  borderRadius: BorderRadius.circular(8),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 32),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _copied ? Icons.check_rounded : Icons.copy_rounded,
+                            size: 14,
+                            color: muted,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _copied ? l10n.copied : l10n.copyCode,
+                            style: TextStyle(fontSize: 11, color: muted),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+            child: Text.rich(
+              TextSpan(
+                style: widget.style,
+                children: [
+                  ...SyntaxHighlighter.highlight(
+                    widget.code,
+                    language: label,
+                    palette: palette,
+                  ),
+                  if (widget.trailing != null) widget.trailing!,
+                ],
+              ),
+              softWrap: false,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
