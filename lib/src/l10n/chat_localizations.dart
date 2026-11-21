@@ -88,6 +88,7 @@ class ChatLocalizations {
     this.quoteUnavailable = 'Original message not available',
     this.addReaction = 'Add reaction',
     this.reactionLabel = _reactionEn,
+    this.reactions = 'Reactions',
     this.spoiler = 'Spoiler. Double tap to reveal.',
     this.photo = 'Photo',
     this.file = 'File',
@@ -338,6 +339,9 @@ class ChatLocalizations {
 
   /// Accessibility label of a reaction chip.
   final ChatReactionLabel reactionLabel;
+
+  /// Title of the sheet that lists the reactions of a message.
+  final String reactions;
 
   /// Accessibility label of hidden spoiler text.
   final String spoiler;
@@ -844,6 +848,7 @@ class ChatLocalizations {
     quoteUnavailable: 'Mensaje original no disponible',
     addReaction: 'Agregar reacción',
     reactionLabel: _reactionEs,
+    reactions: 'Reacciones',
     spoiler: 'Spoiler. Toca dos veces para mostrar.',
     photo: 'Foto',
     file: 'Archivo',
@@ -1035,6 +1040,7 @@ class ChatLocalizations {
     quoteUnavailable: 'Mensagem original indisponível',
     addReaction: 'Adicionar reação',
     reactionLabel: _reactionLabelPt,
+    reactions: 'Reações',
     spoiler: 'Spoiler. Toque duas vezes para revelar.',
     photo: 'Foto',
     file: 'Arquivo',
@@ -1226,6 +1232,7 @@ class ChatLocalizations {
     quoteUnavailable: 'Message d’origine indisponible',
     addReaction: 'Ajouter une réaction',
     reactionLabel: _reactionLabelFr,
+    reactions: 'Réactions',
     spoiler: 'Spoiler. Touchez deux fois pour afficher.',
     photo: 'Photo',
     file: 'Fichier',
@@ -1417,6 +1424,7 @@ class ChatLocalizations {
     quoteUnavailable: 'Ursprüngliche Nachricht nicht verfügbar',
     addReaction: 'Reaktion hinzufügen',
     reactionLabel: _reactionLabelDe,
+    reactions: 'Reaktionen',
     spoiler: 'Spoiler. Zum Anzeigen doppelt tippen.',
     photo: 'Foto',
     file: 'Datei',
@@ -2017,6 +2025,7 @@ class ChatLocalizations {
     String? quoteUnavailable,
     String? addReaction,
     ChatReactionLabel? reactionLabel,
+    String? reactions,
     String? spoiler,
     String? photo,
     String? file,
@@ -2206,6 +2215,7 @@ class ChatLocalizations {
       quoteUnavailable: quoteUnavailable ?? this.quoteUnavailable,
       addReaction: addReaction ?? this.addReaction,
       reactionLabel: reactionLabel ?? this.reactionLabel,
+      reactions: reactions ?? this.reactions,
       spoiler: spoiler ?? this.spoiler,
       photo: photo ?? this.photo,
       file: file ?? this.file,

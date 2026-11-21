@@ -337,12 +337,25 @@ class _ThreadSummaryRow extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                 ],
-                Text(
-                  l10n.threadReplies(summary.replyCount),
-                  style: theme.userNameTextStyle.copyWith(color: accent),
+                // Narrow bubbles and large text shorten the labels instead
+                // of overflowing.
+                Flexible(
+                  child: Text(
+                    l10n.threadReplies(summary.replyCount),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.userNameTextStyle.copyWith(color: accent),
+                  ),
                 ),
                 if (when != null)
-                  Text(' · $when', style: theme.systemMessageTextStyle),
+                  Flexible(
+                    child: Text(
+                      ' · $when',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.systemMessageTextStyle,
+                    ),
+                  ),
                 Icon(Icons.chevron_right_rounded, size: 18, color: accent),
               ],
             ),

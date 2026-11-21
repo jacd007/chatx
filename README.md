@@ -773,7 +773,7 @@ action in their actions menu.
 
 ### Message menu
 
-A long press opens a bottom sheet by default. Open a popup anchored to the
+A long press opens a bottom sheet by default. Open a popup next to the
 bubble instead, and on a simple tap:
 
 ```dart
@@ -783,6 +783,13 @@ ChatView(
   // ...
 )
 ```
+
+While the menu is open, the chat behind it blurs and the bubble that opened
+it stays sharp on top. A popup sits right next to the bubble, with a small
+pointer toward it; when it does not fit above or below, the bubble moves to
+make room. With the bottom sheet, the bubble rises above the sheet. Bubbles
+taller than 40% of the screen stay in place, and the menu shows a preview of
+the message instead.
 
 The menu includes the built-in entries that apply to each message: Reply,
 Copy text, Edit and Delete (the last two only for the current user's messages
@@ -808,8 +815,10 @@ Use `onMessageLongPress` to show your own UI instead.
 
 ### Reactions
 
-Provide `onReactionSelected` to show a row of quick reactions in the menu and
-make the reaction chips under bubbles tappable:
+Provide `onReactionSelected` to show a row of quick reactions in the menu.
+Under a bubble, reactions are grouped in one pill with the three most used
+emoji and the total, however many there are. Tapping the pill lists every
+reaction, where the user adds or removes theirs:
 
 ```dart
 ChatView(
@@ -2216,8 +2225,8 @@ Use `ChatText` to render the same markdown anywhere in your app.
 
 - Bubbles announce the author and time, and status icons have labels.
 - The typing indicator is a live region.
-- Interactive elements are at least 48×48 dp, including reaction chips and
-  RSVP, contact and bot buttons.
+- Interactive elements are at least 48×48 dp, including the reaction pill and
+  RSVP, contact and bot buttons. The reaction pill reads out every reaction.
 - Automated tests check touch targets, labels and text contrast (WCAG AA) at
   normal and 200% text size.
 - Swipe actions are also available as screen reader custom actions.

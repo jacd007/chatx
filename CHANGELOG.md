@@ -4,6 +4,31 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## 0.2.1 - 2026-11-21
+
+### Changed
+
+- Reactions under a bubble are grouped in one pill with the three most used
+  emoji and the total. Tapping it opens a sheet with every reaction, where
+  the user adds or removes theirs.
+- The message menu keeps the bubble that opened it in view. The chat behind
+  blurs and the bubble stays sharp on top. A popup sits next to the bubble
+  with a pointer toward it, and the bubble moves when the menu fits neither
+  above nor below. With the bottom sheet, the bubble rises above the sheet.
+  Bubbles taller than 40% of the screen stay in place and the menu shows a
+  preview of the message instead.
+
+### Added
+
+- `ChatLocalizations.reactions`, the title of the reactions sheet.
+- Example app: "All features", one conversation with every feature on, and
+  a catalog of 60 small working demos, one per feature.
+
+### Fixed
+
+- Thread summaries and countdowns no longer overflow on narrow screens or
+  with large text.
+
 ## 0.2.0 - 2026-11-21
 
 Architecture review before 1.0. This release breaks the API on purpose;

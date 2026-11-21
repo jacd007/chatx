@@ -52,6 +52,7 @@ void main() {
     addTearDown(tester.platformDispatcher.clearLocalesTestValue);
     await tester.pumpWidget(const ChatxExampleApp());
     await settle(tester);
+    await tester.scrollUntilVisible(find.text(demo), 200);
     await tester.tap(find.text(demo));
     await settle(tester, 900);
   }
@@ -355,6 +356,9 @@ void main() {
     await settle(tester);
     await tester.longPress(find.byKey(const Key('chatx_bubble_drinks')));
     await settle(tester);
+    // The menu has many entries here: scroll it to "Select".
+    await tester.ensureVisible(find.text('Select'));
+    await settle(tester, 300);
     await tester.tap(find.text('Select'));
     await settle(tester);
     await tester.tap(find.byKey(const Key('chatx_bubble_forwarded')));

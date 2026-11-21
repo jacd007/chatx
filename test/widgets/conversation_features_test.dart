@@ -208,11 +208,100 @@ void main() {
       );
       await tester.tap(find.byKey(const Key('chatx_bubble_1')));
       await tester.pumpAndSettle();
-      expect(find.byType(PopupMenuItem<Object>), findsWidgets);
+      expect(find.byKey(const Key('chatx_message_menu')), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('chatx_react_❤️')));
       await tester.pumpAndSettle();
       expect(reacted, [('1', '❤️')]);
+    });
+
+    for (final style in ChatMessageMenuStyle.values) {
+      testWidgets('the ${style.name} menu never covers its bubble',
+          (tester) async {
+        for (var i = 0; i < 20; i++) {
+          controller.insert(message('m$i', text: 'Message $i'));
+        }
+        await pump(tester, menuStyle: style);
+        // The newest message sits right above the input.
+        await tester.longPress(find.byKey(const Key('chatx_bubble_m19')));
+        await tester.pumpAndSettle();
+
+        final focus = find.byKey(const Key('chatx_menu_focus'));
+        final menu = find.byKey(const Key('chatx_message_menu'));
+        expect(focus, findsOneWidget);
+        expect(menu, findsOneWidget);
+        final focusRect = tester.getRect(focus);
+        final menuRect = tester.getRect(menu);
+        expect(focusRect.overlaps(menuRect), isFalse);
+        final screen = Offset.zero &
+            tester.view.physicalSize / tester.view.devicePixelRatio;
+        expect(screen.contains(focusRect.topLeft), isTrue);
+        expect(
+            screen.contains(menuRect.bottomRight - const Offset(1, 1)), isTrue);
+
+        // Closing shows the bubble of the list again.
+        await tester.tap(find.byKey(const Key('chatx_menu_scrim')),
+            warnIfMissed: false);
+        await tester.pumpAndSettle();
+        expect(focus, findsNothing);
+        final opacity = tester.widget<Opacity>(
+          find
+              .ancestor(
+                of: find.byKey(const Key('chatx_bubble_m19')),
+                matching: find.byType(Opacity),
+              )
+              .first,
+        );
+        expect(opacity.opacity, 1);
+      });
+    }
+
+    testWidgets('a popup points at its bubble', (tester) async {
+      controller.insert(message('m', text: 'Hi'));
+      await pump(tester, menuStyle: ChatMessageMenuStyle.popup);
+      await tester.longPress(find.byKey(const Key('chatx_bubble_m')));
+      await tester.pumpAndSettle();
+      final pointer =
+          tester.getCenter(find.byKey(const Key('chatx_menu_pointer')));
+      final menu = tester.getRect(find.byKey(const Key('chatx_message_menu')));
+      final bubble = tester.getRect(find.byKey(const Key('chatx_menu_focus')));
+      // On the menu edge that faces the bubble.
+      expect(
+        (pointer.dy - menu.top).abs() < 1 ||
+            (pointer.dy - menu.bottom).abs() < 1,
+        isTrue,
+      );
+      expect(pointer.dx, inInclusiveRange(menu.left, menu.right));
+      expect(
+        (pointer.dy - bubble.bottom).abs() < 20 ||
+            (pointer.dy - bubble.top).abs() < 20,
+        isTrue,
+      );
+    });
+
+    testWidgets('a very tall bubble stays in place and the menu previews it',
+        (tester) async {
+      controller.insert(
+        message('long',
+            text: List.filled(60, 'A long line of text.').join(' ')),
+      );
+      await pump(tester, menuStyle: ChatMessageMenuStyle.popup);
+      await tester.longPress(find.byKey(const Key('chatx_bubble_long')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chatx_menu_focus')), findsNothing);
+      expect(find.byKey(const Key('chatx_menu_pointer')), findsNothing);
+      expect(find.byKey(const Key('chatx_menu_preview')), findsOneWidget);
+      expect(find.text('Ana'), findsWidgets);
+      // The bubble in the list is not hidden.
+      final opacity = tester.widget<Opacity>(
+        find
+            .ancestor(
+              of: find.byKey(const Key('chatx_bubble_long')),
+              matching: find.byType(Opacity),
+            )
+            .first,
+      );
+      expect(opacity.opacity, 1);
     });
 
     testWidgets('delete calls onDeleteMessage', (tester) async {
@@ -270,22 +359,62 @@ void main() {
   });
 
   group('reactions', () {
-    testWidgets('chips show counts and report taps', (tester) async {
+    testWidgets('one pill groups the reactions; its sheet toggles them',
+        (tester) async {
       controller.insert(
         message(
           '1',
           reactions: const [
-            ChatReaction(emoji: '👍', userIds: ['ana', 'me']),
             ChatReaction(emoji: '🎉', userIds: ['ana']),
+            ChatReaction(emoji: '👍', userIds: ['ana', 'me']),
+            ChatReaction(emoji: '❤️', userIds: ['leo']),
+            ChatReaction(emoji: '🙏', userIds: ['sam']),
+            ChatReaction(emoji: '😁', userIds: ['bea']),
           ],
         ),
       );
       await pump(tester);
-      expect(find.text('👍 2'), findsOneWidget);
-      expect(find.text('🎉'), findsOneWidget);
+      // Most used first, three emoji at most, and the total.
+      expect(find.text('👍🎉❤️ 6'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('chatx_reactions_1')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chatx_reactions_sheet_1')), findsOneWidget);
+      expect(find.text('😁'), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('chatx_reaction_1_👍')));
+      await tester.pumpAndSettle();
       expect(reacted, [('1', '👍')]);
+      expect(find.byKey(const Key('chatx_reactions_sheet_1')), findsNothing);
+    });
+
+    testWidgets('many reactions stay one pill under the bubble',
+        (tester) async {
+      controller.insert(
+        message(
+          '1',
+          text: 'Long-press a message to save it for later',
+          reactions: [
+            for (final emoji in [
+              '🥳',
+              '👍',
+              '❤️',
+              '🙏',
+              '😁',
+              '🖖',
+              '👏',
+              '🏎'
+            ])
+              ChatReaction(emoji: emoji, userIds: const ['ana']),
+          ],
+        ),
+      );
+      await pump(tester);
+      final pill = tester.getRect(find.byKey(const Key('chatx_reactions_1')));
+      final bubble = tester.getRect(find.byKey(const Key('chatx_bubble_1')));
+      expect(pill.height, 48);
+      expect(pill.width, lessThan(bubble.width));
+      expect(pill.left, greaterThanOrEqualTo(bubble.left));
     });
 
     testWidgets('picking a reaction from the sheet reports it', (tester) async {

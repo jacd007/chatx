@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'features/all_features_page.dart';
+import 'features/feature_catalog_page.dart';
 import 'pages/ai_streaming_page.dart';
 import 'pages/announcements_page.dart';
 import 'pages/workspace_page.dart';
@@ -46,6 +48,18 @@ class DemoListPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final demos = <(String, String, IconData, WidgetBuilder)>[
+      (
+        'All features',
+        'Every chatx feature in one conversation',
+        Icons.all_inclusive,
+        (_) => const AllFeaturesPage(),
+      ),
+      (
+        'Feature catalog',
+        'Each feature on its own, in a small working demo',
+        Icons.apps,
+        (_) => const FeatureCatalogPage(),
+      ),
       (
         'Basic chat',
         'Swipe to reply, reactions, popup menu, edit',
