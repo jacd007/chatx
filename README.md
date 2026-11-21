@@ -134,6 +134,7 @@ follows your app's theme.
 - [Core concepts](#core-concepts)
 - [Guides](#guides)
   - [Connect your backend](#connect-your-backend)
+  - [Sending](#sending)
   - [Delivery status and retry](#delivery-status-and-retry)
   - [Streaming answers (AI chats)](#streaming-answers-ai-chats)
   - [AI answer controls](#ai-answer-controls)
@@ -263,7 +264,9 @@ class _ChatPageState extends State<ChatPage> {
     super.dispose();
   }
 
-  void send(String text, ChatMessage? replyTo) {
+  void send(ChatOutgoing outgoing) {
+    if (outgoing is! OutgoingText) return;
+    final OutgoingText(:text, :replyTo) = outgoing;
     controller.insert(TextMessage(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       author: me,
@@ -286,7 +289,7 @@ class _ChatPageState extends State<ChatPage> {
       body: ChatView(
         controller: controller,
         currentUser: me,
-        onSendMessage: send,
+        onSend: send,
       ),
     );
   }
@@ -380,7 +383,7 @@ disposes the composer.
 chatx does not know about your server. The pattern is always the same:
 
 1. Listen to your backend and copy its messages into the controller.
-2. In `onSendMessage`, show the message right away and send it to the backend.
+2. In `onSend`, show the message right away and send it to the backend.
 
 ```dart
 // 1. Incoming messages (WebSocket, Firestore snapshot, SSE, ...).
@@ -398,18 +401,19 @@ subscription = api.messages(roomId).listen((dto) {
 ChatView(
   controller: controller,
   currentUser: me,
-  onSendMessage: (text, replyTo) async {
+  onSend: (outgoing) async {
+    if (outgoing is! OutgoingText) return;
     final id = uuid();
     controller.insert(TextMessage(
       id: id,
       author: me,
       createdAt: DateTime.now(),
-      text: text,
-      replyToId: replyTo?.id,
+      text: outgoing.text,
+      replyToId: outgoing.replyTo?.id,
       status: MessageStatus.sending,
     ));
     try {
-      await api.send(roomId, id: id, text: text);
+      await api.send(roomId, id: id, text: outgoing.text);
       controller.updateStatus(id, MessageStatus.sent);
     } catch (_) {
       controller.updateStatus(id, MessageStatus.failed);
@@ -420,6 +424,49 @@ ChatView(
 
 Use `upsert` for incoming messages: when the server echoes back a message you
 already inserted, it is replaced instead of duplicated.
+
+### Sending
+
+Everything the user sends from the input bar reaches `onSend` as a
+`ChatOutgoing`. The hierarchy is sealed, so a `switch` covers every case:
+
+```dart
+ChatView(
+  onSend: (outgoing) => switch (outgoing) {
+    OutgoingText(:final text, :final replyTo, :final scheduledFor) =>
+      api.send(text, replyTo: replyTo?.id, at: scheduledFor),
+    OutgoingAttachments(:final attachments, :final caption) =>
+      api.upload(attachments, caption),
+    OutgoingSticker(:final sticker) => api.sendSticker(sticker.id),
+    OutgoingEdit(:final message, :final text) => api.edit(message.id, text),
+    OutgoingScheduledNow(:final message) => api.sendNow(message.id),
+  },
+  sendFeatures: const {
+    ChatSendFeature.edit,
+    ChatSendFeature.attachments,
+    ChatSendFeature.schedule,
+    ChatSendFeature.stickers,
+    ChatSendFeature.sendScheduledNow,
+  },
+  // ...
+)
+```
+
+Text, suggested prompts and quick replies always arrive as `OutgoingText`.
+The rest only appear in the UI when you list them in `sendFeatures`:
+
+| Feature | What it shows | What `onSend` receives |
+| --- | --- | --- |
+| `edit` | "Edit" on the user's text messages, up arrow to edit the last one | `OutgoingEdit` |
+| `attachments` | The attachment tray and images pasted from the keyboard | `OutgoingAttachments` |
+| `schedule` | Long press on send to schedule | `OutgoingText` with `scheduledFor` |
+| `stickers` | The `stickerPacks` tabs in the emoji picker | `OutgoingSticker` |
+| `sendScheduledNow` | "Send now" on scheduled messages | `OutgoingScheduledNow` |
+
+`onSendMessage`, `onEditMessage`, `onSendAttachments`, `onSendSticker`,
+`onScheduleMessage` and `onSendScheduledNow` still work and are deprecated
+until 1.0. When one is set it takes precedence over `onSend` for its case,
+so you can migrate one callback at a time.
 
 ### Delivery status and retry
 
@@ -545,8 +592,8 @@ onRegenerate: (message) {
 
 ### Suggested prompts
 
-Cards in the empty conversation. Tapping one sends its text through
-`onSendMessage`. For follow-up suggestions after an answer, use
+Cards in the empty conversation. Tapping one sends its text to `onSend` as
+an `OutgoingText`. For follow-up suggestions after an answer, use
 `TextMessage.quickReplies`.
 
 ```dart
@@ -646,19 +693,24 @@ ChatView(
 ### Replies and swipe actions
 
 Swiping a bubble toward the center starts a reply: a banner appears above the
-input, and `onSendMessage` receives the message being replied to. Store its
+input, and `onSend` receives the message being replied to in
+`replyTo`. Store its
 ID in `replyToId` and the new bubble shows a quote. Tapping the quote scrolls
 to the original message and highlights it.
 
 ```dart
 ChatView(
-  onSendMessage: (text, replyTo) => controller.insert(TextMessage(
-    id: uuid(),
-    author: me,
-    createdAt: DateTime.now(),
-    text: text,
-    replyToId: replyTo?.id,
-  )),
+  onSend: (outgoing) {
+    if (outgoing case OutgoingText(:final text, :final replyTo)) {
+      controller.insert(TextMessage(
+        id: uuid(),
+        author: me,
+        createdAt: DateTime.now(),
+        text: text,
+        replyToId: replyTo?.id,
+      ));
+    }
+  },
   // ...
 )
 ```
@@ -696,7 +748,7 @@ ChatView(
 
 The menu includes the built-in entries that apply to each message: Reply,
 Copy text, Edit and Delete (the last two only for the current user's messages
-and only when you provide `onEditMessage` and `onDeleteMessage`). Add, remove
+and only with `ChatSendFeature.edit` and `onDeleteMessage`). Add, remove
 or reorder entries with `messageActionsBuilder`, which receives those
 defaults:
 
@@ -746,9 +798,13 @@ TextMessage(
 
 ```dart
 ChatView(
-  onEditMessage: (message, newText) {
-    controller.editText(message.id, newText);
-    api.edit(message.id, newText);
+  sendFeatures: const {ChatSendFeature.edit},
+  onSend: (outgoing) {
+    if (outgoing case OutgoingEdit(:final message, :final text)) {
+      controller.editText(message.id, text);
+      api.edit(message.id, text);
+    }
+    // ...
   },
   onDeleteMessage: (message) {
     controller.remove(message.id);
@@ -970,7 +1026,7 @@ ChatView(
         controller: threadControllerFor(message),
         threadRoot: message, // shown on top, followed by the reply count
         currentUser: me,
-        onSendMessage: sendToThread,
+        onSend: sendToThread,
       ),
     ),
   )),
@@ -1247,15 +1303,18 @@ ChatView(
   imageProviderBuilder: (uri) => uri.startsWith('asset:')
       ? AssetImage('assets/stickers/${uri.substring(6)}.png')
       : NetworkImage(uri),
-  onSendSticker: (sticker) => controller.insert(
-    StickerMessage(
-      id: uuid(),
-      author: me,
-      createdAt: DateTime.now(),
-      uri: sticker.uri,
-      label: sticker.label,
-    ),
-  ),
+  sendFeatures: const {ChatSendFeature.stickers},
+  onSend: (outgoing) {
+    if (outgoing case OutgoingSticker(:final sticker)) {
+      controller.insert(StickerMessage(
+        id: uuid(),
+        author: me,
+        createdAt: DateTime.now(),
+        uri: sticker.uri,
+        label: sticker.label,
+      ));
+    }
+  },
 )
 ```
 
@@ -1282,24 +1341,31 @@ ChatView(
 
 ### Scheduled messages
 
-With `onScheduleMessage`, a long press on the send button opens quick
+With `ChatSendFeature.schedule`, a long press on the send button opens quick
 options (in 1 hour, tonight, tomorrow morning, pick a date and time):
 
 ```dart
 ChatView(
   // ...
-  onScheduleMessage: (text, at, replyTo) => controller.insert(
-    TextMessage(
-      id: uuid(),
-      author: me,
-      createdAt: DateTime.now(),
-      text: text,
-      scheduledFor: at,
-    ),
-  ),
-  onSendScheduledNow: (message) => controller.update(
-    message.copyWithMeta(clearScheduledFor: true),
-  ),
+  sendFeatures: const {
+    ChatSendFeature.schedule,
+    ChatSendFeature.sendScheduledNow,
+  },
+  onSend: (outgoing) => switch (outgoing) {
+    OutgoingText(:final text, :final scheduledFor?) => controller.insert(
+        TextMessage(
+          id: uuid(),
+          author: me,
+          createdAt: DateTime.now(),
+          text: text,
+          scheduledFor: scheduledFor,
+        ),
+      ),
+    OutgoingScheduledNow(:final message) => controller.update(
+        message.copyWithMeta(clearScheduledFor: true),
+      ),
+    _ => sendNow(outgoing),
+  },
 )
 ```
 
@@ -1369,8 +1435,12 @@ ChatView(
         ),
     ]);
   },
-  onSendAttachments: (attachments, caption, replyTo) {
-    upload(attachments, caption); // then insert ImageMessage / FileMessage
+  sendFeatures: const {ChatSendFeature.attachments},
+  onSend: (outgoing) {
+    if (outgoing case OutgoingAttachments(:final attachments, :final caption)) {
+      upload(attachments, caption); // then insert ImageMessage / FileMessage
+    }
+    // ...
   },
 )
 ```
@@ -1888,16 +1958,19 @@ ChatView(
   onTypingChanged: (typing) => socket.sink.add(
     jsonEncode({'type': 'typing', 'active': typing}),
   ),
-  onSendMessage: (text, replyTo) {
+  onSend: (outgoing) {
+    if (outgoing is! OutgoingText) return;
     final id = uuid();
     controller.insert(TextMessage(
       id: id,
       author: me,
       createdAt: DateTime.now(),
-      text: text,
+      text: outgoing.text,
       status: MessageStatus.sending,
     ));
-    socket.sink.add(jsonEncode({'type': 'message', 'id': id, 'text': text}));
+    socket.sink.add(
+      jsonEncode({'type': 'message', 'id': id, 'text': outgoing.text}),
+    );
   },
 )
 ```
@@ -1949,13 +2022,13 @@ depend on texts or layout:
 ```dart
 testWidgets('sends a message', (tester) async {
   final controller = ChatController();
-  final sent = <String>[];
+  final sent = <ChatOutgoing>[];
   await tester.pumpWidget(MaterialApp(
     home: Scaffold(
       body: ChatView(
         controller: controller,
         currentUser: const ChatUser(id: 'me'),
-        onSendMessage: (text, _) => sent.add(text),
+        onSend: sent.add,
       ),
     ),
   ));
@@ -1964,7 +2037,7 @@ testWidgets('sends a message', (tester) async {
   await tester.pump();
   await tester.tap(find.byKey(const Key('chatx_send_button')));
 
-  expect(sent, ['Hi']);
+  expect(sent, [const OutgoingText('Hi')]);
 });
 
 testWidgets('shows incoming messages', (tester) async {

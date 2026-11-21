@@ -1244,7 +1244,7 @@ class _AttachmentTray extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final view = state.widget;
-    if (view.onSendAttachments == null) return const SizedBox.shrink();
+    if (!state._canAttach) return const SizedBox.shrink();
     final l10n = ChatLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
     return ValueListenableBuilder<List<ChatAttachment>>(

@@ -17,6 +17,7 @@ import '../markdown/chat_text.dart';
 import '../markdown/markdown_parser.dart';
 import '../material.dart';
 import '../models/chat_message.dart';
+import '../models/chat_outgoing.dart';
 import '../models/chat_reaction.dart';
 import '../models/chat_user.dart';
 import '../models/message_status.dart';
@@ -53,16 +54,18 @@ part 'chat_view/swipe_to_action.dart';
 /// ChatView(
 ///   controller: controller,
 ///   currentUser: me,
-///   onSendMessage: (text, replyTo) {
-///     controller.insert(TextMessage(
-///       id: uuid(),
-///       author: me,
-///       createdAt: DateTime.now(),
-///       text: text,
-///       replyToId: replyTo?.id,
-///       status: MessageStatus.sending,
-///     ));
-///     // Send the message to your backend here.
+///   onSend: (outgoing) {
+///     if (outgoing case OutgoingText(:final text, :final replyTo)) {
+///       controller.insert(TextMessage(
+///         id: uuid(),
+///         author: me,
+///         createdAt: DateTime.now(),
+///         text: text,
+///         replyToId: replyTo?.id,
+///         status: MessageStatus.sending,
+///       ));
+///       // Send the message to your backend here.
+///     }
 ///   },
 /// )
 /// ```
@@ -79,7 +82,10 @@ class ChatView extends StatefulWidget {
     super.key,
     required this.controller,
     required this.currentUser,
-    required this.onSendMessage,
+    this.onSend,
+    this.sendFeatures = const {},
+    @Deprecated('Use onSend. Removed in 1.0') this.onSendMessage,
+    @Deprecated('Use onSend with ChatSendFeature.edit. Removed in 1.0')
     this.onEditMessage,
     this.onDeleteMessage,
     this.onReactionSelected,
@@ -152,9 +158,14 @@ class ChatView extends StatefulWidget {
     this.onRsvp,
     this.onContactAction,
     this.stickerPacks = const [],
+    @Deprecated('Use onSend with ChatSendFeature.stickers. Removed in 1.0')
     this.onSendSticker,
     this.onDeleteForEveryone,
+    @Deprecated('Use onSend with ChatSendFeature.schedule. Removed in 1.0')
     this.onScheduleMessage,
+    @Deprecated(
+      'Use onSend with ChatSendFeature.sendScheduledNow. Removed in 1.0',
+    )
     this.onSendScheduledNow,
     this.readOnly = false,
     this.readOnlyMessage,
@@ -172,12 +183,16 @@ class ChatView extends StatefulWidget {
     this.onPaymentAction,
     this.onCallBack,
     this.onAttach,
+    @Deprecated('Use onSend with ChatSendFeature.attachments. Removed in 1.0')
     this.onSendAttachments,
     this.connectionState = ChatConnectionState.online,
     this.onSendQueued,
     this.suggestedPrompts = const [],
     this.showHoverActions = true,
-  });
+  }) : assert(
+          onSend != null || onSendMessage != null,
+          'Pass onSend to receive what the user sends',
+        );
 
   /// Reactions offered in the message menu by default.
   static const List<String> defaultReactionEmojis = [
@@ -195,19 +210,33 @@ class ChatView extends StatefulWidget {
   /// The user of this device. Their messages are shown as outgoing.
   final ChatUser currentUser;
 
-  /// Called with the trimmed text when the user sends a message, and the
-  /// message being replied to, if any.
+  /// Called with everything the user sends from the input bar: text,
+  /// prompts, quick replies and, when enabled in [sendFeatures], edits,
+  /// attachments, stickers and scheduled messages.
   ///
   /// chatx does not add the message to [controller] for you. Insert it
   /// yourself (usually with [MessageStatus.sending] and
-  /// `replyToId: replyTo?.id`) for an optimistic UI. The reply banner closes
-  /// automatically.
-  final ChatSendCallback onSendMessage;
+  /// `replyToId: outgoing.replyTo?.id`) for an optimistic UI. The reply
+  /// banner closes automatically.
+  ///
+  /// The older callbacks ([onSendMessage], [onEditMessage],
+  /// [onSendAttachments], [onSendSticker], [onScheduleMessage] and
+  /// [onSendScheduledNow]) still work and take precedence when set.
+  final ChatOutgoingCallback? onSend;
+
+  /// The features [onSend] handles beyond plain text. Each one shows its
+  /// part of the UI, such as the "Edit" action or the attachment tray.
+  final Set<ChatSendFeature> sendFeatures;
+
+  /// Called when the user sends a text message.
+  @Deprecated('Use onSend. Removed in 1.0')
+  final ChatSendCallback? onSendMessage;
 
   /// Called when the user saves an edited message. When set, the menu offers
   /// "Edit" on the current user's text messages.
   ///
   /// Update the message with [ChatController.editText] and your backend.
+  @Deprecated('Use onSend with ChatSendFeature.edit. Removed in 1.0')
   final ChatEditCallback? onEditMessage;
 
   /// Called when the user chooses "Delete". When set, the menu offers it on
@@ -470,10 +499,11 @@ class ChatView extends StatefulWidget {
       onContactAction;
 
   /// Sticker packs shown as tabs in the emoji picker. Requires
-  /// [onSendSticker].
+  /// [ChatSendFeature.stickers] in [sendFeatures].
   final List<ChatStickerPack> stickerPacks;
 
   /// Called when the user picks a sticker. Insert a [StickerMessage].
+  @Deprecated('Use onSend with ChatSendFeature.stickers. Removed in 1.0')
   final ValueChanged<ChatSticker>? onSendSticker;
 
   /// Called when the user deletes their message for everyone. Offered in
@@ -481,9 +511,13 @@ class ChatView extends StatefulWidget {
   final ValueChanged<ChatMessage>? onDeleteForEveryone;
 
   /// Called when the user schedules a message by long-pressing send.
+  @Deprecated('Use onSend with ChatSendFeature.schedule. Removed in 1.0')
   final ChatScheduleCallback? onScheduleMessage;
 
   /// Called when the user chooses "Send now" on a scheduled message.
+  @Deprecated(
+    'Use onSend with ChatSendFeature.sendScheduledNow. Removed in 1.0',
+  )
   final ValueChanged<ChatMessage>? onSendScheduledNow;
 
   /// Replaces the input with a banner, for channels where only some people
@@ -549,6 +583,7 @@ class ChatView extends StatefulWidget {
 
   /// Called when the user sends the files waiting in the input. Required to
   /// show the attachment tray.
+  @Deprecated('Use onSend with ChatSendFeature.attachments. Removed in 1.0')
   final ChatAttachmentsCallback? onSendAttachments;
 
   /// Network state. Anything but [ChatConnectionState.online] shows a banner
@@ -1175,11 +1210,72 @@ class _ChatViewState extends State<ChatView> {
     });
   }
 
+  // A feature is on when its old callback is set, or when onSend handles
+  // it. The old callbacks take precedence, so apps can migrate one by one.
+  bool _sends(ChatSendFeature feature, Object? legacy) =>
+      legacy != null ||
+      (widget.onSend != null && widget.sendFeatures.contains(feature));
+
+  bool get _canEdit => _sends(ChatSendFeature.edit, widget.onEditMessage);
+
+  bool get _canAttach =>
+      _sends(ChatSendFeature.attachments, widget.onSendAttachments);
+
+  bool get _canSchedule =>
+      _sends(ChatSendFeature.schedule, widget.onScheduleMessage);
+
+  bool get _canSendStickers =>
+      _sends(ChatSendFeature.stickers, widget.onSendSticker);
+
+  bool get _canSendScheduledNow =>
+      _sends(ChatSendFeature.sendScheduledNow, widget.onSendScheduledNow);
+
+  void _sendText(String text, ChatMessage? replyTo) {
+    final legacy = widget.onSendMessage;
+    if (legacy != null) {
+      legacy(text, replyTo);
+    } else {
+      widget.onSend?.call(OutgoingText(text, replyTo: replyTo));
+    }
+  }
+
+  void _sendEdit(TextMessage message, String text) {
+    final legacy = widget.onEditMessage;
+    if (legacy != null) {
+      legacy(message, text);
+    } else {
+      widget.onSend?.call(OutgoingEdit(message, text));
+    }
+  }
+
+  void _sendSticker(ChatSticker sticker) {
+    final legacy = widget.onSendSticker;
+    if (legacy != null) {
+      legacy(sticker);
+      return;
+    }
+    final composer = widget.controller.composer;
+    widget.onSend?.call(
+      OutgoingSticker(sticker, replyTo: composer.replyingTo.value),
+    );
+    composer.cancelReply();
+    _scrollToBottom();
+  }
+
+  void _sendScheduledNow(ChatMessage message) {
+    final legacy = widget.onSendScheduledNow;
+    if (legacy != null) {
+      legacy(message);
+    } else {
+      widget.onSend?.call(OutgoingScheduledNow(message));
+    }
+  }
+
   void _handleSend(String text) {
     final controller = widget.controller;
     final editing = controller.composer.editing.value;
     if (editing is TextMessage) {
-      widget.onEditMessage?.call(editing, text);
+      if (_canEdit) _sendEdit(editing, text);
       controller.composer.cancelEditing();
       return;
     }
@@ -1187,12 +1283,18 @@ class _ChatViewState extends State<ChatView> {
     if (_slowRemaining != null) return;
     final replyTo = controller.composer.replyingTo.value;
     final attachments = controller.composer.attachments.value;
-    final onSendAttachments = widget.onSendAttachments;
-    if (attachments.isNotEmpty && onSendAttachments != null) {
-      onSendAttachments(attachments, text, replyTo);
+    if (attachments.isNotEmpty && _canAttach) {
+      final legacy = widget.onSendAttachments;
+      if (legacy != null) {
+        legacy(attachments, text, replyTo);
+      } else {
+        widget.onSend?.call(
+          OutgoingAttachments(attachments, caption: text, replyTo: replyTo),
+        );
+      }
       controller.composer.clearAttachments();
     } else if (text.isNotEmpty) {
-      widget.onSendMessage(text, replyTo);
+      _sendText(text, replyTo);
     } else {
       return;
     }
@@ -1278,13 +1380,13 @@ class _ChatViewState extends State<ChatView> {
 
   void _sendPrompt(ChatPrompt prompt) {
     HapticFeedback.selectionClick();
-    widget.onSendMessage(prompt.message, null);
+    _sendText(prompt.message, null);
     _scrollToBottom();
   }
 
   /// Edits the newest text message of the current user (up arrow).
   void _editLastMessage() {
-    if (widget.onEditMessage == null) return;
+    if (!_canEdit) return;
     final messages = widget.controller.messages;
     for (var i = messages.length - 1; i >= 0; i--) {
       final message = messages[i];
@@ -1310,7 +1412,7 @@ class _ChatViewState extends State<ChatView> {
 
   void _onContentInserted(KeyboardInsertedContent content) {
     final data = content.data;
-    if (data == null || widget.onSendAttachments == null) return;
+    if (data == null || !_canAttach) return;
     final name = Uri.tryParse(content.uri)?.pathSegments.lastOrNull ?? 'image';
     widget.controller.composer.addAttachments([
       ChatAttachment(
@@ -1327,11 +1429,18 @@ class _ChatViewState extends State<ChatView> {
   }
 
   Future<void> _schedule(String text) async {
-    final onSchedule = widget.onScheduleMessage;
-    if (onSchedule == null) return;
+    if (!_canSchedule) return;
     final at = await _pickScheduleTime(context);
     if (at == null || !mounted) return;
-    onSchedule(text, at, widget.controller.composer.replyingTo.value);
+    final replyTo = widget.controller.composer.replyingTo.value;
+    final legacy = widget.onScheduleMessage;
+    if (legacy != null) {
+      legacy(text, at, replyTo);
+    } else {
+      widget.onSend?.call(
+        OutgoingText(text, replyTo: replyTo, scheduledFor: at),
+      );
+    }
     widget.controller.composer.cancelReply();
     _textController.clear();
   }
@@ -1358,13 +1467,13 @@ class _ChatViewState extends State<ChatView> {
     if (message.deletedAt != null) return const [];
     if (message.scheduledFor != null) {
       return [
-        if (widget.onSendScheduledNow != null)
+        if (_canSendScheduledNow)
           ChatMessageAction(
             label: l10n.sendNow,
             icon: Icons.send_rounded,
-            onSelected: widget.onSendScheduledNow!,
+            onSelected: _sendScheduledNow,
           ),
-        if (message is TextMessage && widget.onEditMessage != null)
+        if (message is TextMessage && _canEdit)
           ChatMessageAction(
             label: l10n.edit,
             icon: Icons.edit_outlined,
@@ -1396,10 +1505,7 @@ class _ChatViewState extends State<ChatView> {
           icon: Icons.translate_rounded,
           onSelected: (m) => _translate(m as TextMessage),
         ),
-      if (mine &&
-          !streaming &&
-          message is TextMessage &&
-          widget.onEditMessage != null)
+      if (mine && !streaming && message is TextMessage && _canEdit)
         ChatMessageAction(
           label: l10n.edit,
           icon: Icons.edit_outlined,
@@ -1583,8 +1689,8 @@ class _ChatViewState extends State<ChatView> {
           latest.isStreaming &&
           !_isOutgoing(latest) &&
           widget.onStopGenerating != null;
-      final hasAttachments = widget.onSendAttachments != null &&
-          widget.controller.composer.attachments.value.isNotEmpty;
+      final hasAttachments =
+          _canAttach && widget.controller.composer.attachments.value.isNotEmpty;
       return widget.inputBuilder?.call(context, _handleSend, _textController) ??
           ChatInput(
             onSend: _handleSend,
@@ -1608,10 +1714,9 @@ class _ChatViewState extends State<ChatView> {
                     onPressed:
                         widget.inputEnabled && !slowed ? widget.onAttach : null,
                   ),
-            onArrowUp: widget.onEditMessage == null ? null : _editLastMessage,
+            onArrowUp: _canEdit ? _editLastMessage : null,
             onEscape: _onEscape,
-            onContentInserted:
-                widget.onSendAttachments == null ? null : _onContentInserted,
+            onContentInserted: _canAttach ? _onContentInserted : null,
             onTypingChanged: widget.onTypingChanged,
             sendIcon:
                 editing ? Icons.check_rounded : Icons.arrow_upward_rounded,
@@ -1619,10 +1724,9 @@ class _ChatViewState extends State<ChatView> {
             onRecordEnd: widget.onVoiceRecordEnd,
             showEmojiButton: widget.enableEmojiPicker,
             onStop: generating ? () => widget.onStopGenerating!(latest) : null,
-            onSchedule:
-                widget.onScheduleMessage == null || editing ? null : _schedule,
+            onSchedule: _canSchedule && !editing ? _schedule : null,
             stickerPacks: widget.stickerPacks,
-            onSticker: widget.onSendSticker,
+            onSticker: _canSendStickers ? _sendSticker : null,
             imageProviderBuilder: widget.imageProviderBuilder,
           );
     }
