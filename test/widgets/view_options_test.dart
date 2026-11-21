@@ -72,4 +72,28 @@ void main() {
     await tester.tap(find.text('Yes'));
     expect(replies, ['yes']);
   });
+
+  testWidgets('custom messages use the builder of their type', (tester) async {
+    final at = DateTime.now();
+    controller.insertAll([
+      CustomMessage(id: 'a', author: me, createdAt: at, type: 'invoice'),
+      CustomMessage(id: 'b', author: me, createdAt: at, type: 'unknown'),
+    ]);
+    await pump(
+      tester,
+      ChatView(
+        controller: controller,
+        currentUser: me,
+        onSend: (_) {},
+        builders: ChatBuilders(
+          customMessageBuilders: {
+            'invoice': (_, message, __) => Text('Invoice ${message.id}'),
+          },
+          customMessageBuilder: (_, message, __) => Text('Other ${message.id}'),
+        ),
+      ),
+    );
+    expect(find.text('Invoice a'), findsOneWidget);
+    expect(find.text('Other b'), findsOneWidget);
+  });
 }

@@ -316,22 +316,54 @@ const ana = ChatUser(
 
 ### Messages
 
-`ChatMessage` is a sealed class with three kinds:
+`ChatMessage` is a sealed class, so a `switch` over a message is
+exhaustive:
 
 | Type | Use it for |
 | --- | --- |
-| `TextMessage` | Text with markdown. Supports streaming and an "edited" label. |
+| `TextMessage` | Text with markdown. Streaming, edits, bot buttons and AI answers. |
 | `SystemMessage` | Centered notices like "Ana joined the chat". |
 | `ImageMessage` | One or more images with an optional caption. |
+| `VideoMessage` | A video with a poster and duration. |
 | `FileMessage` | A file with icon, name, size and upload progress. |
-| `VoiceMessage` | A voice note with waveform and playback. |
+| `VoiceMessage` | A voice note with waveform, playback and transcript. |
 | `PollMessage` | A quick vote: one question, closed options. |
 | `SurveyMessage` | A questionnaire with several questions. |
 | `CountdownMessage` | An announcement with a live countdown. |
-| `CustomMessage` | Anything else: images, polls, locations… Rendered by your builder. |
+| `EventMessage` | An event with RSVP. |
+| `ChecklistMessage` | A shared to-do list. |
+| `LocationMessage` | A place or a live location. |
+| `ContactMessage` | A contact card. |
+| `ProductMessage` | One or more products, as a card or a carousel. |
+| `PaymentMessage` | A payment request or receipt. |
+| `CallMessage` | A call log entry. |
+| `StickerMessage` | A sticker or GIF, without a bubble. |
+| `CustomMessage` | Your own types, rendered by your builders. |
 
-Every message has an `id`, an `author`, a `createdAt` date, and optionally a
-`status`, a `replyToId`, `reactions` and `metadata` for your own data.
+The set of types is fixed from 1.0. New kinds of content are
+`CustomMessage`s with your own `type`, rendered by
+`ChatBuilders.customMessageBuilders`, so your switches keep compiling when
+chatx updates.
+
+Every message has an `id`, an `author` and a `createdAt` date. The shared
+optional fields (`status`, `replyToId`, `reactions`, `thread`, `receipts`,
+`forwardedFrom`, `expiresAt`, `deletedAt`, `scheduledFor` and `metadata`
+for your own data) are also available together as `message.meta`, a
+`ChatMessageMeta`:
+
+```dart
+// Any message type; the result is a ChatMessage.
+controller.update(message.copyWithMeta(status: MessageStatus.read));
+
+// Keeps the type: the result is a TextMessage.
+final sent = text.withMeta(text.meta.copyWith(status: MessageStatus.sent));
+
+// copyWith changes the fields of the type, and takes a meta too.
+final retried = text.copyWith(
+  text: fixed,
+  meta: text.meta.copyWith(status: MessageStatus.sending),
+);
+```
 
 ### The controller
 
@@ -1670,28 +1702,30 @@ From code, call `controller.scrollToDate(date)`.
 
 ### Custom message types
 
-Use `CustomMessage` with a `type` and a `payload`, and render it with
-`customMessageBuilder`. The result is placed inside a regular bubble, with
-time and status.
+Use `CustomMessage` with a `type` and a `payload`, and register a builder
+for the type in `customMessageBuilders`. The result is placed inside a
+regular bubble, with time and status. `customMessageBuilder` renders the
+types that have no builder, for example ones added by a newer version of
+your app.
 
 ```dart
 controller.insert(CustomMessage(
-  id: 'img-1',
+  id: 'inv-1',
   author: ana,
   createdAt: DateTime.now(),
-  type: 'image',
-  payload: 'https://example.com/photo.jpg',
+  type: 'invoice',
+  payload: Invoice(number: 'F-102', total: 120),
 ));
 
 ChatView(
   builders: ChatBuilders(
-    customMessageBuilder: (context, message, details) => switch (message.type) {
-      'image' => ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.network(message.payload! as String, width: 240),
-        ),
-      _ => const Text('Unsupported message'),
+    customMessageBuilders: {
+      'invoice': (context, message, details) =>
+          InvoiceCard(message.payload! as Invoice),
     },
+    // Optional: any other type.
+    customMessageBuilder: (context, message, details) =>
+        const Text('Update the app to see this message'),
   ),
   // ...
 )

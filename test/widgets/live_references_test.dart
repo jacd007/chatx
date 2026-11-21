@@ -85,7 +85,7 @@ void main() {
     controller.insert(
       message('q', 1, 'offline').copyWith(
         author: me,
-        status: MessageStatus.queued,
+        meta: const ChatMessageMeta(status: MessageStatus.queued),
       ),
     );
     final calls = <List<String>>[];

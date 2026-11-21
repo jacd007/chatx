@@ -166,7 +166,7 @@ class _MediaPageState extends State<MediaPage> {
         _controller.update(
           file.copyWith(
             clearUploadProgress: true,
-            status: MessageStatus.delivered,
+            meta: file.meta.copyWith(status: MessageStatus.delivered),
           ),
         );
       } else {

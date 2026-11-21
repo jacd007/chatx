@@ -15,6 +15,7 @@ class ChatBuilders {
   const ChatBuilders({
     this.bubbleBuilder,
     this.customMessageBuilder,
+    this.customMessageBuilders = const {},
     this.systemMessageBuilder,
     this.avatarBuilder,
     this.inputBuilder,
@@ -30,8 +31,22 @@ class ChatBuilders {
   /// Wraps or replaces message bubbles.
   final ChatBubbleBuilder? bubbleBuilder;
 
-  /// Renders [CustomMessage]s inside a bubble.
+  /// Renders [CustomMessage]s inside a bubble when [customMessageBuilders]
+  /// has no builder for their type.
   final ChatCustomMessageBuilder? customMessageBuilder;
+
+  /// Renders [CustomMessage]s inside a bubble, by [CustomMessage.type].
+  ///
+  /// This is how you add message types: the set of built-in types is
+  /// fixed, so a `switch` over `ChatMessage` stays exhaustive across
+  /// versions.
+  ///
+  /// ```dart
+  /// ChatBuilders(customMessageBuilders: {
+  ///   'invoice': (context, message, details) => InvoiceCard(message.payload),
+  /// })
+  /// ```
+  final Map<String, ChatCustomMessageBuilder> customMessageBuilders;
 
   /// Renders [SystemMessage]s.
   final ChatSystemMessageBuilder? systemMessageBuilder;

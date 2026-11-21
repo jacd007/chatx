@@ -9,12 +9,21 @@ part 'message_parts.dart';
 /// Base type of every item shown in a conversation.
 ///
 /// The hierarchy is sealed, so a `switch` over a [ChatMessage] is
-/// exhaustive. Use [CustomMessage] for content chatx does not render out of
-/// the box.
+/// exhaustive. The set of types is fixed from 1.0: new kinds of content
+/// arrive as [CustomMessage]s rendered by
+/// `ChatBuilders.customMessageBuilders`, so your switches keep compiling.
 ///
-/// Every message shares the fields below: author, time, delivery status,
-/// replies, reactions, thread summary, read receipts, forwarding and
-/// expiration.
+/// Every message has an [id], an [author] and a [createdAt] time. The other
+/// shared fields (delivery status, reply, reactions, thread, receipts,
+/// forwarding, expiration, deletion, scheduling and metadata) are also
+/// available together as [meta]. Change them with [copyWithMeta], or with
+/// [withMeta] to keep the message type:
+///
+/// ```dart
+/// final read = message.withMeta(
+///   message.meta.copyWith(status: MessageStatus.read),
+/// );
+/// ```
 @immutable
 sealed class ChatMessage {
   const ChatMessage({
@@ -78,6 +87,24 @@ sealed class ChatMessage {
   /// Arbitrary data you want to carry with the message. Never read by chatx.
   final Map<String, Object?>? metadata;
 
+  /// The shared fields of this message as one value.
+  ChatMessageMeta get meta => ChatMessageMeta(
+        status: status,
+        replyToId: replyToId,
+        reactions: reactions,
+        thread: thread,
+        receipts: receipts,
+        forwardedFrom: forwardedFrom,
+        expiresAt: expiresAt,
+        deletedAt: deletedAt,
+        scheduledFor: scheduledFor,
+        metadata: metadata,
+      );
+
+  /// Returns a copy of this message, of the same type, with the shared
+  /// fields of [meta].
+  ChatMessage withMeta(ChatMessageMeta meta);
+
   /// Returns a copy with any of the shared fields replaced. Pass `true` to a
   /// `clear*` flag to set that field to `null`.
   ChatMessage copyWithMeta({
@@ -99,7 +126,29 @@ sealed class ChatMessage {
     bool clearExpiresAt = false,
     bool clearDeletedAt = false,
     bool clearScheduledFor = false,
-  });
+  }) =>
+      withMeta(
+        meta.copyWith(
+          status: status,
+          replyToId: replyToId,
+          reactions: reactions,
+          thread: thread,
+          receipts: receipts,
+          forwardedFrom: forwardedFrom,
+          expiresAt: expiresAt,
+          deletedAt: deletedAt,
+          scheduledFor: scheduledFor,
+          metadata: metadata,
+          clearStatus: clearStatus,
+          clearReplyToId: clearReplyToId,
+          clearForwardedFrom: clearForwardedFrom,
+          clearMetadata: clearMetadata,
+          clearThread: clearThread,
+          clearExpiresAt: clearExpiresAt,
+          clearDeletedAt: clearDeletedAt,
+          clearScheduledFor: clearScheduledFor,
+        ),
+      );
 
   /// Returns a copy of this message with [status] replaced.
   ChatMessage withStatus(MessageStatus? status) =>
@@ -113,21 +162,118 @@ sealed class ChatMessage {
       other.id == id &&
       other.author == author &&
       other.createdAt == createdAt &&
-      other.status == status &&
-      other.replyToId == replyToId &&
-      listEquals(other.reactions, reactions) &&
-      other.thread == thread &&
-      listEquals(other.receipts, receipts) &&
-      other.forwardedFrom == forwardedFrom &&
-      other.expiresAt == expiresAt &&
-      other.deletedAt == deletedAt &&
-      other.scheduledFor == scheduledFor &&
-      mapEquals(other.metadata, metadata);
+      other.meta == meta;
 
-  int get _baseHash => Object.hashAll([
-        id,
-        author,
-        createdAt,
+  int get _baseHash => Object.hash(id, author, createdAt, meta);
+}
+
+/// The fields every [ChatMessage] shares besides its ID, author and time:
+/// delivery status, reply, reactions, thread, receipts, forwarding,
+/// expiration, deletion, scheduling and your metadata.
+///
+/// Read it with [ChatMessage.meta] and apply it with [ChatMessage.withMeta],
+/// or change single fields with [ChatMessage.copyWithMeta].
+@immutable
+class ChatMessageMeta {
+  /// Creates shared message fields.
+  const ChatMessageMeta({
+    this.status,
+    this.replyToId,
+    this.reactions = const [],
+    this.thread,
+    this.receipts = const [],
+    this.forwardedFrom,
+    this.expiresAt,
+    this.deletedAt,
+    this.scheduledFor,
+    this.metadata,
+  });
+
+  /// See [ChatMessage.status].
+  final MessageStatus? status;
+
+  /// See [ChatMessage.replyToId].
+  final String? replyToId;
+
+  /// See [ChatMessage.reactions].
+  final List<ChatReaction> reactions;
+
+  /// See [ChatMessage.thread].
+  final ChatThreadSummary? thread;
+
+  /// See [ChatMessage.receipts].
+  final List<ChatReadReceipt> receipts;
+
+  /// See [ChatMessage.forwardedFrom].
+  final String? forwardedFrom;
+
+  /// See [ChatMessage.expiresAt].
+  final DateTime? expiresAt;
+
+  /// See [ChatMessage.deletedAt].
+  final DateTime? deletedAt;
+
+  /// See [ChatMessage.scheduledFor].
+  final DateTime? scheduledFor;
+
+  /// See [ChatMessage.metadata].
+  final Map<String, Object?>? metadata;
+
+  /// Returns a copy with the given fields replaced. Pass `true` to a
+  /// `clear*` flag to set that field to `null`.
+  ChatMessageMeta copyWith({
+    MessageStatus? status,
+    String? replyToId,
+    List<ChatReaction>? reactions,
+    ChatThreadSummary? thread,
+    List<ChatReadReceipt>? receipts,
+    String? forwardedFrom,
+    DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
+    Map<String, Object?>? metadata,
+    bool clearStatus = false,
+    bool clearReplyToId = false,
+    bool clearForwardedFrom = false,
+    bool clearMetadata = false,
+    bool clearThread = false,
+    bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
+  }) {
+    return ChatMessageMeta(
+      status: clearStatus ? null : status ?? this.status,
+      replyToId: clearReplyToId ? null : replyToId ?? this.replyToId,
+      reactions: reactions ?? this.reactions,
+      thread: clearThread ? null : thread ?? this.thread,
+      receipts: receipts ?? this.receipts,
+      forwardedFrom:
+          clearForwardedFrom ? null : forwardedFrom ?? this.forwardedFrom,
+      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
+      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
+      scheduledFor:
+          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
+      metadata: clearMetadata ? null : metadata ?? this.metadata,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatMessageMeta &&
+          other.status == status &&
+          other.replyToId == replyToId &&
+          listEquals(other.reactions, reactions) &&
+          other.thread == thread &&
+          listEquals(other.receipts, receipts) &&
+          other.forwardedFrom == forwardedFrom &&
+          other.expiresAt == expiresAt &&
+          other.deletedAt == deletedAt &&
+          other.scheduledFor == scheduledFor &&
+          mapEquals(other.metadata, metadata);
+
+  @override
+  int get hashCode => Object.hash(
         status,
         replyToId,
         Object.hashAll(reactions),
@@ -137,7 +283,7 @@ sealed class ChatMessage {
         expiresAt,
         deletedAt,
         scheduledFor,
-      ]);
+      );
 }
 
 /// A message whose [text] is rendered with chatx's markdown subset.
@@ -226,16 +372,7 @@ final class TextMessage extends ChatMessage {
     String? id,
     ChatUser? author,
     DateTime? createdAt,
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
+    ChatMessageMeta? meta,
     String? text,
     bool? isStreaming,
     DateTime? editedAt,
@@ -248,34 +385,25 @@ final class TextMessage extends ChatMessage {
     List<ChatToolCall>? toolCalls,
     List<ChatSource>? sources,
     List<String>? versions,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
     bool clearEditedAt = false,
     bool clearLinkPreview = false,
     bool clearFeedback = false,
   }) {
+    final m = meta ?? this.meta;
     return TextMessage(
       id: id ?? this.id,
       author: author ?? this.author,
       createdAt: createdAt ?? this.createdAt,
-      status: clearStatus ? null : status ?? this.status,
-      replyToId: clearReplyToId ? null : replyToId ?? this.replyToId,
-      reactions: reactions ?? this.reactions,
-      thread: clearThread ? null : thread ?? this.thread,
-      receipts: receipts ?? this.receipts,
-      forwardedFrom:
-          clearForwardedFrom ? null : forwardedFrom ?? this.forwardedFrom,
-      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
-      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
-      scheduledFor:
-          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
-      metadata: clearMetadata ? null : metadata ?? this.metadata,
+      status: m.status,
+      replyToId: m.replyToId,
+      reactions: m.reactions,
+      thread: m.thread,
+      receipts: m.receipts,
+      forwardedFrom: m.forwardedFrom,
+      expiresAt: m.expiresAt,
+      deletedAt: m.deletedAt,
+      scheduledFor: m.scheduledFor,
+      metadata: m.metadata,
       text: text ?? this.text,
       isStreaming: isStreaming ?? this.isStreaming,
       editedAt: clearEditedAt ? null : editedAt ?? this.editedAt,
@@ -292,47 +420,7 @@ final class TextMessage extends ChatMessage {
   }
 
   @override
-  TextMessage copyWithMeta({
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
-  }) {
-    return copyWith(
-      status: status,
-      replyToId: replyToId,
-      reactions: reactions,
-      thread: thread,
-      receipts: receipts,
-      forwardedFrom: forwardedFrom,
-      expiresAt: expiresAt,
-      deletedAt: deletedAt,
-      scheduledFor: scheduledFor,
-      metadata: metadata,
-      clearStatus: clearStatus,
-      clearReplyToId: clearReplyToId,
-      clearForwardedFrom: clearForwardedFrom,
-      clearMetadata: clearMetadata,
-      clearThread: clearThread,
-      clearExpiresAt: clearExpiresAt,
-      clearDeletedAt: clearDeletedAt,
-      clearScheduledFor: clearScheduledFor,
-    );
-  }
+  TextMessage withMeta(ChatMessageMeta meta) => copyWith(meta: meta);
 
   @override
   bool operator ==(Object other) =>
@@ -407,88 +495,30 @@ final class SystemMessage extends ChatMessage {
     String? id,
     ChatUser? author,
     DateTime? createdAt,
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
+    ChatMessageMeta? meta,
     String? text,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
   }) {
+    final m = meta ?? this.meta;
     return SystemMessage(
       id: id ?? this.id,
       author: author ?? this.author,
       createdAt: createdAt ?? this.createdAt,
-      status: clearStatus ? null : status ?? this.status,
-      replyToId: clearReplyToId ? null : replyToId ?? this.replyToId,
-      reactions: reactions ?? this.reactions,
-      thread: clearThread ? null : thread ?? this.thread,
-      receipts: receipts ?? this.receipts,
-      forwardedFrom:
-          clearForwardedFrom ? null : forwardedFrom ?? this.forwardedFrom,
-      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
-      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
-      scheduledFor:
-          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
-      metadata: clearMetadata ? null : metadata ?? this.metadata,
+      status: m.status,
+      replyToId: m.replyToId,
+      reactions: m.reactions,
+      thread: m.thread,
+      receipts: m.receipts,
+      forwardedFrom: m.forwardedFrom,
+      expiresAt: m.expiresAt,
+      deletedAt: m.deletedAt,
+      scheduledFor: m.scheduledFor,
+      metadata: m.metadata,
       text: text ?? this.text,
     );
   }
 
   @override
-  SystemMessage copyWithMeta({
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
-  }) {
-    return copyWith(
-      status: status,
-      replyToId: replyToId,
-      reactions: reactions,
-      thread: thread,
-      receipts: receipts,
-      forwardedFrom: forwardedFrom,
-      expiresAt: expiresAt,
-      deletedAt: deletedAt,
-      scheduledFor: scheduledFor,
-      metadata: metadata,
-      clearStatus: clearStatus,
-      clearReplyToId: clearReplyToId,
-      clearForwardedFrom: clearForwardedFrom,
-      clearMetadata: clearMetadata,
-      clearThread: clearThread,
-      clearExpiresAt: clearExpiresAt,
-      clearDeletedAt: clearDeletedAt,
-      clearScheduledFor: clearScheduledFor,
-    );
-  }
+  SystemMessage withMeta(ChatMessageMeta meta) => copyWith(meta: meta);
 
   @override
   SystemMessage withStatus(MessageStatus? status) => this;
@@ -546,90 +576,32 @@ final class CustomMessage extends ChatMessage {
     String? id,
     ChatUser? author,
     DateTime? createdAt,
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
+    ChatMessageMeta? meta,
     String? type,
     Object? payload,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
   }) {
+    final m = meta ?? this.meta;
     return CustomMessage(
       id: id ?? this.id,
       author: author ?? this.author,
       createdAt: createdAt ?? this.createdAt,
-      status: clearStatus ? null : status ?? this.status,
-      replyToId: clearReplyToId ? null : replyToId ?? this.replyToId,
-      reactions: reactions ?? this.reactions,
-      thread: clearThread ? null : thread ?? this.thread,
-      receipts: receipts ?? this.receipts,
-      forwardedFrom:
-          clearForwardedFrom ? null : forwardedFrom ?? this.forwardedFrom,
-      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
-      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
-      scheduledFor:
-          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
-      metadata: clearMetadata ? null : metadata ?? this.metadata,
+      status: m.status,
+      replyToId: m.replyToId,
+      reactions: m.reactions,
+      thread: m.thread,
+      receipts: m.receipts,
+      forwardedFrom: m.forwardedFrom,
+      expiresAt: m.expiresAt,
+      deletedAt: m.deletedAt,
+      scheduledFor: m.scheduledFor,
+      metadata: m.metadata,
       type: type ?? this.type,
       payload: payload ?? this.payload,
     );
   }
 
   @override
-  CustomMessage copyWithMeta({
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
-  }) {
-    return copyWith(
-      status: status,
-      replyToId: replyToId,
-      reactions: reactions,
-      thread: thread,
-      receipts: receipts,
-      forwardedFrom: forwardedFrom,
-      expiresAt: expiresAt,
-      deletedAt: deletedAt,
-      scheduledFor: scheduledFor,
-      metadata: metadata,
-      clearStatus: clearStatus,
-      clearReplyToId: clearReplyToId,
-      clearForwardedFrom: clearForwardedFrom,
-      clearMetadata: clearMetadata,
-      clearThread: clearThread,
-      clearExpiresAt: clearExpiresAt,
-      clearDeletedAt: clearDeletedAt,
-      clearScheduledFor: clearScheduledFor,
-    );
-  }
+  CustomMessage withMeta(ChatMessageMeta meta) => copyWith(meta: meta);
 
   @override
   bool operator ==(Object other) =>
@@ -694,46 +666,28 @@ final class ImageMessage extends ChatMessage {
     String? id,
     ChatUser? author,
     DateTime? createdAt,
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
+    ChatMessageMeta? meta,
     List<ChatImage>? images,
     String? caption,
     double? uploadProgress,
     bool? isSpoiler,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
     bool clearUploadProgress = false,
   }) {
+    final m = meta ?? this.meta;
     return ImageMessage(
       id: id ?? this.id,
       author: author ?? this.author,
       createdAt: createdAt ?? this.createdAt,
-      status: clearStatus ? null : status ?? this.status,
-      replyToId: clearReplyToId ? null : replyToId ?? this.replyToId,
-      reactions: reactions ?? this.reactions,
-      thread: clearThread ? null : thread ?? this.thread,
-      receipts: receipts ?? this.receipts,
-      forwardedFrom:
-          clearForwardedFrom ? null : forwardedFrom ?? this.forwardedFrom,
-      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
-      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
-      scheduledFor:
-          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
-      metadata: clearMetadata ? null : metadata ?? this.metadata,
+      status: m.status,
+      replyToId: m.replyToId,
+      reactions: m.reactions,
+      thread: m.thread,
+      receipts: m.receipts,
+      forwardedFrom: m.forwardedFrom,
+      expiresAt: m.expiresAt,
+      deletedAt: m.deletedAt,
+      scheduledFor: m.scheduledFor,
+      metadata: m.metadata,
       images: images ?? this.images,
       caption: caption ?? this.caption,
       uploadProgress:
@@ -743,47 +697,7 @@ final class ImageMessage extends ChatMessage {
   }
 
   @override
-  ImageMessage copyWithMeta({
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
-  }) {
-    return copyWith(
-      status: status,
-      replyToId: replyToId,
-      reactions: reactions,
-      thread: thread,
-      receipts: receipts,
-      forwardedFrom: forwardedFrom,
-      expiresAt: expiresAt,
-      deletedAt: deletedAt,
-      scheduledFor: scheduledFor,
-      metadata: metadata,
-      clearStatus: clearStatus,
-      clearReplyToId: clearReplyToId,
-      clearForwardedFrom: clearForwardedFrom,
-      clearMetadata: clearMetadata,
-      clearThread: clearThread,
-      clearExpiresAt: clearExpiresAt,
-      clearDeletedAt: clearDeletedAt,
-      clearScheduledFor: clearScheduledFor,
-    );
-  }
+  ImageMessage withMeta(ChatMessageMeta meta) => copyWith(meta: meta);
 
   @override
   bool operator ==(Object other) =>
@@ -863,47 +777,29 @@ final class FileMessage extends ChatMessage {
     String? id,
     ChatUser? author,
     DateTime? createdAt,
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
+    ChatMessageMeta? meta,
     String? name,
     String? uri,
     int? sizeBytes,
     String? mimeType,
     double? uploadProgress,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
     bool clearUploadProgress = false,
   }) {
+    final m = meta ?? this.meta;
     return FileMessage(
       id: id ?? this.id,
       author: author ?? this.author,
       createdAt: createdAt ?? this.createdAt,
-      status: clearStatus ? null : status ?? this.status,
-      replyToId: clearReplyToId ? null : replyToId ?? this.replyToId,
-      reactions: reactions ?? this.reactions,
-      thread: clearThread ? null : thread ?? this.thread,
-      receipts: receipts ?? this.receipts,
-      forwardedFrom:
-          clearForwardedFrom ? null : forwardedFrom ?? this.forwardedFrom,
-      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
-      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
-      scheduledFor:
-          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
-      metadata: clearMetadata ? null : metadata ?? this.metadata,
+      status: m.status,
+      replyToId: m.replyToId,
+      reactions: m.reactions,
+      thread: m.thread,
+      receipts: m.receipts,
+      forwardedFrom: m.forwardedFrom,
+      expiresAt: m.expiresAt,
+      deletedAt: m.deletedAt,
+      scheduledFor: m.scheduledFor,
+      metadata: m.metadata,
       name: name ?? this.name,
       uri: uri ?? this.uri,
       sizeBytes: sizeBytes ?? this.sizeBytes,
@@ -914,47 +810,7 @@ final class FileMessage extends ChatMessage {
   }
 
   @override
-  FileMessage copyWithMeta({
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
-  }) {
-    return copyWith(
-      status: status,
-      replyToId: replyToId,
-      reactions: reactions,
-      thread: thread,
-      receipts: receipts,
-      forwardedFrom: forwardedFrom,
-      expiresAt: expiresAt,
-      deletedAt: deletedAt,
-      scheduledFor: scheduledFor,
-      metadata: metadata,
-      clearStatus: clearStatus,
-      clearReplyToId: clearReplyToId,
-      clearForwardedFrom: clearForwardedFrom,
-      clearMetadata: clearMetadata,
-      clearThread: clearThread,
-      clearExpiresAt: clearExpiresAt,
-      clearDeletedAt: clearDeletedAt,
-      clearScheduledFor: clearScheduledFor,
-    );
-  }
+  FileMessage withMeta(ChatMessageMeta meta) => copyWith(meta: meta);
 
   @override
   bool operator ==(Object other) =>
@@ -1026,45 +882,27 @@ final class VoiceMessage extends ChatMessage {
     String? id,
     ChatUser? author,
     DateTime? createdAt,
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
+    ChatMessageMeta? meta,
     String? uri,
     Duration? duration,
     List<double>? waveform,
     String? transcript,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
   }) {
+    final m = meta ?? this.meta;
     return VoiceMessage(
       id: id ?? this.id,
       author: author ?? this.author,
       createdAt: createdAt ?? this.createdAt,
-      status: clearStatus ? null : status ?? this.status,
-      replyToId: clearReplyToId ? null : replyToId ?? this.replyToId,
-      reactions: reactions ?? this.reactions,
-      thread: clearThread ? null : thread ?? this.thread,
-      receipts: receipts ?? this.receipts,
-      forwardedFrom:
-          clearForwardedFrom ? null : forwardedFrom ?? this.forwardedFrom,
-      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
-      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
-      scheduledFor:
-          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
-      metadata: clearMetadata ? null : metadata ?? this.metadata,
+      status: m.status,
+      replyToId: m.replyToId,
+      reactions: m.reactions,
+      thread: m.thread,
+      receipts: m.receipts,
+      forwardedFrom: m.forwardedFrom,
+      expiresAt: m.expiresAt,
+      deletedAt: m.deletedAt,
+      scheduledFor: m.scheduledFor,
+      metadata: m.metadata,
       uri: uri ?? this.uri,
       duration: duration ?? this.duration,
       waveform: waveform ?? this.waveform,
@@ -1073,47 +911,7 @@ final class VoiceMessage extends ChatMessage {
   }
 
   @override
-  VoiceMessage copyWithMeta({
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
-  }) {
-    return copyWith(
-      status: status,
-      replyToId: replyToId,
-      reactions: reactions,
-      thread: thread,
-      receipts: receipts,
-      forwardedFrom: forwardedFrom,
-      expiresAt: expiresAt,
-      deletedAt: deletedAt,
-      scheduledFor: scheduledFor,
-      metadata: metadata,
-      clearStatus: clearStatus,
-      clearReplyToId: clearReplyToId,
-      clearForwardedFrom: clearForwardedFrom,
-      clearMetadata: clearMetadata,
-      clearThread: clearThread,
-      clearExpiresAt: clearExpiresAt,
-      clearDeletedAt: clearDeletedAt,
-      clearScheduledFor: clearScheduledFor,
-    );
-  }
+  VoiceMessage withMeta(ChatMessageMeta meta) => copyWith(meta: meta);
 
   @override
   bool operator ==(Object other) =>
@@ -1193,16 +991,7 @@ final class VideoMessage extends ChatMessage {
     String? id,
     ChatUser? author,
     DateTime? createdAt,
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
+    ChatMessageMeta? meta,
     String? uri,
     String? thumbnailUri,
     Duration? duration,
@@ -1210,32 +999,23 @@ final class VideoMessage extends ChatMessage {
     double? height,
     String? caption,
     double? uploadProgress,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
     bool clearUploadProgress = false,
   }) {
+    final m = meta ?? this.meta;
     return VideoMessage(
       id: id ?? this.id,
       author: author ?? this.author,
       createdAt: createdAt ?? this.createdAt,
-      status: clearStatus ? null : status ?? this.status,
-      replyToId: clearReplyToId ? null : replyToId ?? this.replyToId,
-      reactions: reactions ?? this.reactions,
-      thread: clearThread ? null : thread ?? this.thread,
-      receipts: receipts ?? this.receipts,
-      forwardedFrom:
-          clearForwardedFrom ? null : forwardedFrom ?? this.forwardedFrom,
-      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
-      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
-      scheduledFor:
-          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
-      metadata: clearMetadata ? null : metadata ?? this.metadata,
+      status: m.status,
+      replyToId: m.replyToId,
+      reactions: m.reactions,
+      thread: m.thread,
+      receipts: m.receipts,
+      forwardedFrom: m.forwardedFrom,
+      expiresAt: m.expiresAt,
+      deletedAt: m.deletedAt,
+      scheduledFor: m.scheduledFor,
+      metadata: m.metadata,
       uri: uri ?? this.uri,
       thumbnailUri: thumbnailUri ?? this.thumbnailUri,
       duration: duration ?? this.duration,
@@ -1248,47 +1028,7 @@ final class VideoMessage extends ChatMessage {
   }
 
   @override
-  VideoMessage copyWithMeta({
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
-  }) {
-    return copyWith(
-      status: status,
-      replyToId: replyToId,
-      reactions: reactions,
-      thread: thread,
-      receipts: receipts,
-      forwardedFrom: forwardedFrom,
-      expiresAt: expiresAt,
-      deletedAt: deletedAt,
-      scheduledFor: scheduledFor,
-      metadata: metadata,
-      clearStatus: clearStatus,
-      clearReplyToId: clearReplyToId,
-      clearForwardedFrom: clearForwardedFrom,
-      clearMetadata: clearMetadata,
-      clearThread: clearThread,
-      clearExpiresAt: clearExpiresAt,
-      clearDeletedAt: clearDeletedAt,
-      clearScheduledFor: clearScheduledFor,
-    );
-  }
+  VideoMessage withMeta(ChatMessageMeta meta) => copyWith(meta: meta);
 
   @override
   bool operator ==(Object other) =>
@@ -1371,45 +1111,27 @@ final class PollMessage extends ChatMessage {
     String? id,
     ChatUser? author,
     DateTime? createdAt,
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
+    ChatMessageMeta? meta,
     String? question,
     List<PollOption>? options,
     bool? allowsMultipleAnswers,
     bool? isClosed,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
   }) {
+    final m = meta ?? this.meta;
     return PollMessage(
       id: id ?? this.id,
       author: author ?? this.author,
       createdAt: createdAt ?? this.createdAt,
-      status: clearStatus ? null : status ?? this.status,
-      replyToId: clearReplyToId ? null : replyToId ?? this.replyToId,
-      reactions: reactions ?? this.reactions,
-      thread: clearThread ? null : thread ?? this.thread,
-      receipts: receipts ?? this.receipts,
-      forwardedFrom:
-          clearForwardedFrom ? null : forwardedFrom ?? this.forwardedFrom,
-      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
-      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
-      scheduledFor:
-          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
-      metadata: clearMetadata ? null : metadata ?? this.metadata,
+      status: m.status,
+      replyToId: m.replyToId,
+      reactions: m.reactions,
+      thread: m.thread,
+      receipts: m.receipts,
+      forwardedFrom: m.forwardedFrom,
+      expiresAt: m.expiresAt,
+      deletedAt: m.deletedAt,
+      scheduledFor: m.scheduledFor,
+      metadata: m.metadata,
       question: question ?? this.question,
       options: options ?? this.options,
       allowsMultipleAnswers:
@@ -1419,47 +1141,7 @@ final class PollMessage extends ChatMessage {
   }
 
   @override
-  PollMessage copyWithMeta({
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
-  }) {
-    return copyWith(
-      status: status,
-      replyToId: replyToId,
-      reactions: reactions,
-      thread: thread,
-      receipts: receipts,
-      forwardedFrom: forwardedFrom,
-      expiresAt: expiresAt,
-      deletedAt: deletedAt,
-      scheduledFor: scheduledFor,
-      metadata: metadata,
-      clearStatus: clearStatus,
-      clearReplyToId: clearReplyToId,
-      clearForwardedFrom: clearForwardedFrom,
-      clearMetadata: clearMetadata,
-      clearThread: clearThread,
-      clearExpiresAt: clearExpiresAt,
-      clearDeletedAt: clearDeletedAt,
-      clearScheduledFor: clearScheduledFor,
-    );
-  }
+  PollMessage withMeta(ChatMessageMeta meta) => copyWith(meta: meta);
 
   @override
   bool operator ==(Object other) =>
@@ -1527,45 +1209,27 @@ final class CountdownMessage extends ChatMessage {
     String? id,
     ChatUser? author,
     DateTime? createdAt,
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
+    ChatMessageMeta? meta,
     String? title,
     DateTime? endsAt,
     String? description,
     String? completedLabel,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
   }) {
+    final m = meta ?? this.meta;
     return CountdownMessage(
       id: id ?? this.id,
       author: author ?? this.author,
       createdAt: createdAt ?? this.createdAt,
-      status: clearStatus ? null : status ?? this.status,
-      replyToId: clearReplyToId ? null : replyToId ?? this.replyToId,
-      reactions: reactions ?? this.reactions,
-      thread: clearThread ? null : thread ?? this.thread,
-      receipts: receipts ?? this.receipts,
-      forwardedFrom:
-          clearForwardedFrom ? null : forwardedFrom ?? this.forwardedFrom,
-      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
-      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
-      scheduledFor:
-          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
-      metadata: clearMetadata ? null : metadata ?? this.metadata,
+      status: m.status,
+      replyToId: m.replyToId,
+      reactions: m.reactions,
+      thread: m.thread,
+      receipts: m.receipts,
+      forwardedFrom: m.forwardedFrom,
+      expiresAt: m.expiresAt,
+      deletedAt: m.deletedAt,
+      scheduledFor: m.scheduledFor,
+      metadata: m.metadata,
       title: title ?? this.title,
       endsAt: endsAt ?? this.endsAt,
       description: description ?? this.description,
@@ -1574,47 +1238,7 @@ final class CountdownMessage extends ChatMessage {
   }
 
   @override
-  CountdownMessage copyWithMeta({
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
-  }) {
-    return copyWith(
-      status: status,
-      replyToId: replyToId,
-      reactions: reactions,
-      thread: thread,
-      receipts: receipts,
-      forwardedFrom: forwardedFrom,
-      expiresAt: expiresAt,
-      deletedAt: deletedAt,
-      scheduledFor: scheduledFor,
-      metadata: metadata,
-      clearStatus: clearStatus,
-      clearReplyToId: clearReplyToId,
-      clearForwardedFrom: clearForwardedFrom,
-      clearMetadata: clearMetadata,
-      clearThread: clearThread,
-      clearExpiresAt: clearExpiresAt,
-      clearDeletedAt: clearDeletedAt,
-      clearScheduledFor: clearScheduledFor,
-    );
-  }
+  CountdownMessage withMeta(ChatMessageMeta meta) => copyWith(meta: meta);
 
   @override
   bool operator ==(Object other) =>
@@ -1692,46 +1316,28 @@ final class SurveyMessage extends ChatMessage {
     String? id,
     ChatUser? author,
     DateTime? createdAt,
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
+    ChatMessageMeta? meta,
     String? title,
     List<SurveyQuestion>? questions,
     String? description,
     List<String>? respondentIds,
     bool? isClosed,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
   }) {
+    final m = meta ?? this.meta;
     return SurveyMessage(
       id: id ?? this.id,
       author: author ?? this.author,
       createdAt: createdAt ?? this.createdAt,
-      status: clearStatus ? null : status ?? this.status,
-      replyToId: clearReplyToId ? null : replyToId ?? this.replyToId,
-      reactions: reactions ?? this.reactions,
-      thread: clearThread ? null : thread ?? this.thread,
-      receipts: receipts ?? this.receipts,
-      forwardedFrom:
-          clearForwardedFrom ? null : forwardedFrom ?? this.forwardedFrom,
-      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
-      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
-      scheduledFor:
-          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
-      metadata: clearMetadata ? null : metadata ?? this.metadata,
+      status: m.status,
+      replyToId: m.replyToId,
+      reactions: m.reactions,
+      thread: m.thread,
+      receipts: m.receipts,
+      forwardedFrom: m.forwardedFrom,
+      expiresAt: m.expiresAt,
+      deletedAt: m.deletedAt,
+      scheduledFor: m.scheduledFor,
+      metadata: m.metadata,
       title: title ?? this.title,
       questions: questions ?? this.questions,
       description: description ?? this.description,
@@ -1741,47 +1347,7 @@ final class SurveyMessage extends ChatMessage {
   }
 
   @override
-  SurveyMessage copyWithMeta({
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
-  }) {
-    return copyWith(
-      status: status,
-      replyToId: replyToId,
-      reactions: reactions,
-      thread: thread,
-      receipts: receipts,
-      forwardedFrom: forwardedFrom,
-      expiresAt: expiresAt,
-      deletedAt: deletedAt,
-      scheduledFor: scheduledFor,
-      metadata: metadata,
-      clearStatus: clearStatus,
-      clearReplyToId: clearReplyToId,
-      clearForwardedFrom: clearForwardedFrom,
-      clearMetadata: clearMetadata,
-      clearThread: clearThread,
-      clearExpiresAt: clearExpiresAt,
-      clearDeletedAt: clearDeletedAt,
-      clearScheduledFor: clearScheduledFor,
-    );
-  }
+  SurveyMessage withMeta(ChatMessageMeta meta) => copyWith(meta: meta);
 
   @override
   bool operator ==(Object other) =>
@@ -1860,48 +1426,30 @@ final class LocationMessage extends ChatMessage {
     String? id,
     ChatUser? author,
     DateTime? createdAt,
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
+    ChatMessageMeta? meta,
     double? latitude,
     double? longitude,
     String? title,
     String? address,
     String? mapImageUri,
     DateTime? liveUntil,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
     bool clearLiveUntil = false,
   }) {
+    final m = meta ?? this.meta;
     return LocationMessage(
       id: id ?? this.id,
       author: author ?? this.author,
       createdAt: createdAt ?? this.createdAt,
-      status: clearStatus ? null : status ?? this.status,
-      replyToId: clearReplyToId ? null : replyToId ?? this.replyToId,
-      reactions: reactions ?? this.reactions,
-      thread: clearThread ? null : thread ?? this.thread,
-      receipts: receipts ?? this.receipts,
-      forwardedFrom:
-          clearForwardedFrom ? null : forwardedFrom ?? this.forwardedFrom,
-      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
-      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
-      scheduledFor:
-          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
-      metadata: clearMetadata ? null : metadata ?? this.metadata,
+      status: m.status,
+      replyToId: m.replyToId,
+      reactions: m.reactions,
+      thread: m.thread,
+      receipts: m.receipts,
+      forwardedFrom: m.forwardedFrom,
+      expiresAt: m.expiresAt,
+      deletedAt: m.deletedAt,
+      scheduledFor: m.scheduledFor,
+      metadata: m.metadata,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       title: title ?? this.title,
@@ -1912,47 +1460,7 @@ final class LocationMessage extends ChatMessage {
   }
 
   @override
-  LocationMessage copyWithMeta({
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
-  }) {
-    return copyWith(
-      status: status,
-      replyToId: replyToId,
-      reactions: reactions,
-      thread: thread,
-      receipts: receipts,
-      forwardedFrom: forwardedFrom,
-      expiresAt: expiresAt,
-      deletedAt: deletedAt,
-      scheduledFor: scheduledFor,
-      metadata: metadata,
-      clearStatus: clearStatus,
-      clearReplyToId: clearReplyToId,
-      clearForwardedFrom: clearForwardedFrom,
-      clearMetadata: clearMetadata,
-      clearThread: clearThread,
-      clearExpiresAt: clearExpiresAt,
-      clearDeletedAt: clearDeletedAt,
-      clearScheduledFor: clearScheduledFor,
-    );
-  }
+  LocationMessage withMeta(ChatMessageMeta meta) => copyWith(meta: meta);
 
   @override
   bool operator ==(Object other) =>
@@ -2038,47 +1546,29 @@ final class EventMessage extends ChatMessage {
     String? id,
     ChatUser? author,
     DateTime? createdAt,
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
+    ChatMessageMeta? meta,
     String? title,
     DateTime? startsAt,
     DateTime? endsAt,
     String? location,
     String? description,
     Map<String, ChatRsvp>? rsvps,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
   }) {
+    final m = meta ?? this.meta;
     return EventMessage(
       id: id ?? this.id,
       author: author ?? this.author,
       createdAt: createdAt ?? this.createdAt,
-      status: clearStatus ? null : status ?? this.status,
-      replyToId: clearReplyToId ? null : replyToId ?? this.replyToId,
-      reactions: reactions ?? this.reactions,
-      thread: clearThread ? null : thread ?? this.thread,
-      receipts: receipts ?? this.receipts,
-      forwardedFrom:
-          clearForwardedFrom ? null : forwardedFrom ?? this.forwardedFrom,
-      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
-      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
-      scheduledFor:
-          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
-      metadata: clearMetadata ? null : metadata ?? this.metadata,
+      status: m.status,
+      replyToId: m.replyToId,
+      reactions: m.reactions,
+      thread: m.thread,
+      receipts: m.receipts,
+      forwardedFrom: m.forwardedFrom,
+      expiresAt: m.expiresAt,
+      deletedAt: m.deletedAt,
+      scheduledFor: m.scheduledFor,
+      metadata: m.metadata,
       title: title ?? this.title,
       startsAt: startsAt ?? this.startsAt,
       endsAt: endsAt ?? this.endsAt,
@@ -2089,47 +1579,7 @@ final class EventMessage extends ChatMessage {
   }
 
   @override
-  EventMessage copyWithMeta({
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
-  }) {
-    return copyWith(
-      status: status,
-      replyToId: replyToId,
-      reactions: reactions,
-      thread: thread,
-      receipts: receipts,
-      forwardedFrom: forwardedFrom,
-      expiresAt: expiresAt,
-      deletedAt: deletedAt,
-      scheduledFor: scheduledFor,
-      metadata: metadata,
-      clearStatus: clearStatus,
-      clearReplyToId: clearReplyToId,
-      clearForwardedFrom: clearForwardedFrom,
-      clearMetadata: clearMetadata,
-      clearThread: clearThread,
-      clearExpiresAt: clearExpiresAt,
-      clearDeletedAt: clearDeletedAt,
-      clearScheduledFor: clearScheduledFor,
-    );
-  }
+  EventMessage withMeta(ChatMessageMeta meta) => copyWith(meta: meta);
 
   @override
   bool operator ==(Object other) =>
@@ -2203,46 +1653,28 @@ final class ContactMessage extends ChatMessage {
     String? id,
     ChatUser? author,
     DateTime? createdAt,
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
+    ChatMessageMeta? meta,
     String? name,
     String? phone,
     String? email,
     String? organization,
     String? avatarUrl,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
   }) {
+    final m = meta ?? this.meta;
     return ContactMessage(
       id: id ?? this.id,
       author: author ?? this.author,
       createdAt: createdAt ?? this.createdAt,
-      status: clearStatus ? null : status ?? this.status,
-      replyToId: clearReplyToId ? null : replyToId ?? this.replyToId,
-      reactions: reactions ?? this.reactions,
-      thread: clearThread ? null : thread ?? this.thread,
-      receipts: receipts ?? this.receipts,
-      forwardedFrom:
-          clearForwardedFrom ? null : forwardedFrom ?? this.forwardedFrom,
-      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
-      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
-      scheduledFor:
-          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
-      metadata: clearMetadata ? null : metadata ?? this.metadata,
+      status: m.status,
+      replyToId: m.replyToId,
+      reactions: m.reactions,
+      thread: m.thread,
+      receipts: m.receipts,
+      forwardedFrom: m.forwardedFrom,
+      expiresAt: m.expiresAt,
+      deletedAt: m.deletedAt,
+      scheduledFor: m.scheduledFor,
+      metadata: m.metadata,
       name: name ?? this.name,
       phone: phone ?? this.phone,
       email: email ?? this.email,
@@ -2252,47 +1684,7 @@ final class ContactMessage extends ChatMessage {
   }
 
   @override
-  ContactMessage copyWithMeta({
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
-  }) {
-    return copyWith(
-      status: status,
-      replyToId: replyToId,
-      reactions: reactions,
-      thread: thread,
-      receipts: receipts,
-      forwardedFrom: forwardedFrom,
-      expiresAt: expiresAt,
-      deletedAt: deletedAt,
-      scheduledFor: scheduledFor,
-      metadata: metadata,
-      clearStatus: clearStatus,
-      clearReplyToId: clearReplyToId,
-      clearForwardedFrom: clearForwardedFrom,
-      clearMetadata: clearMetadata,
-      clearThread: clearThread,
-      clearExpiresAt: clearExpiresAt,
-      clearDeletedAt: clearDeletedAt,
-      clearScheduledFor: clearScheduledFor,
-    );
-  }
+  ContactMessage withMeta(ChatMessageMeta meta) => copyWith(meta: meta);
 
   @override
   bool operator ==(Object other) =>
@@ -2357,90 +1749,32 @@ final class ChecklistMessage extends ChatMessage {
     String? id,
     ChatUser? author,
     DateTime? createdAt,
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
+    ChatMessageMeta? meta,
     String? title,
     List<ChecklistItem>? items,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
   }) {
+    final m = meta ?? this.meta;
     return ChecklistMessage(
       id: id ?? this.id,
       author: author ?? this.author,
       createdAt: createdAt ?? this.createdAt,
-      status: clearStatus ? null : status ?? this.status,
-      replyToId: clearReplyToId ? null : replyToId ?? this.replyToId,
-      reactions: reactions ?? this.reactions,
-      thread: clearThread ? null : thread ?? this.thread,
-      receipts: receipts ?? this.receipts,
-      forwardedFrom:
-          clearForwardedFrom ? null : forwardedFrom ?? this.forwardedFrom,
-      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
-      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
-      scheduledFor:
-          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
-      metadata: clearMetadata ? null : metadata ?? this.metadata,
+      status: m.status,
+      replyToId: m.replyToId,
+      reactions: m.reactions,
+      thread: m.thread,
+      receipts: m.receipts,
+      forwardedFrom: m.forwardedFrom,
+      expiresAt: m.expiresAt,
+      deletedAt: m.deletedAt,
+      scheduledFor: m.scheduledFor,
+      metadata: m.metadata,
       title: title ?? this.title,
       items: items ?? this.items,
     );
   }
 
   @override
-  ChecklistMessage copyWithMeta({
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
-  }) {
-    return copyWith(
-      status: status,
-      replyToId: replyToId,
-      reactions: reactions,
-      thread: thread,
-      receipts: receipts,
-      forwardedFrom: forwardedFrom,
-      expiresAt: expiresAt,
-      deletedAt: deletedAt,
-      scheduledFor: scheduledFor,
-      metadata: metadata,
-      clearStatus: clearStatus,
-      clearReplyToId: clearReplyToId,
-      clearForwardedFrom: clearForwardedFrom,
-      clearMetadata: clearMetadata,
-      clearThread: clearThread,
-      clearExpiresAt: clearExpiresAt,
-      clearDeletedAt: clearDeletedAt,
-      clearScheduledFor: clearScheduledFor,
-    );
-  }
+  ChecklistMessage withMeta(ChatMessageMeta meta) => copyWith(meta: meta);
 
   @override
   bool operator ==(Object other) =>
@@ -2494,90 +1828,32 @@ final class ProductMessage extends ChatMessage {
     String? id,
     ChatUser? author,
     DateTime? createdAt,
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
+    ChatMessageMeta? meta,
     List<ChatProduct>? products,
     String? text,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
   }) {
+    final m = meta ?? this.meta;
     return ProductMessage(
       id: id ?? this.id,
       author: author ?? this.author,
       createdAt: createdAt ?? this.createdAt,
-      status: clearStatus ? null : status ?? this.status,
-      replyToId: clearReplyToId ? null : replyToId ?? this.replyToId,
-      reactions: reactions ?? this.reactions,
-      thread: clearThread ? null : thread ?? this.thread,
-      receipts: receipts ?? this.receipts,
-      forwardedFrom:
-          clearForwardedFrom ? null : forwardedFrom ?? this.forwardedFrom,
-      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
-      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
-      scheduledFor:
-          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
-      metadata: clearMetadata ? null : metadata ?? this.metadata,
+      status: m.status,
+      replyToId: m.replyToId,
+      reactions: m.reactions,
+      thread: m.thread,
+      receipts: m.receipts,
+      forwardedFrom: m.forwardedFrom,
+      expiresAt: m.expiresAt,
+      deletedAt: m.deletedAt,
+      scheduledFor: m.scheduledFor,
+      metadata: m.metadata,
       products: products ?? this.products,
       text: text ?? this.text,
     );
   }
 
   @override
-  ProductMessage copyWithMeta({
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
-  }) {
-    return copyWith(
-      status: status,
-      replyToId: replyToId,
-      reactions: reactions,
-      thread: thread,
-      receipts: receipts,
-      forwardedFrom: forwardedFrom,
-      expiresAt: expiresAt,
-      deletedAt: deletedAt,
-      scheduledFor: scheduledFor,
-      metadata: metadata,
-      clearStatus: clearStatus,
-      clearReplyToId: clearReplyToId,
-      clearForwardedFrom: clearForwardedFrom,
-      clearMetadata: clearMetadata,
-      clearThread: clearThread,
-      clearExpiresAt: clearExpiresAt,
-      clearDeletedAt: clearDeletedAt,
-      clearScheduledFor: clearScheduledFor,
-    );
-  }
+  ProductMessage withMeta(ChatMessageMeta meta) => copyWith(meta: meta);
 
   @override
   bool operator ==(Object other) =>
@@ -2641,45 +1917,27 @@ final class PaymentMessage extends ChatMessage {
     String? id,
     ChatUser? author,
     DateTime? createdAt,
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
+    ChatMessageMeta? meta,
     String? amount,
     bool? isRequest,
     String? note,
     ChatPaymentStatus? paymentStatus,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
   }) {
+    final m = meta ?? this.meta;
     return PaymentMessage(
       id: id ?? this.id,
       author: author ?? this.author,
       createdAt: createdAt ?? this.createdAt,
-      status: clearStatus ? null : status ?? this.status,
-      replyToId: clearReplyToId ? null : replyToId ?? this.replyToId,
-      reactions: reactions ?? this.reactions,
-      thread: clearThread ? null : thread ?? this.thread,
-      receipts: receipts ?? this.receipts,
-      forwardedFrom:
-          clearForwardedFrom ? null : forwardedFrom ?? this.forwardedFrom,
-      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
-      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
-      scheduledFor:
-          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
-      metadata: clearMetadata ? null : metadata ?? this.metadata,
+      status: m.status,
+      replyToId: m.replyToId,
+      reactions: m.reactions,
+      thread: m.thread,
+      receipts: m.receipts,
+      forwardedFrom: m.forwardedFrom,
+      expiresAt: m.expiresAt,
+      deletedAt: m.deletedAt,
+      scheduledFor: m.scheduledFor,
+      metadata: m.metadata,
       amount: amount ?? this.amount,
       isRequest: isRequest ?? this.isRequest,
       note: note ?? this.note,
@@ -2688,47 +1946,7 @@ final class PaymentMessage extends ChatMessage {
   }
 
   @override
-  PaymentMessage copyWithMeta({
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
-  }) {
-    return copyWith(
-      status: status,
-      replyToId: replyToId,
-      reactions: reactions,
-      thread: thread,
-      receipts: receipts,
-      forwardedFrom: forwardedFrom,
-      expiresAt: expiresAt,
-      deletedAt: deletedAt,
-      scheduledFor: scheduledFor,
-      metadata: metadata,
-      clearStatus: clearStatus,
-      clearReplyToId: clearReplyToId,
-      clearForwardedFrom: clearForwardedFrom,
-      clearMetadata: clearMetadata,
-      clearThread: clearThread,
-      clearExpiresAt: clearExpiresAt,
-      clearDeletedAt: clearDeletedAt,
-      clearScheduledFor: clearScheduledFor,
-    );
-  }
+  PaymentMessage withMeta(ChatMessageMeta meta) => copyWith(meta: meta);
 
   @override
   bool operator ==(Object other) =>
@@ -2789,44 +2007,26 @@ final class CallMessage extends ChatMessage {
     String? id,
     ChatUser? author,
     DateTime? createdAt,
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
+    ChatMessageMeta? meta,
     ChatCallKind? kind,
     ChatCallOutcome? outcome,
     Duration? duration,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
   }) {
+    final m = meta ?? this.meta;
     return CallMessage(
       id: id ?? this.id,
       author: author ?? this.author,
       createdAt: createdAt ?? this.createdAt,
-      status: clearStatus ? null : status ?? this.status,
-      replyToId: clearReplyToId ? null : replyToId ?? this.replyToId,
-      reactions: reactions ?? this.reactions,
-      thread: clearThread ? null : thread ?? this.thread,
-      receipts: receipts ?? this.receipts,
-      forwardedFrom:
-          clearForwardedFrom ? null : forwardedFrom ?? this.forwardedFrom,
-      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
-      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
-      scheduledFor:
-          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
-      metadata: clearMetadata ? null : metadata ?? this.metadata,
+      status: m.status,
+      replyToId: m.replyToId,
+      reactions: m.reactions,
+      thread: m.thread,
+      receipts: m.receipts,
+      forwardedFrom: m.forwardedFrom,
+      expiresAt: m.expiresAt,
+      deletedAt: m.deletedAt,
+      scheduledFor: m.scheduledFor,
+      metadata: m.metadata,
       kind: kind ?? this.kind,
       outcome: outcome ?? this.outcome,
       duration: duration ?? this.duration,
@@ -2834,47 +2034,7 @@ final class CallMessage extends ChatMessage {
   }
 
   @override
-  CallMessage copyWithMeta({
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
-  }) {
-    return copyWith(
-      status: status,
-      replyToId: replyToId,
-      reactions: reactions,
-      thread: thread,
-      receipts: receipts,
-      forwardedFrom: forwardedFrom,
-      expiresAt: expiresAt,
-      deletedAt: deletedAt,
-      scheduledFor: scheduledFor,
-      metadata: metadata,
-      clearStatus: clearStatus,
-      clearReplyToId: clearReplyToId,
-      clearForwardedFrom: clearForwardedFrom,
-      clearMetadata: clearMetadata,
-      clearThread: clearThread,
-      clearExpiresAt: clearExpiresAt,
-      clearDeletedAt: clearDeletedAt,
-      clearScheduledFor: clearScheduledFor,
-    );
-  }
+  CallMessage withMeta(ChatMessageMeta meta) => copyWith(meta: meta);
 
   @override
   bool operator ==(Object other) =>
@@ -2930,90 +2090,32 @@ final class StickerMessage extends ChatMessage {
     String? id,
     ChatUser? author,
     DateTime? createdAt,
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
+    ChatMessageMeta? meta,
     String? uri,
     String? label,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
   }) {
+    final m = meta ?? this.meta;
     return StickerMessage(
       id: id ?? this.id,
       author: author ?? this.author,
       createdAt: createdAt ?? this.createdAt,
-      status: clearStatus ? null : status ?? this.status,
-      replyToId: clearReplyToId ? null : replyToId ?? this.replyToId,
-      reactions: reactions ?? this.reactions,
-      thread: clearThread ? null : thread ?? this.thread,
-      receipts: receipts ?? this.receipts,
-      forwardedFrom:
-          clearForwardedFrom ? null : forwardedFrom ?? this.forwardedFrom,
-      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
-      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
-      scheduledFor:
-          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
-      metadata: clearMetadata ? null : metadata ?? this.metadata,
+      status: m.status,
+      replyToId: m.replyToId,
+      reactions: m.reactions,
+      thread: m.thread,
+      receipts: m.receipts,
+      forwardedFrom: m.forwardedFrom,
+      expiresAt: m.expiresAt,
+      deletedAt: m.deletedAt,
+      scheduledFor: m.scheduledFor,
+      metadata: m.metadata,
       uri: uri ?? this.uri,
       label: label ?? this.label,
     );
   }
 
   @override
-  StickerMessage copyWithMeta({
-    MessageStatus? status,
-    String? replyToId,
-    List<ChatReaction>? reactions,
-    ChatThreadSummary? thread,
-    List<ChatReadReceipt>? receipts,
-    String? forwardedFrom,
-    DateTime? expiresAt,
-    DateTime? deletedAt,
-    DateTime? scheduledFor,
-    Map<String, Object?>? metadata,
-    bool clearStatus = false,
-    bool clearReplyToId = false,
-    bool clearForwardedFrom = false,
-    bool clearMetadata = false,
-    bool clearThread = false,
-    bool clearExpiresAt = false,
-    bool clearDeletedAt = false,
-    bool clearScheduledFor = false,
-  }) {
-    return copyWith(
-      status: status,
-      replyToId: replyToId,
-      reactions: reactions,
-      thread: thread,
-      receipts: receipts,
-      forwardedFrom: forwardedFrom,
-      expiresAt: expiresAt,
-      deletedAt: deletedAt,
-      scheduledFor: scheduledFor,
-      metadata: metadata,
-      clearStatus: clearStatus,
-      clearReplyToId: clearReplyToId,
-      clearForwardedFrom: clearForwardedFrom,
-      clearMetadata: clearMetadata,
-      clearThread: clearThread,
-      clearExpiresAt: clearExpiresAt,
-      clearDeletedAt: clearDeletedAt,
-      clearScheduledFor: clearScheduledFor,
-    );
-  }
+  StickerMessage withMeta(ChatMessageMeta meta) => copyWith(meta: meta);
 
   @override
   bool operator ==(Object other) =>

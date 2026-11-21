@@ -162,7 +162,7 @@ void main() {
     expect(controller.search('world'), ['a']);
   });
 
-  group('copyWithMeta clears', () {
+  group('ChatMessageMeta', () {
     final original = TextMessage(
       id: 'a',
       author: ana,
@@ -182,41 +182,130 @@ void main() {
       expect(cleared.replyToId, isNull);
       expect(cleared.forwardedFrom, isNull);
       expect(cleared.metadata, isNull);
-      expect(cleared.text, 'hi');
+      expect((cleared as TextMessage).text, 'hi');
     });
 
-    test('on every message type', () {
+    test('meta round-trips on every message type', () {
+      final at = DateTime(2026);
       final messages = <ChatMessage>[
         original,
-        SystemMessage(
-          id: 's',
-          createdAt: DateTime(2026),
-          text: 'x',
-          replyToId: 'r',
-          forwardedFrom: 'Bob',
-          metadata: const {'k': 1},
-        ),
-        CustomMessage(
-          id: 'c',
+        SystemMessage(id: 's', createdAt: at, text: 'x'),
+        CustomMessage(id: 'c', author: ana, createdAt: at, type: 't'),
+        ImageMessage(
+          id: 'i',
           author: ana,
-          createdAt: DateTime(2026),
-          type: 't',
-          replyToId: 'r',
-          forwardedFrom: 'Bob',
-          metadata: const {'k': 1},
+          createdAt: at,
+          images: const [ChatImage(uri: 'a')],
         ),
+        FileMessage(id: 'f', author: ana, createdAt: at, name: 'f.pdf'),
+        VoiceMessage(
+          id: 'v',
+          author: ana,
+          createdAt: at,
+          uri: 'v',
+          duration: const Duration(seconds: 3),
+        ),
+        VideoMessage(id: 'vi', author: ana, createdAt: at, uri: 'v'),
+        PollMessage(
+          id: 'p',
+          author: ana,
+          createdAt: at,
+          question: 'Q',
+          options: const [PollOption(id: 'o', text: 'O')],
+        ),
+        CountdownMessage(
+          id: 'cd',
+          author: ana,
+          createdAt: at,
+          title: 'T',
+          endsAt: at,
+        ),
+        SurveyMessage(
+          id: 'sv',
+          author: ana,
+          createdAt: at,
+          title: 'T',
+          questions: const [TextQuestion(id: 'q', title: 'Why?')],
+        ),
+        LocationMessage(
+          id: 'l',
+          author: ana,
+          createdAt: at,
+          latitude: 1,
+          longitude: 2,
+        ),
+        EventMessage(
+          id: 'e',
+          author: ana,
+          createdAt: at,
+          title: 'T',
+          startsAt: at,
+        ),
+        ContactMessage(id: 'co', author: ana, createdAt: at, name: 'Leo'),
+        ChecklistMessage(
+          id: 'ch',
+          author: ana,
+          createdAt: at,
+          title: 'T',
+          items: const [],
+        ),
+        ProductMessage(
+          id: 'pr',
+          author: ana,
+          createdAt: at,
+          products: const [ChatProduct(id: 'x', title: 'X', price: '1')],
+        ),
+        PaymentMessage(id: 'pa', author: ana, createdAt: at, amount: '1'),
+        CallMessage(id: 'ca', author: ana, createdAt: at),
+        StickerMessage(id: 'st', author: ana, createdAt: at, uri: 's'),
       ];
+      const meta = ChatMessageMeta(
+        status: MessageStatus.read,
+        replyToId: 'r',
+        forwardedFrom: 'Bob',
+        metadata: {'k': 1},
+      );
       for (final m in messages) {
-        final cleared = m.copyWithMeta(
+        final copy = m.withMeta(meta);
+        expect(copy.runtimeType, m.runtimeType, reason: '$m');
+        expect(copy.meta, meta, reason: '$m');
+        expect(copy.withMeta(m.meta), m, reason: '$m');
+        final cleared = copy.copyWithMeta(
           clearReplyToId: true,
           clearForwardedFrom: true,
           clearMetadata: true,
         );
-        expect(cleared.runtimeType, m.runtimeType);
+        expect(cleared.runtimeType, m.runtimeType, reason: '$m');
+        expect(cleared.status, MessageStatus.read, reason: '$m');
         expect(cleared.replyToId, isNull, reason: '$m');
         expect(cleared.forwardedFrom, isNull, reason: '$m');
         expect(cleared.metadata, isNull, reason: '$m');
       }
+      // Every type is covered: the switch below must stay exhaustive.
+      for (final m in messages) {
+        switch (m) {
+          case TextMessage() ||
+                SystemMessage() ||
+                CustomMessage() ||
+                ImageMessage() ||
+                FileMessage() ||
+                VoiceMessage() ||
+                VideoMessage() ||
+                PollMessage() ||
+                CountdownMessage() ||
+                SurveyMessage() ||
+                LocationMessage() ||
+                EventMessage() ||
+                ContactMessage() ||
+                ChecklistMessage() ||
+                ProductMessage() ||
+                PaymentMessage() ||
+                CallMessage() ||
+                StickerMessage():
+            break;
+        }
+      }
+      expect(messages.map((m) => m.runtimeType).toSet(), hasLength(18));
     });
 
     test('copyWith keeps the fields without the flags', () {

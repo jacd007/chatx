@@ -130,7 +130,7 @@ class _BasicChatPageState extends State<BasicChatPage> {
     if (message is! TextMessage) return;
     final retried = message.copyWith(
       text: message.text.replaceAll(RegExp('fail', caseSensitive: false), ''),
-      status: MessageStatus.sending,
+      meta: message.meta.copyWith(status: MessageStatus.sending),
     );
     _controller.update(retried);
     unawaited(_deliver(retried));

@@ -238,7 +238,11 @@ class ChatController extends ChangeNotifier {
     final message = messageById(id);
     if (message is! TextMessage) return false;
     return update(
-      message.copyWith(isStreaming: false, status: status, text: text),
+      message.copyWith(
+        isStreaming: false,
+        text: text,
+        meta: status == null ? null : message.meta.copyWith(status: status),
+      ),
     );
   }
 

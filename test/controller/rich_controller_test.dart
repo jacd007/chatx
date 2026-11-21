@@ -225,7 +225,7 @@ void main() {
       question: 'Q',
       options: const [PollOption(id: 'a', text: 'A')],
     );
-    final copy = poll.copyWithMeta(forwardedFrom: 'Ana');
+    final copy = poll.withMeta(poll.meta.copyWith(forwardedFrom: 'Ana'));
     expect(copy.question, 'Q');
     expect(copy.forwardedFrom, 'Ana');
     expect(copy.withStatus(null).status, isNull);

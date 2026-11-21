@@ -661,7 +661,8 @@ class _Bubble extends StatelessWidget {
           );
         case CustomMessage():
           body = withQuote([
-            view.builders.customMessageBuilder
+            (view.builders.customMessageBuilders[message.type] ??
+                        view.builders.customMessageBuilder)
                     ?.call(context, message, details) ??
                 Text(
                   l10n.unsupportedMessage,
