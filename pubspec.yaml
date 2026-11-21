@@ -2,7 +2,7 @@ name: chatx
 description: >-
   Zero-dependency chat UI for Flutter: replies, reactions, media, voice,
   polls, surveys, threads, AI controls, location, events and moderation.
-version: 0.1.0
+version: 0.1.1
 repository: https://github.com/jacd007/chatx
 issue_tracker: https://github.com/jacd007/chatx/issues
 documentation: https://github.com/jacd007/chatx#readme

@@ -193,6 +193,13 @@ follows your app's theme.
   - [Bubble shape](#bubble-shape)
   - [Builders](#builders)
   - [Localization](#localization)
+- [Recipes](#recipes)
+  - [Firebase Cloud Firestore](#firebase-cloud-firestore)
+  - [Supabase](#supabase)
+  - [WebSocket](#websocket)
+  - [LLM streaming (server-sent events)](#llm-streaming-server-sent-events)
+- [Testing your chat](#testing-your-chat)
+- [Performance](#performance)
 - [Markdown reference](#markdown-reference)
 - [Accessibility](#accessibility)
 - [Security](#security)
@@ -1725,6 +1732,281 @@ ChatView(
 Add a language by creating a full `ChatLocalizations` instance and passing it
 to `ChatView.localizations`.
 
+## Recipes
+
+Complete integrations with popular backends. The packages named here belong
+to your app, not to chatx. Each recipe maps backend data to chatx messages
+in one place, so the rest of your UI code stays the same.
+
+### Firebase Cloud Firestore
+
+```dart
+// pubspec.yaml of your app: cloud_firestore
+final messages = FirebaseFirestore.instance
+    .collection('rooms').doc(roomId).collection('messages');
+
+ChatMessage fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+  final data = doc.data()!;
+  return TextMessage(
+    id: doc.id,
+    author: ChatUser(id: data['authorId'], name: data['authorName']),
+    createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    text: data['text'],
+    status: MessageStatus.sent,
+  );
+}
+
+// Live updates: newest 50 messages.
+final subscription = messages
+    .orderBy('createdAt', descending: true)
+    .limit(50)
+    .snapshots()
+    .listen((snapshot) {
+  for (final change in snapshot.docChanges) {
+    switch (change.type) {
+      case DocumentChangeType.added:
+      case DocumentChangeType.modified:
+        controller.upsert(fromDoc(change.doc));
+      case DocumentChangeType.removed:
+        controller.remove(change.doc.id);
+    }
+  }
+});
+
+// Sending: optimistic insert, then the snapshot confirms it.
+Future<void> send(String text, ChatMessage? replyTo) async {
+  final doc = messages.doc(); // ID known before the write
+  controller.insert(TextMessage(
+    id: doc.id,
+    author: me,
+    createdAt: DateTime.now(),
+    text: text,
+    replyToId: replyTo?.id,
+    status: MessageStatus.sending,
+  ));
+  try {
+    await doc.set({
+      'authorId': me.id,
+      'authorName': me.name,
+      'text': text,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  } catch (_) {
+    controller.updateStatus(doc.id, MessageStatus.failed);
+  }
+}
+```
+
+Load older pages in `onLoadMore` with `startAfterDocument` and
+`controller.insertAll`. Return `false` when a page comes back empty.
+
+### Supabase
+
+```dart
+// pubspec.yaml of your app: supabase_flutter
+final db = Supabase.instance.client;
+
+ChatMessage fromRow(Map<String, dynamic> row) => TextMessage(
+      id: row['id'],
+      author: ChatUser(id: row['author_id'], name: row['author_name']),
+      createdAt: DateTime.parse(row['created_at']),
+      text: row['text'],
+      status: MessageStatus.sent,
+    );
+
+// Initial page.
+final rows = await db
+    .from('messages')
+    .select()
+    .eq('room_id', roomId)
+    .order('created_at', ascending: false)
+    .limit(50);
+controller.setMessages(rows.map(fromRow));
+
+// Realtime.
+final channel = db
+    .channel('room:$roomId')
+    .onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'messages',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'room_id',
+        value: roomId,
+      ),
+      callback: (payload) => switch (payload.eventType) {
+        PostgresChangeEvent.delete =>
+          controller.remove(payload.oldRecord['id'] as String),
+        _ => controller.upsert(fromRow(payload.newRecord)),
+      },
+    )
+    .subscribe();
+```
+
+Call `channel.unsubscribe()` and `controller.dispose()` when the screen
+closes.
+
+### WebSocket
+
+```dart
+// pubspec.yaml of your app: web_socket_channel
+final socket = WebSocketChannel.connect(Uri.parse('wss://chat.example.com'));
+
+socket.stream.listen((raw) {
+  final event = jsonDecode(raw as String) as Map<String, dynamic>;
+  switch (event['type']) {
+    case 'message':
+      controller.upsert(TextMessage(
+        id: event['id'],
+        author: ChatUser(id: event['from'], name: event['name']),
+        createdAt: DateTime.parse(event['at']),
+        text: event['text'],
+        status: MessageStatus.sent,
+      ));
+    case 'typing':
+      controller.setTyping(
+        ChatUser(id: event['from'], name: event['name']),
+        isTyping: event['active'] as bool,
+      );
+    case 'read':
+      controller.updateStatus(event['id'], MessageStatus.read);
+  }
+});
+
+ChatView(
+  controller: controller,
+  currentUser: me,
+  onTypingChanged: (typing) => socket.sink.add(
+    jsonEncode({'type': 'typing', 'active': typing}),
+  ),
+  onSendMessage: (text, replyTo) {
+    final id = uuid();
+    controller.insert(TextMessage(
+      id: id,
+      author: me,
+      createdAt: DateTime.now(),
+      text: text,
+      status: MessageStatus.sending,
+    ));
+    socket.sink.add(jsonEncode({'type': 'message', 'id': id, 'text': text}));
+  },
+)
+```
+
+### LLM streaming (server-sent events)
+
+Most LLM APIs stream tokens as server-sent events. Decode the lines and
+append each token to the answer:
+
+```dart
+// pubspec.yaml of your app: http
+Future<void> ask(String prompt) async {
+  final id = uuid();
+  controller.insert(TextMessage(
+    id: id,
+    author: assistant, // ChatUser(..., isBot: true)
+    createdAt: DateTime.now(),
+    text: '',
+    isStreaming: true,
+  ));
+
+  final request = http.Request('POST', Uri.parse('https://api.example.com/chat'))
+    ..headers['content-type'] = 'application/json'
+    ..body = jsonEncode({'prompt': prompt, 'stream': true});
+  final response = await http.Client().send(request);
+
+  await for (final line in response.stream
+      .transform(utf8.decoder)
+      .transform(const LineSplitter())) {
+    if (!line.startsWith('data: ')) continue;
+    final data = line.substring(6);
+    if (data == '[DONE]') break;
+    final token = jsonDecode(data)['token'] as String? ?? '';
+    controller.appendText(id, token);
+  }
+  controller.completeStream(id);
+}
+```
+
+Keep API keys on your server. Call your own endpoint from the app, never
+the LLM provider directly.
+
+## Testing your chat
+
+Every interactive widget has a stable key (see
+[Accessibility](#accessibility)), so widget tests stay short and do not
+depend on texts or layout:
+
+```dart
+testWidgets('sends a message', (tester) async {
+  final controller = ChatController();
+  final sent = <String>[];
+  await tester.pumpWidget(MaterialApp(
+    home: Scaffold(
+      body: ChatView(
+        controller: controller,
+        currentUser: const ChatUser(id: 'me'),
+        onSendMessage: (text, _) => sent.add(text),
+      ),
+    ),
+  ));
+
+  await tester.enterText(find.byKey(const Key('chatx_input_field')), 'Hi');
+  await tester.pump();
+  await tester.tap(find.byKey(const Key('chatx_send_button')));
+
+  expect(sent, ['Hi']);
+});
+
+testWidgets('shows incoming messages', (tester) async {
+  final controller = ChatController(messages: [
+    TextMessage(
+      id: 'm1',
+      author: const ChatUser(id: 'ana', name: 'Ana'),
+      createdAt: DateTime.now(),
+      text: 'Hello **there**',
+    ),
+  ]);
+  // ... pump ChatView as above
+  expect(find.byKey(const Key('chatx_bubble_m1')), findsOneWidget);
+  expect(find.text('Hello there', findRichText: true), findsOneWidget);
+});
+```
+
+The same keys work in integration tests, Patrol and Appium (they become
+accessibility identifiers through `Semantics`).
+
+Test the `ChatController` without widgets: it is a plain `ChangeNotifier`.
+
+## Performance
+
+chatx is built for long conversations and fast streams:
+
+- **One bubble per update.** `update`, `updateStatus` and `appendText`
+  rebuild only the affected bubble through `ChatController.watch`, not the
+  list.
+- **Anchored list.** New messages and loaded history do not move the message
+  the user is reading.
+- **Cheap appends.** Adding a message costs the same with 100 or 10,000
+  messages in the history (checked by `test/controller/perf_test.dart`).
+- **Measured.** In profile mode on macOS, scrolling 10,000 messages averages
+  2.4 ms per frame build with no missed frames
+  (`example/integration_test/perf_test.dart`).
+- **Images.** Thumbnails are decoded at their display size
+  (`ResizeImage`), not at full resolution.
+- **Markdown cache.** Parsed messages are cached, so scrolling back does not
+  parse again.
+
+Tips for your app:
+
+- Load history in pages with `onLoadMore` instead of passing every message
+  at once.
+- Use `appendText` for streams; do not replace the whole message for each
+  token.
+- Keep the `ChatController` outside `build` (for example in `State`, a
+  provider or a bloc) so it is not recreated.
+
 ## Markdown reference
 
 | You type | You get |
@@ -1825,6 +2107,32 @@ player and storage; chatx draws everything else. For other content, use
 
 **Can I use Riverpod, Bloc or Provider?** Yes. Create the `ChatController`
 wherever you keep state and feed it from your providers or blocs.
+
+**Does it work with go_router, auto_route or Navigator 2.0?** Yes. `ChatView`
+is a normal widget; put it in any page.
+
+**How do I keep the conversation when the user leaves the screen?** Keep the
+`ChatController` alive longer than the page (for example in a provider), or
+save `controller.messages` and `controller.draft` and restore them.
+
+**Can I use my own bubble design?** Yes. Change colors and shapes with
+`ChatTheme`, or replace bubbles, avatars, input and separators with
+builders. See [Builders](#builders).
+
+**Can I show messages from several authors on my side?** `currentUser`
+decides which messages are outgoing. Everything else is shown on the left
+with avatar and name.
+
+**How do I right-align messages in an RTL language?** Nothing to do: chatx
+mirrors its layout automatically in right-to-left locales.
+
+**Which Flutter versions are supported?** Flutter 3.27 and newer, on Android,
+iOS, web, macOS, Windows and Linux. CI tests the oldest supported version
+and the latest stable.
+
+**Where do I report a bug or ask for a feature?** Open an issue at
+https://github.com/jacd007/chatx/issues. For security problems, see
+[SECURITY.md](SECURITY.md).
 
 ## Example app
 

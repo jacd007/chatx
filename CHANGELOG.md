@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## 0.1.1 - 2026-11-21
+
+Documentation only. No code changes.
+
+- Recipes for Firebase Cloud Firestore, Supabase, WebSockets and LLM
+  streaming with server-sent events.
+- New "Testing your chat" and "Performance" sections.
+- More FAQ answers.
+- Library overview in the API reference listing the main classes.
+
 ## 0.1.0 - 2026-11-21
 
 Initial release.
