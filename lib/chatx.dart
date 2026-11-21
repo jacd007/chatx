@@ -74,6 +74,7 @@ export 'src/widgets/chat_media_gallery.dart';
 export 'src/widgets/chat_people.dart';
 export 'src/widgets/chat_search_bar.dart';
 export 'src/widgets/chat_view.dart';
+export 'src/widgets/chat_view_options.dart';
 export 'src/widgets/message_status_icon.dart';
 export 'src/widgets/typing_indicator.dart';
 

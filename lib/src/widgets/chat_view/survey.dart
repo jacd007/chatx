@@ -24,7 +24,9 @@ class _SurveyContent extends StatelessWidget {
         builder: (_) => _SurveyFlow(survey: message),
       ),
     );
-    if (response != null) view.onSurveySubmit?.call(message, response);
+    if (response != null) {
+      view._contentCallbacks.onSurveySubmit?.call(message, response);
+    }
   }
 
   @override
@@ -33,8 +35,9 @@ class _SurveyContent extends StatelessWidget {
     final l10n = ChatLocalizations.of(context);
     final textTheme = Theme.of(context).textTheme;
     final answered = message.hasResponded(view.currentUser.id);
-    final canAnswer =
-        !answered && !message.isClosed && view.onSurveySubmit != null;
+    final canAnswer = !answered &&
+        !message.isClosed &&
+        view._contentCallbacks.onSurveySubmit != null;
     final subtle = textColor.withValues(alpha: 0.7);
     final onAccent =
         accent.computeLuminance() > 0.5 ? Colors.black : Colors.white;

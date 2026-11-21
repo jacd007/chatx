@@ -193,6 +193,7 @@ follows your app's theme.
   - [Theming](#theming)
   - [Bubble shape](#bubble-shape)
   - [Builders](#builders)
+  - [Option groups](#option-groups)
   - [Localization](#localization)
 - [Recipes](#recipes)
   - [Firebase Cloud Firestore](#firebase-cloud-firestore)
@@ -526,21 +527,23 @@ const assistant = ChatUser(id: 'bot', name: 'Assistant', isBot: true);
 
 ChatView(
   // ...
-  onStopGenerating: (message) {
-    subscription.cancel();
-    controller.completeStream(message.id);
-  },
-  onRegenerate: (message) {
-    controller.update(message.copyWith(text: '', isStreaming: true));
-    streamAnswer(message.id);
-  },
-  onFeedback: (message, feedback) {
-    // feedback is ChatFeedback.positive, .negative or null (removed).
-    controller.update(
-      message.copyWith(feedback: feedback, clearFeedback: feedback == null),
-    );
-    api.rate(message.id, feedback);
-  },
+  ai: ChatAiOptions(
+    onStopGenerating: (message) {
+      subscription.cancel();
+      controller.completeStream(message.id);
+    },
+    onRegenerate: (message) {
+      controller.update(message.copyWith(text: '', isStreaming: true));
+      streamAnswer(message.id);
+    },
+    onFeedback: (message, feedback) {
+      // feedback is ChatFeedback.positive, .negative or null (removed).
+      controller.update(
+        message.copyWith(feedback: feedback, clearFeedback: feedback == null),
+      );
+      api.rate(message.id, feedback);
+    },
+  ),
 )
 ```
 
@@ -599,11 +602,13 @@ an `OutgoingText`. For follow-up suggestions after an answer, use
 ```dart
 ChatView(
   // ...
-  suggestedPrompts: const [
-    ChatPrompt(title: 'Plan a trip', subtitle: 'to Lisbon in spring',
-        icon: Icons.flight_outlined),
-    ChatPrompt(title: 'Explain', subtitle: 'how streaming works'),
-  ],
+  ai: ChatAiOptions(
+    suggestedPrompts: const [
+      ChatPrompt(title: 'Plan a trip', subtitle: 'to Lisbon in spring',
+          icon: Icons.flight_outlined),
+      ChatPrompt(title: 'Explain', subtitle: 'how streaming works'),
+    ],
+  ),
 )
 ```
 
@@ -616,9 +621,11 @@ and the original. chatx keeps the translation in memory only.
 ```dart
 ChatView(
   // ...
-  onTranslate: (message) => myTranslator.translate(
-    message.text,
-    to: Localizations.localeOf(context).languageCode,
+  ai: ChatAiOptions(
+    onTranslate: (message) => myTranslator.translate(
+      message.text,
+      to: Localizations.localeOf(context).languageCode,
+    ),
   ),
 )
 ```
@@ -867,8 +874,12 @@ assets, files, caching or authenticated URLs:
 
 ```dart
 ChatView(
-  imageProviderBuilder: (uri) => NetworkImage(uri, headers: authHeaders),
-  onFileTap: (file) => openFile(file.uri),
+  builders: ChatBuilders(
+    imageProviderBuilder: (uri) => NetworkImage(uri, headers: authHeaders),
+  ),
+  media: ChatMediaOptions(
+    onFileTap: (file) => openFile(file.uri),
+  ),
   // ...
 )
 ```
@@ -882,16 +893,18 @@ app plays and records with the plugin of its choice.
 final playback = ValueNotifier<ChatVoicePlayback?>(null);
 
 ChatView(
-  voicePlayback: playback, // update from your player
-  onVoicePlay: (message) => player.play(message.uri),
-  onVoicePause: (message) => player.pause(),
-  onVoiceSeek: (message, position) => player.seek(position),
-  // Show the microphone button and record while it is held.
-  onVoiceRecordStart: recorder.start,
-  onVoiceRecordEnd: (duration, {required cancelled}) async {
-    final file = await recorder.stop();
-    if (!cancelled) sendVoiceNote(file, duration);
-  },
+  media: ChatMediaOptions(
+    voicePlayback: playback, // update from your player
+    onVoicePlay: (message) => player.play(message.uri),
+    onVoicePause: (message) => player.pause(),
+    onVoiceSeek: (message, position) => player.seek(position),
+    // Show the microphone button and record while it is held.
+    onVoiceRecordStart: recorder.start,
+    onVoiceRecordEnd: (duration, {required cancelled}) async {
+      final file = await recorder.stop();
+      if (!cancelled) sendVoiceNote(file, duration);
+    },
+  ),
   // ...
 )
 ```
@@ -919,10 +932,12 @@ controller.insert(PollMessage(
 ));
 
 ChatView(
-  onPollVote: (poll, optionId) {
-    controller.votePoll(poll.id, optionId, me.id);
-    api.vote(poll.id, optionId);
-  },
+  contentCallbacks: ChatContentCallbacks(
+    onPollVote: (poll, optionId) {
+      controller.votePoll(poll.id, optionId, me.id);
+      api.vote(poll.id, optionId);
+    },
+  ),
   // ...
 )
 ```
@@ -960,10 +975,12 @@ controller.insert(SurveyMessage(
 ));
 
 ChatView(
-  onSurveySubmit: (survey, response) {
-    controller.recordSurveyResponse(survey.id, me.id);
-    api.saveAnswers(survey.id, response.answers);
-  },
+  contentCallbacks: ChatContentCallbacks(
+    onSurveySubmit: (survey, response) {
+      controller.recordSurveyResponse(survey.id, me.id);
+      api.saveAnswers(survey.id, response.answers);
+    },
+  ),
   // ...
 )
 ```
@@ -997,9 +1014,11 @@ controller.insert(TextMessage(
 ));
 
 ChatView(
-  onMessageButton: (message, button) => bot.handle(button.id),
+  contentCallbacks: ChatContentCallbacks(
+    onMessageButton: (message, button) => bot.handle(button.id),
+    onQuickReply: (reply, message) => bot.send(reply.text),
+  ),
   // Optional: by default a quick reply sends its text.
-  onQuickReply: (reply, message) => bot.send(reply.text),
   // ...
 )
 ```
@@ -1262,7 +1281,9 @@ EventMessage(
 
 ChatView(
   // ...
-  onRsvp: (event, rsvp) => controller.setRsvp(event.id, me.id, rsvp),
+  contentCallbacks: ChatContentCallbacks(
+    onRsvp: (event, rsvp) => controller.setRsvp(event.id, me.id, rsvp),
+  ),
 )
 ```
 
@@ -1276,11 +1297,13 @@ Buttons appear only when the data exists.
 ```dart
 ChatView(
   // ...
-  onContactAction: (contact, action) => switch (action) {
-    ChatContactAction.call => launchUrl(Uri.parse('tel:${contact.phone}')),
-    ChatContactAction.email => launchUrl(Uri.parse('mailto:${contact.email}')),
-    ChatContactAction.save => saveToAddressBook(contact),
-  },
+  contentCallbacks: ChatContentCallbacks(
+    onContactAction: (contact, action) => switch (action) {
+      ChatContactAction.call => launchUrl(Uri.parse('tel:${contact.phone}')),
+      ChatContactAction.email => launchUrl(Uri.parse('mailto:${contact.email}')),
+      ChatContactAction.save => saveToAddressBook(contact),
+    },
+  ),
 )
 ```
 
@@ -1300,9 +1323,11 @@ ChatView(
       stickers: [ChatSticker(id: 'smile', uri: 'asset:smile', label: 'Smile')],
     ),
   ],
-  imageProviderBuilder: (uri) => uri.startsWith('asset:')
-      ? AssetImage('assets/stickers/${uri.substring(6)}.png')
-      : NetworkImage(uri),
+  builders: ChatBuilders(
+    imageProviderBuilder: (uri) => uri.startsWith('asset:')
+        ? AssetImage('assets/stickers/${uri.substring(6)}.png')
+        : NetworkImage(uri),
+  ),
   sendFeatures: const {ChatSendFeature.stickers},
   onSend: (outgoing) {
     if (outgoing case OutgoingSticker(:final sticker)) {
@@ -1329,10 +1354,12 @@ content:
 ```dart
 ChatView(
   // ...
-  onDeleteForEveryone: (message) {
-    controller.markDeleted(message.id);
-    api.deleteForEveryone(message.id);
-  },
+  moderation: ChatModerationOptions(
+    onDeleteForEveryone: (message) {
+      controller.markDeleted(message.id);
+      api.deleteForEveryone(message.id);
+    },
+  ),
 )
 ```
 
@@ -1378,9 +1405,11 @@ time.
 ```dart
 ChatView(
   // ...
-  readOnly: !isAdmin, // hides the input, shows "Only admins can send messages"
-  readOnlyMessage: 'Only moderators can post here', // optional
-  slowMode: const Duration(seconds: 30), // one message every 30 seconds
+  moderation: ChatModerationOptions(
+    readOnly: !isAdmin, // hides the input, shows "Only admins can send messages"
+    readOnlyMessage: 'Only moderators can post here', // optional
+    slowMode: const Duration(seconds: 30), // one message every 30 seconds
+  ),
 )
 ```
 
@@ -1394,8 +1423,10 @@ Each callback adds an entry to the message menu:
 ```dart
 ChatView(
   // ...
-  onReportMessage: (message) => api.report(message.id),
-  onBlockUser: (user) => api.block(user.id),
+  moderation: ChatModerationOptions(
+    onReportMessage: (message) => api.report(message.id),
+    onBlockUser: (user) => api.block(user.id),
+  ),
   onSaveMessage: (message, saved) => controller.toggleSaved(message.id),
 )
 ```
@@ -1408,7 +1439,9 @@ Saved messages show a bookmark icon. Read them with
 ```dart
 ChatView(
   // ...
-  wordFilter: ChatWordFilter({'darn', 'heck'}), // "darn it" -> "d*** it"
+  moderation: ChatModerationOptions(
+    wordFilter: ChatWordFilter({'darn', 'heck'}), // "darn it" -> "d*** it"
+  ),
 )
 ```
 
@@ -1530,8 +1563,10 @@ ChecklistMessage(
 
 ChatView(
   // ...
-  onChecklistToggle: (list, item) =>
-      controller.toggleChecklistItem(list.id, item.id, me.id),
+  contentCallbacks: ChatContentCallbacks(
+    onChecklistToggle: (list, item) =>
+        controller.toggleChecklistItem(list.id, item.id, me.id),
+  ),
 )
 ```
 
@@ -1563,11 +1598,13 @@ PaymentMessage(
 
 ChatView(
   // ...
-  onProductTap: (message, product) => cart.add(product.id),
-  onPaymentAction: (message, action) => action == ChatPaymentAction.pay
-      ? checkout(message)
-      : controller.update(
-          message.copyWith(paymentStatus: ChatPaymentStatus.declined)),
+  contentCallbacks: ChatContentCallbacks(
+    onProductTap: (message, product) => cart.add(product.id),
+    onPaymentAction: (message, action) => action == ChatPaymentAction.pay
+        ? checkout(message)
+        : controller.update(
+            message.copyWith(paymentStatus: ChatPaymentStatus.declined)),
+  ),
 )
 ```
 
@@ -1652,13 +1689,15 @@ controller.insert(CustomMessage(
 ));
 
 ChatView(
-  customMessageBuilder: (context, message, details) => switch (message.type) {
-    'image' => ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.network(message.payload! as String, width: 240),
-      ),
-    _ => const Text('Unsupported message'),
-  },
+  builders: ChatBuilders(
+    customMessageBuilder: (context, message, details) => switch (message.type) {
+      'image' => ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.network(message.payload! as String, width: 240),
+        ),
+      _ => const Text('Unsupported message'),
+    },
+  ),
   // ...
 )
 ```
@@ -1741,7 +1780,8 @@ your own widgets.
 
 ### Builders
 
-Replace any part of the UI:
+Replace any part of the UI with the builders of `ChatBuilders`, passed as
+`ChatView.builders`:
 
 | Builder | Replaces |
 | --- | --- |
@@ -1760,17 +1800,35 @@ Example: add an attachment button to the input bar.
 
 ```dart
 ChatView(
-  inputBuilder: (context, send, textController) => ChatInput(
-    onSend: send,
-    controller: textController, // lets "Edit" fill the field
-    leading: IconButton(
-      icon: const Icon(Icons.attach_file),
-      onPressed: pickFile,
+  builders: ChatBuilders(
+    inputBuilder: (context, send, textController) => ChatInput(
+      onSend: send,
+      controller: textController, // lets "Edit" fill the field
+      leading: IconButton(
+        icon: const Icon(Icons.attach_file),
+        onPressed: pickFile,
+      ),
     ),
   ),
   // ...
 )
 ```
+
+### Option groups
+
+Besides `builders`, related `ChatView` options come in groups:
+
+| Parameter | Class | What it holds |
+| --- | --- | --- |
+| `builders` | `ChatBuilders` | Builders that replace parts of the UI, and `imageProviderBuilder` |
+| `ai` | `ChatAiOptions` | Regenerate, rating, stop, translation, reasoning, sources and suggested prompts |
+| `moderation` | `ChatModerationOptions` | Read-only mode, slow mode, reports, blocks, the word filter and delete for everyone |
+| `media` | `ChatMediaOptions` | Images, files, video and voice notes |
+| `contentCallbacks` | `ChatContentCallbacks` | Polls, surveys, bot buttons, quick replies, locations, events, contacts, checklists, products, payments and calls |
+
+The same options still exist as flat `ChatView` parameters. They are
+deprecated until 1.0 and ignored for a group once you pass that group, so
+move a whole group at a time.
 
 Other `ChatView` options: `showAvatars`, `showUserNames`,
 `showDateSeparators`, `enableMarkdown`, `enableJumboEmoji`,

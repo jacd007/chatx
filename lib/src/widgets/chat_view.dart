@@ -30,6 +30,7 @@ import 'chat_builders.dart';
 import 'chat_header.dart';
 import 'chat_input.dart';
 import 'chat_people.dart';
+import 'chat_view_options.dart';
 import 'message_status_icon.dart';
 import 'typing_indicator.dart';
 
@@ -114,25 +115,60 @@ class ChatView extends StatefulWidget {
     this.enableJumboEmoji = true,
     this.groupingInterval = const Duration(minutes: 5),
     this.inputEnabled = true,
+    @Deprecated(
+        'Use builders: ChatBuilders(bubbleBuilder: ...). Removed in 1.0')
     this.bubbleBuilder,
+    @Deprecated(
+        'Use builders: ChatBuilders(customMessageBuilder: ...). Removed in 1.0')
     this.customMessageBuilder,
+    @Deprecated(
+        'Use builders: ChatBuilders(systemMessageBuilder: ...). Removed in 1.0')
     this.systemMessageBuilder,
+    @Deprecated(
+        'Use builders: ChatBuilders(avatarBuilder: ...). Removed in 1.0')
     this.avatarBuilder,
+    @Deprecated('Use builders: ChatBuilders(inputBuilder: ...). Removed in 1.0')
     this.inputBuilder,
+    @Deprecated(
+        'Use builders: ChatBuilders(dateSeparatorBuilder: ...). Removed in 1.0')
     this.dateSeparatorBuilder,
+    @Deprecated(
+        'Use builders: ChatBuilders(typingIndicatorBuilder: ...). Removed in 1.0')
     this.typingIndicatorBuilder,
+    @Deprecated(
+        'Use builders: ChatBuilders(scrollToBottomBuilder: ...). Removed in 1.0')
     this.scrollToBottomBuilder,
+    @Deprecated(
+        'Use builders: ChatBuilders(loadMoreIndicatorBuilder: ...). Removed in 1.0')
     this.loadMoreIndicatorBuilder,
+    @Deprecated(
+        'Use builders: ChatBuilders(emptyStateBuilder: ...). Removed in 1.0')
     this.emptyStateBuilder,
+    @Deprecated(
+        'Use builders: ChatBuilders(imageProviderBuilder: ...). Removed in 1.0')
     this.imageProviderBuilder,
+    @Deprecated('Use media: ChatMediaOptions(onImageTap: ...). Removed in 1.0')
     this.onImageTap,
+    @Deprecated('Use media: ChatMediaOptions(onFileTap: ...). Removed in 1.0')
     this.onFileTap,
+    @Deprecated(
+        'Use media: ChatMediaOptions(voicePlayback: ...). Removed in 1.0')
     this.voicePlayback,
+    @Deprecated('Use media: ChatMediaOptions(onVoicePlay: ...). Removed in 1.0')
     this.onVoicePlay,
+    @Deprecated(
+        'Use media: ChatMediaOptions(onVoicePause: ...). Removed in 1.0')
     this.onVoicePause,
+    @Deprecated('Use media: ChatMediaOptions(onVoiceSeek: ...). Removed in 1.0')
     this.onVoiceSeek,
+    @Deprecated(
+        'Use media: ChatMediaOptions(onVoiceRecordStart: ...). Removed in 1.0')
     this.onVoiceRecordStart,
+    @Deprecated(
+        'Use media: ChatMediaOptions(onVoiceRecordEnd: ...). Removed in 1.0')
     this.onVoiceRecordEnd,
+    @Deprecated(
+        'Use contentCallbacks: ChatContentCallbacks(onPollVote: ...). Removed in 1.0')
     this.onPollVote,
     this.mentionableUsers = const [],
     this.onMentionTap,
@@ -141,25 +177,45 @@ class ChatView extends StatefulWidget {
     this.enableSelection = true,
     this.selectionActionsBuilder,
     this.showFloatingDate = true,
+    @Deprecated(
+        'Use contentCallbacks: ChatContentCallbacks(onSurveySubmit: ...). Removed in 1.0')
     this.onSurveySubmit,
+    @Deprecated(
+        'Use contentCallbacks: ChatContentCallbacks(onMessageButton: ...). Removed in 1.0')
     this.onMessageButton,
+    @Deprecated(
+        'Use contentCallbacks: ChatContentCallbacks(onQuickReply: ...). Removed in 1.0')
     this.onQuickReply,
     this.onThreadTap,
     this.threadRoot,
     this.onForwardMessages,
     this.showReadReceipts = true,
     this.enableEmojiPicker = true,
+    @Deprecated('Use ai: ChatAiOptions(onRegenerate: ...). Removed in 1.0')
     this.onRegenerate,
+    @Deprecated('Use ai: ChatAiOptions(onFeedback: ...). Removed in 1.0')
     this.onFeedback,
+    @Deprecated('Use ai: ChatAiOptions(onStopGenerating: ...). Removed in 1.0')
     this.onStopGenerating,
+    @Deprecated('Use ai: ChatAiOptions(onTranslate: ...). Removed in 1.0')
     this.onTranslate,
+    @Deprecated(
+        'Use builders: ChatBuilders(locationMapBuilder: ...). Removed in 1.0')
     this.locationMapBuilder,
+    @Deprecated(
+        'Use contentCallbacks: ChatContentCallbacks(onLocationTap: ...). Removed in 1.0')
     this.onLocationTap,
+    @Deprecated(
+        'Use contentCallbacks: ChatContentCallbacks(onRsvp: ...). Removed in 1.0')
     this.onRsvp,
+    @Deprecated(
+        'Use contentCallbacks: ChatContentCallbacks(onContactAction: ...). Removed in 1.0')
     this.onContactAction,
     this.stickerPacks = const [],
     @Deprecated('Use onSend with ChatSendFeature.stickers. Removed in 1.0')
     this.onSendSticker,
+    @Deprecated(
+        'Use moderation: ChatModerationOptions(onDeleteForEveryone: ...). Removed in 1.0')
     this.onDeleteForEveryone,
     @Deprecated('Use onSend with ChatSendFeature.schedule. Removed in 1.0')
     this.onScheduleMessage,
@@ -167,28 +223,59 @@ class ChatView extends StatefulWidget {
       'Use onSend with ChatSendFeature.sendScheduledNow. Removed in 1.0',
     )
     this.onSendScheduledNow,
+    @Deprecated(
+        'Use moderation: ChatModerationOptions(readOnly: ...). Removed in 1.0')
     this.readOnly = false,
+    @Deprecated(
+        'Use moderation: ChatModerationOptions(readOnlyMessage: ...). Removed in 1.0')
     this.readOnlyMessage,
+    @Deprecated(
+        'Use moderation: ChatModerationOptions(slowMode: ...). Removed in 1.0')
     this.slowMode,
+    @Deprecated(
+        'Use moderation: ChatModerationOptions(onReportMessage: ...). Removed in 1.0')
     this.onReportMessage,
+    @Deprecated(
+        'Use moderation: ChatModerationOptions(onBlockUser: ...). Removed in 1.0')
     this.onBlockUser,
     this.onSaveMessage,
+    @Deprecated(
+        'Use moderation: ChatModerationOptions(wordFilter: ...). Removed in 1.0')
     this.wordFilter,
+    @Deprecated('Use ai: ChatAiOptions(onReasoningTap: ...). Removed in 1.0')
     this.onReasoningTap,
+    @Deprecated('Use ai: ChatAiOptions(onSourceTap: ...). Removed in 1.0')
     this.onSourceTap,
+    @Deprecated('Use media: ChatMediaOptions(onVideoTap: ...). Removed in 1.0')
     this.onVideoTap,
+    @Deprecated(
+        'Use media: ChatMediaOptions(onTranscribe: ...). Removed in 1.0')
     this.onTranscribe,
+    @Deprecated(
+        'Use contentCallbacks: ChatContentCallbacks(onChecklistToggle: ...). Removed in 1.0')
     this.onChecklistToggle,
+    @Deprecated(
+        'Use contentCallbacks: ChatContentCallbacks(onProductTap: ...). Removed in 1.0')
     this.onProductTap,
+    @Deprecated(
+        'Use contentCallbacks: ChatContentCallbacks(onPaymentAction: ...). Removed in 1.0')
     this.onPaymentAction,
+    @Deprecated(
+        'Use contentCallbacks: ChatContentCallbacks(onCallBack: ...). Removed in 1.0')
     this.onCallBack,
     this.onAttach,
     @Deprecated('Use onSend with ChatSendFeature.attachments. Removed in 1.0')
     this.onSendAttachments,
     this.connectionState = ChatConnectionState.online,
     this.onSendQueued,
+    @Deprecated('Use ai: ChatAiOptions(suggestedPrompts: ...). Removed in 1.0')
     this.suggestedPrompts = const [],
     this.showHoverActions = true,
+    this.builders,
+    this.ai,
+    this.moderation,
+    this.media,
+    this.contentCallbacks,
   }) : assert(
           onSend != null || onSendMessage != null,
           'Pass onSend to receive what the user sends',
@@ -342,72 +429,97 @@ class ChatView extends StatefulWidget {
   /// Whether the default input bar accepts text.
   final bool inputEnabled;
 
-  /// Wraps or replaces message bubbles.
+  /// Deprecated: use [ChatBuilders.bubbleBuilder] through [builders].
+  @Deprecated('Use builders: ChatBuilders(bubbleBuilder: ...). Removed in 1.0')
   final ChatBubbleBuilder? bubbleBuilder;
 
-  /// Renders [CustomMessage]s inside a bubble.
+  /// Deprecated: use [ChatBuilders.customMessageBuilder] through [builders].
+  @Deprecated(
+      'Use builders: ChatBuilders(customMessageBuilder: ...). Removed in 1.0')
   final ChatCustomMessageBuilder? customMessageBuilder;
 
-  /// Renders [SystemMessage]s.
+  /// Deprecated: use [ChatBuilders.systemMessageBuilder] through [builders].
+  @Deprecated(
+      'Use builders: ChatBuilders(systemMessageBuilder: ...). Removed in 1.0')
   final ChatSystemMessageBuilder? systemMessageBuilder;
 
-  /// Replaces avatars.
+  /// Deprecated: use [ChatBuilders.avatarBuilder] through [builders].
+  @Deprecated('Use builders: ChatBuilders(avatarBuilder: ...). Removed in 1.0')
   final ChatAvatarBuilder? avatarBuilder;
 
-  /// Replaces the input bar. See [ChatInput].
+  /// Deprecated: use [ChatBuilders.inputBuilder] through [builders].
+  @Deprecated('Use builders: ChatBuilders(inputBuilder: ...). Removed in 1.0')
   final ChatInputBuilder? inputBuilder;
 
-  /// Replaces day labels.
+  /// Deprecated: use [ChatBuilders.dateSeparatorBuilder] through [builders].
+  @Deprecated(
+      'Use builders: ChatBuilders(dateSeparatorBuilder: ...). Removed in 1.0')
   final ChatDateSeparatorBuilder? dateSeparatorBuilder;
 
-  /// Replaces the typing indicator.
+  /// Deprecated: use [ChatBuilders.typingIndicatorBuilder] through [builders].
+  @Deprecated(
+      'Use builders: ChatBuilders(typingIndicatorBuilder: ...). Removed in 1.0')
   final ChatTypingIndicatorBuilder? typingIndicatorBuilder;
 
-  /// Replaces the scroll-to-bottom button.
+  /// Deprecated: use [ChatBuilders.scrollToBottomBuilder] through [builders].
+  @Deprecated(
+      'Use builders: ChatBuilders(scrollToBottomBuilder: ...). Removed in 1.0')
   final ChatScrollToBottomBuilder? scrollToBottomBuilder;
 
-  /// Replaces the progress indicator shown while [onLoadMore] runs.
+  /// Deprecated: use [ChatBuilders.loadMoreIndicatorBuilder] through
+  /// [builders].
+  @Deprecated(
+      'Use builders: ChatBuilders(loadMoreIndicatorBuilder: ...). Removed in 1.0')
   final WidgetBuilder? loadMoreIndicatorBuilder;
 
-  /// Shown when there are no messages.
+  /// Deprecated: use [ChatBuilders.emptyStateBuilder] through [builders].
+  @Deprecated(
+      'Use builders: ChatBuilders(emptyStateBuilder: ...). Removed in 1.0')
   final WidgetBuilder? emptyStateBuilder;
 
-  /// Turns an image URI ([ChatImage.uri], [ChatLinkPreview.imageUri]) into
-  /// an [ImageProvider]. Defaults to [NetworkImage]. Use it for assets,
-  /// files, caching or authenticated requests.
+  /// Deprecated: use [ChatBuilders.imageProviderBuilder] through [builders].
+  @Deprecated(
+      'Use builders: ChatBuilders(imageProviderBuilder: ...). Removed in 1.0')
   final ImageProvider Function(String uri)? imageProviderBuilder;
 
-  /// Called when an image is tapped. When `null`, chatx opens a full-screen
-  /// viewer with zoom and swipe-down to close.
+  /// Deprecated: use [ChatMediaOptions.onImageTap] through [media].
+  @Deprecated('Use media: ChatMediaOptions(onImageTap: ...). Removed in 1.0')
   final ChatImageTapCallback? onImageTap;
 
-  /// Called when a [FileMessage] is tapped. Open or download the file here.
+  /// Deprecated: use [ChatMediaOptions.onFileTap] through [media].
+  @Deprecated('Use media: ChatMediaOptions(onFileTap: ...). Removed in 1.0')
   final ValueChanged<FileMessage>? onFileTap;
 
-  /// What your audio player is doing. Drives play buttons and progress of
-  /// [VoiceMessage]s.
+  /// Deprecated: use [ChatMediaOptions.voicePlayback] through [media].
+  @Deprecated('Use media: ChatMediaOptions(voicePlayback: ...). Removed in 1.0')
   final ValueListenable<ChatVoicePlayback?>? voicePlayback;
 
-  /// Called when the user taps play on a voice note.
+  /// Deprecated: use [ChatMediaOptions.onVoicePlay] through [media].
+  @Deprecated('Use media: ChatMediaOptions(onVoicePlay: ...). Removed in 1.0')
   final ValueChanged<VoiceMessage>? onVoicePlay;
 
-  /// Called when the user taps pause on a voice note.
+  /// Deprecated: use [ChatMediaOptions.onVoicePause] through [media].
+  @Deprecated('Use media: ChatMediaOptions(onVoicePause: ...). Removed in 1.0')
   final ValueChanged<VoiceMessage>? onVoicePause;
 
-  /// Called when the user taps the waveform to jump to a position.
+  /// Deprecated: use [ChatMediaOptions.onVoiceSeek] through [media].
+  @Deprecated('Use media: ChatMediaOptions(onVoiceSeek: ...). Removed in 1.0')
   final void Function(VoiceMessage message, Duration position)? onVoiceSeek;
 
-  /// Called when the user starts holding the microphone button. When set,
-  /// the send button turns into a microphone while the input is empty.
+  /// Deprecated: use [ChatMediaOptions.onVoiceRecordStart] through [media].
+  @Deprecated(
+      'Use media: ChatMediaOptions(onVoiceRecordStart: ...). Removed in 1.0')
   final VoidCallback? onVoiceRecordStart;
 
-  /// Called when the user releases the microphone button or slides to
-  /// cancel.
+  /// Deprecated: use [ChatMediaOptions.onVoiceRecordEnd] through [media].
+  @Deprecated(
+      'Use media: ChatMediaOptions(onVoiceRecordEnd: ...). Removed in 1.0')
   final ChatVoiceRecordEndCallback? onVoiceRecordEnd;
 
-  /// Called when the user votes in a [PollMessage]. Typically calls
-  /// [ChatController.votePoll] and your backend. When `null`, polls are
-  /// read-only.
+  /// Deprecated: use [ChatContentCallbacks.onPollVote] through
+  /// [contentCallbacks].
+  @Deprecated(
+      'Use contentCallbacks: ChatContentCallbacks(onPollVote: ...). Removed in 1.0')
   final ChatPollVoteCallback? onPollVote;
 
   /// Users that can be mentioned. Typing `@` in the input suggests them, and
@@ -434,17 +546,24 @@ class ChatView extends StatefulWidget {
   /// Whether a date chip floats at the top while scrolling.
   final bool showFloatingDate;
 
-  /// Called with the answers when the user completes a [SurveyMessage].
-  /// When `null`, surveys cannot be answered.
+  /// Deprecated: use [ChatContentCallbacks.onSurveySubmit] through
+  /// [contentCallbacks].
+  @Deprecated(
+      'Use contentCallbacks: ChatContentCallbacks(onSurveySubmit: ...). Removed in 1.0')
   final void Function(SurveyMessage survey, ChatSurveyResponse response)?
       onSurveySubmit;
 
-  /// Called when the user taps a [ChatMessageButton] of a [TextMessage].
+  /// Deprecated: use [ChatContentCallbacks.onMessageButton] through
+  /// [contentCallbacks].
+  @Deprecated(
+      'Use contentCallbacks: ChatContentCallbacks(onMessageButton: ...). Removed in 1.0')
   final void Function(ChatMessage message, ChatMessageButton button)?
       onMessageButton;
 
-  /// Called when the user taps a quick reply. When `null`, the reply text is
-  /// sent through [onSendMessage].
+  /// Deprecated: use [ChatContentCallbacks.onQuickReply] through
+  /// [contentCallbacks].
+  @Deprecated(
+      'Use contentCallbacks: ChatContentCallbacks(onQuickReply: ...). Removed in 1.0')
   final void Function(ChatQuickReply reply, ChatMessage message)? onQuickReply;
 
   /// Called when the user taps the thread summary of a message. Open a
@@ -468,33 +587,43 @@ class ChatView extends StatefulWidget {
   /// emoji picker.
   final bool enableEmojiPicker;
 
-  /// Called when the user asks for a new answer to the newest message of a
-  /// bot ([ChatUser.isBot]). Shows a regenerate button under it.
+  /// Deprecated: use [ChatAiOptions.onRegenerate] through [ai].
+  @Deprecated('Use ai: ChatAiOptions(onRegenerate: ...). Removed in 1.0')
   final ValueChanged<TextMessage>? onRegenerate;
 
-  /// Called when the user rates an answer of a bot. Shows thumbs up and down
-  /// under bot answers.
+  /// Deprecated: use [ChatAiOptions.onFeedback] through [ai].
+  @Deprecated('Use ai: ChatAiOptions(onFeedback: ...). Removed in 1.0')
   final ChatFeedbackCallback? onFeedback;
 
-  /// Called when the user taps stop while the newest incoming message is
-  /// streaming. The send button turns into a stop button meanwhile.
+  /// Deprecated: use [ChatAiOptions.onStopGenerating] through [ai].
+  @Deprecated('Use ai: ChatAiOptions(onStopGenerating: ...). Removed in 1.0')
   final ValueChanged<TextMessage>? onStopGenerating;
 
-  /// Translates a message. When set, the menu offers "Translate" and the
-  /// bubble can switch between the translation and the original.
+  /// Deprecated: use [ChatAiOptions.onTranslate] through [ai].
+  @Deprecated('Use ai: ChatAiOptions(onTranslate: ...). Removed in 1.0')
   final Future<String> Function(TextMessage message)? onTranslate;
 
-  /// Draws the map of a [LocationMessage], for example with your maps SDK.
+  /// Deprecated: use [ChatBuilders.locationMapBuilder] through [builders].
+  @Deprecated(
+      'Use builders: ChatBuilders(locationMapBuilder: ...). Removed in 1.0')
   final Widget Function(BuildContext context, LocationMessage message)?
       locationMapBuilder;
 
-  /// Called when a location card is tapped, for example to open a maps app.
+  /// Deprecated: use [ChatContentCallbacks.onLocationTap] through
+  /// [contentCallbacks].
+  @Deprecated(
+      'Use contentCallbacks: ChatContentCallbacks(onLocationTap: ...). Removed in 1.0')
   final ValueChanged<LocationMessage>? onLocationTap;
 
-  /// Called when the user answers an [EventMessage].
+  /// Deprecated: use [ChatContentCallbacks.onRsvp] through [contentCallbacks].
+  @Deprecated(
+      'Use contentCallbacks: ChatContentCallbacks(onRsvp: ...). Removed in 1.0')
   final ChatRsvpCallback? onRsvp;
 
-  /// Called when the user taps a button of a [ContactMessage].
+  /// Deprecated: use [ChatContentCallbacks.onContactAction] through
+  /// [contentCallbacks].
+  @Deprecated(
+      'Use contentCallbacks: ChatContentCallbacks(onContactAction: ...). Removed in 1.0')
   final void Function(ContactMessage message, ChatContactAction action)?
       onContactAction;
 
@@ -506,8 +635,10 @@ class ChatView extends StatefulWidget {
   @Deprecated('Use onSend with ChatSendFeature.stickers. Removed in 1.0')
   final ValueChanged<ChatSticker>? onSendSticker;
 
-  /// Called when the user deletes their message for everyone. Offered in
-  /// the menu when set; usually calls [ChatController.markDeleted].
+  /// Deprecated: use [ChatModerationOptions.onDeleteForEveryone] through
+  /// [moderation].
+  @Deprecated(
+      'Use moderation: ChatModerationOptions(onDeleteForEveryone: ...). Removed in 1.0')
   final ValueChanged<ChatMessage>? onDeleteForEveryone;
 
   /// Called when the user schedules a message by long-pressing send.
@@ -520,61 +651,83 @@ class ChatView extends StatefulWidget {
   )
   final ValueChanged<ChatMessage>? onSendScheduledNow;
 
-  /// Replaces the input with a banner, for channels where only some people
-  /// can write.
+  /// Deprecated: use [ChatModerationOptions.readOnly] through [moderation].
+  @Deprecated(
+      'Use moderation: ChatModerationOptions(readOnly: ...). Removed in 1.0')
   final bool readOnly;
 
-  /// Text of the read-only banner. Defaults to the localized "Only admins
-  /// can send messages".
+  /// Deprecated: use [ChatModerationOptions.readOnlyMessage] through
+  /// [moderation].
+  @Deprecated(
+      'Use moderation: ChatModerationOptions(readOnlyMessage: ...). Removed in 1.0')
   final String? readOnlyMessage;
 
-  /// Minimum time between two messages of the current user. The input is
-  /// disabled with a countdown in between.
+  /// Deprecated: use [ChatModerationOptions.slowMode] through [moderation].
+  @Deprecated(
+      'Use moderation: ChatModerationOptions(slowMode: ...). Removed in 1.0')
   final Duration? slowMode;
 
-  /// Called when the user reports a message of someone else.
+  /// Deprecated: use [ChatModerationOptions.onReportMessage] through
+  /// [moderation].
+  @Deprecated(
+      'Use moderation: ChatModerationOptions(onReportMessage: ...). Removed in 1.0')
   final ValueChanged<ChatMessage>? onReportMessage;
 
-  /// Called when the user blocks the author of a message.
+  /// Deprecated: use [ChatModerationOptions.onBlockUser] through [moderation].
+  @Deprecated(
+      'Use moderation: ChatModerationOptions(onBlockUser: ...). Removed in 1.0')
   final ValueChanged<ChatUser>? onBlockUser;
 
   /// Called when the user saves or unsaves a message. Usually calls
   /// [ChatController.toggleSaved].
   final void Function(ChatMessage message, bool saved)? onSaveMessage;
 
-  /// Masks offensive words in messages.
+  /// Deprecated: use [ChatModerationOptions.wordFilter] through [moderation].
+  @Deprecated(
+      'Use moderation: ChatModerationOptions(wordFilter: ...). Removed in 1.0')
   final ChatWordFilter? wordFilter;
 
-  /// Called when the user expands or collapses a reasoning block. Optional;
-  /// the block works without it.
+  /// Deprecated: use [ChatAiOptions.onReasoningTap] through [ai].
+  @Deprecated('Use ai: ChatAiOptions(onReasoningTap: ...). Removed in 1.0')
   final ValueChanged<TextMessage>? onReasoningTap;
 
-  /// Called when the user taps a source chip. Defaults to [onLinkTap] with
-  /// the source URL.
+  /// Deprecated: use [ChatAiOptions.onSourceTap] through [ai].
+  @Deprecated('Use ai: ChatAiOptions(onSourceTap: ...). Removed in 1.0')
   final ValueChanged<ChatSource>? onSourceTap;
 
-  /// Called when the user taps a [VideoMessage]. Play the video here.
+  /// Deprecated: use [ChatMediaOptions.onVideoTap] through [media].
+  @Deprecated('Use media: ChatMediaOptions(onVideoTap: ...). Removed in 1.0')
   final ValueChanged<VideoMessage>? onVideoTap;
 
-  /// Called when the user asks for the transcript of a voice note. Produce
-  /// it and update the message with `VoiceMessage.transcript`. While the
-  /// future runs, the bubble shows "Transcribing…".
+  /// Deprecated: use [ChatMediaOptions.onTranscribe] through [media].
+  @Deprecated('Use media: ChatMediaOptions(onTranscribe: ...). Removed in 1.0')
   final Future<void> Function(VoiceMessage message)? onTranscribe;
 
-  /// Called when the user checks or unchecks an item of a
-  /// [ChecklistMessage]. Record it with `ChatController.toggleChecklistItem`.
+  /// Deprecated: use [ChatContentCallbacks.onChecklistToggle] through
+  /// [contentCallbacks].
+  @Deprecated(
+      'Use contentCallbacks: ChatContentCallbacks(onChecklistToggle: ...). Removed in 1.0')
   final void Function(ChecklistMessage message, ChecklistItem item)?
       onChecklistToggle;
 
-  /// Called when the user taps a product of a [ProductMessage].
+  /// Deprecated: use [ChatContentCallbacks.onProductTap] through
+  /// [contentCallbacks].
+  @Deprecated(
+      'Use contentCallbacks: ChatContentCallbacks(onProductTap: ...). Removed in 1.0')
   final void Function(ProductMessage message, ChatProduct product)?
       onProductTap;
 
-  /// Called when the user pays or declines a [PaymentMessage].
+  /// Deprecated: use [ChatContentCallbacks.onPaymentAction] through
+  /// [contentCallbacks].
+  @Deprecated(
+      'Use contentCallbacks: ChatContentCallbacks(onPaymentAction: ...). Removed in 1.0')
   final void Function(PaymentMessage message, ChatPaymentAction action)?
       onPaymentAction;
 
-  /// Called when the user taps "Call back" on a [CallMessage].
+  /// Deprecated: use [ChatContentCallbacks.onCallBack] through
+  /// [contentCallbacks].
+  @Deprecated(
+      'Use contentCallbacks: ChatContentCallbacks(onCallBack: ...). Removed in 1.0')
   final ValueChanged<CallMessage>? onCallBack;
 
   /// When set, the input shows an attach button that calls this. Open your
@@ -594,12 +747,217 @@ class ChatView extends StatefulWidget {
   /// [connectionState] changes back to online. Send them here.
   final ValueChanged<List<ChatMessage>>? onSendQueued;
 
-  /// Cards shown in the empty conversation. Tapping one sends its text.
+  /// Deprecated: use [ChatAiOptions.suggestedPrompts] through [ai].
+  @Deprecated('Use ai: ChatAiOptions(suggestedPrompts: ...). Removed in 1.0')
   final List<ChatPrompt> suggestedPrompts;
 
   /// Whether a mouse hovering a message shows Reply, React and More
   /// buttons next to it.
   final bool showHoverActions;
+
+  /// Builders that replace pieces of the default UI.
+  ///
+  /// When set, the deprecated flat parameters of this group are ignored.
+  final ChatBuilders? builders;
+
+  /// Controls for AI assistant answers in this view.
+  ///
+  /// When set, the deprecated flat parameters of this group are ignored.
+  final ChatAiOptions? ai;
+
+  /// Moderation tools: read-only channels, slow mode, reports, blocks and the
+  /// word filter.
+  ///
+  /// When set, the deprecated flat parameters of this group are ignored.
+  final ChatModerationOptions? moderation;
+
+  /// Callbacks of images, files, video and voice notes in this view.
+  ///
+  /// When set, the deprecated flat parameters of this group are ignored.
+  final ChatMediaOptions? media;
+
+  /// Callbacks of the rich content this view renders: polls, surveys, bot
+  /// buttons, quick replies, locations, events, contacts, checklists, products,
+  /// payments and calls.
+  ///
+  /// When set, the deprecated flat parameters of this group are ignored.
+  final ChatContentCallbacks? contentCallbacks;
+
+  static final Expando<ChatBuilders> _buildersCache = Expando('chatx builders');
+
+  // The builders in effect: [builders], or one made from the deprecated flat
+  // parameters, built once per widget.
+  ChatBuilders get _builders {
+    final builders = this.builders;
+    if (builders != null) {
+      assert(
+        !(bubbleBuilder != null ||
+            customMessageBuilder != null ||
+            systemMessageBuilder != null ||
+            avatarBuilder != null ||
+            inputBuilder != null ||
+            dateSeparatorBuilder != null ||
+            typingIndicatorBuilder != null ||
+            scrollToBottomBuilder != null ||
+            loadMoreIndicatorBuilder != null ||
+            emptyStateBuilder != null ||
+            imageProviderBuilder != null ||
+            locationMapBuilder != null),
+        'ChatView.builders is set: its flat parameters are ignored',
+      );
+      return builders;
+    }
+    return _buildersCache[this] ??= ChatBuilders(
+      bubbleBuilder: bubbleBuilder,
+      customMessageBuilder: customMessageBuilder,
+      systemMessageBuilder: systemMessageBuilder,
+      avatarBuilder: avatarBuilder,
+      inputBuilder: inputBuilder,
+      dateSeparatorBuilder: dateSeparatorBuilder,
+      typingIndicatorBuilder: typingIndicatorBuilder,
+      scrollToBottomBuilder: scrollToBottomBuilder,
+      loadMoreIndicatorBuilder: loadMoreIndicatorBuilder,
+      emptyStateBuilder: emptyStateBuilder,
+      imageProviderBuilder: imageProviderBuilder,
+      locationMapBuilder: locationMapBuilder,
+    );
+  }
+
+  static final Expando<ChatAiOptions> _aiCache = Expando('chatx ai');
+
+  // The ai in effect: [ai], or one made from the deprecated flat
+  // parameters, built once per widget.
+  ChatAiOptions get _ai {
+    final ai = this.ai;
+    if (ai != null) {
+      assert(
+        !(onRegenerate != null ||
+            onFeedback != null ||
+            onStopGenerating != null ||
+            onTranslate != null ||
+            onReasoningTap != null ||
+            onSourceTap != null ||
+            suggestedPrompts.isNotEmpty),
+        'ChatView.ai is set: its flat parameters are ignored',
+      );
+      return ai;
+    }
+    return _aiCache[this] ??= ChatAiOptions(
+      onRegenerate: onRegenerate,
+      onFeedback: onFeedback,
+      onStopGenerating: onStopGenerating,
+      onTranslate: onTranslate,
+      onReasoningTap: onReasoningTap,
+      onSourceTap: onSourceTap,
+      suggestedPrompts: suggestedPrompts,
+    );
+  }
+
+  static final Expando<ChatModerationOptions> _moderationCache =
+      Expando('chatx moderation');
+
+  // The moderation in effect: [moderation], or one made from the deprecated flat
+  // parameters, built once per widget.
+  ChatModerationOptions get _moderation {
+    final moderation = this.moderation;
+    if (moderation != null) {
+      assert(
+        !(readOnly ||
+            readOnlyMessage != null ||
+            slowMode != null ||
+            onReportMessage != null ||
+            onBlockUser != null ||
+            wordFilter != null ||
+            onDeleteForEveryone != null),
+        'ChatView.moderation is set: its flat parameters are ignored',
+      );
+      return moderation;
+    }
+    return _moderationCache[this] ??= ChatModerationOptions(
+      readOnly: readOnly,
+      readOnlyMessage: readOnlyMessage,
+      slowMode: slowMode,
+      onReportMessage: onReportMessage,
+      onBlockUser: onBlockUser,
+      wordFilter: wordFilter,
+      onDeleteForEveryone: onDeleteForEveryone,
+    );
+  }
+
+  static final Expando<ChatMediaOptions> _mediaCache = Expando('chatx media');
+
+  // The media in effect: [media], or one made from the deprecated flat
+  // parameters, built once per widget.
+  ChatMediaOptions get _media {
+    final media = this.media;
+    if (media != null) {
+      assert(
+        !(onImageTap != null ||
+            onFileTap != null ||
+            voicePlayback != null ||
+            onVoicePlay != null ||
+            onVoicePause != null ||
+            onVoiceSeek != null ||
+            onVoiceRecordStart != null ||
+            onVoiceRecordEnd != null ||
+            onVideoTap != null ||
+            onTranscribe != null),
+        'ChatView.media is set: its flat parameters are ignored',
+      );
+      return media;
+    }
+    return _mediaCache[this] ??= ChatMediaOptions(
+      onImageTap: onImageTap,
+      onFileTap: onFileTap,
+      voicePlayback: voicePlayback,
+      onVoicePlay: onVoicePlay,
+      onVoicePause: onVoicePause,
+      onVoiceSeek: onVoiceSeek,
+      onVoiceRecordStart: onVoiceRecordStart,
+      onVoiceRecordEnd: onVoiceRecordEnd,
+      onVideoTap: onVideoTap,
+      onTranscribe: onTranscribe,
+    );
+  }
+
+  static final Expando<ChatContentCallbacks> _contentCallbacksCache =
+      Expando('chatx contentCallbacks');
+
+  // The contentCallbacks in effect: [contentCallbacks], or one made from the deprecated flat
+  // parameters, built once per widget.
+  ChatContentCallbacks get _contentCallbacks {
+    final contentCallbacks = this.contentCallbacks;
+    if (contentCallbacks != null) {
+      assert(
+        !(onPollVote != null ||
+            onSurveySubmit != null ||
+            onMessageButton != null ||
+            onQuickReply != null ||
+            onLocationTap != null ||
+            onRsvp != null ||
+            onContactAction != null ||
+            onChecklistToggle != null ||
+            onProductTap != null ||
+            onPaymentAction != null ||
+            onCallBack != null),
+        'ChatView.contentCallbacks is set: its flat parameters are ignored',
+      );
+      return contentCallbacks;
+    }
+    return _contentCallbacksCache[this] ??= ChatContentCallbacks(
+      onPollVote: onPollVote,
+      onSurveySubmit: onSurveySubmit,
+      onMessageButton: onMessageButton,
+      onQuickReply: onQuickReply,
+      onLocationTap: onLocationTap,
+      onRsvp: onRsvp,
+      onContactAction: onContactAction,
+      onChecklistToggle: onChecklistToggle,
+      onProductTap: onProductTap,
+      onPaymentAction: onPaymentAction,
+      onCallBack: onCallBack,
+    );
+  }
 
   @override
   State<ChatView> createState() => _ChatViewState();
@@ -1304,7 +1662,7 @@ class _ChatViewState extends State<ChatView> {
   }
 
   void _startSlowMode() {
-    final slowMode = widget.slowMode;
+    final slowMode = widget._moderation.slowMode;
     if (slowMode == null || slowMode <= Duration.zero) return;
     _slowTimer?.cancel();
     setState(() => _slowRemaining = slowMode);
@@ -1499,7 +1857,9 @@ class _ChatViewState extends State<ChatView> {
         ),
       if (message is TextMessage)
         ChatMessageAction.copyText(label: l10n.copy, icon: Icons.copy_rounded),
-      if (message is TextMessage && !streaming && widget.onTranslate != null)
+      if (message is TextMessage &&
+          !streaming &&
+          widget._ai.onTranslate != null)
         ChatMessageAction(
           label: l10n.translate,
           icon: Icons.translate_rounded,
@@ -1550,19 +1910,19 @@ class _ChatViewState extends State<ChatView> {
           icon: Icons.check_circle_outline_rounded,
           onSelected: (m) => widget.controller.toggleSelection(m.id),
         ),
-      if (!mine && widget.onReportMessage != null)
+      if (!mine && widget._moderation.onReportMessage != null)
         ChatMessageAction(
           label: l10n.report,
           icon: Icons.flag_outlined,
           isDestructive: true,
-          onSelected: widget.onReportMessage!,
+          onSelected: widget._moderation.onReportMessage!,
         ),
-      if (!mine && widget.onBlockUser != null)
+      if (!mine && widget._moderation.onBlockUser != null)
         ChatMessageAction(
           label: l10n.block(message.author.name ?? l10n.someone),
           icon: Icons.block_rounded,
           isDestructive: true,
-          onSelected: (m) => widget.onBlockUser!(m.author),
+          onSelected: (m) => widget._moderation.onBlockUser!(m.author),
         ),
       if (mine && widget.onDeleteMessage != null)
         ChatMessageAction(
@@ -1571,12 +1931,12 @@ class _ChatViewState extends State<ChatView> {
           isDestructive: true,
           onSelected: widget.onDeleteMessage!,
         ),
-      if (mine && widget.onDeleteForEveryone != null)
+      if (mine && widget._moderation.onDeleteForEveryone != null)
         ChatMessageAction(
           label: l10n.deleteForEveryone,
           icon: Icons.delete_forever_outlined,
           isDestructive: true,
-          onSelected: widget.onDeleteForEveryone!,
+          onSelected: widget._moderation.onDeleteForEveryone!,
         ),
     ];
   }
@@ -1609,12 +1969,13 @@ class _ChatViewState extends State<ChatView> {
       _toggleSelection(message);
       return;
     }
-    if (message is FileMessage && widget.onFileTap != null) {
-      widget.onFileTap!(message);
+    if (message is FileMessage && widget._media.onFileTap != null) {
+      widget._media.onFileTap!(message);
       return;
     }
-    if (message is LocationMessage && widget.onLocationTap != null) {
-      widget.onLocationTap!(message);
+    if (message is LocationMessage &&
+        widget._contentCallbacks.onLocationTap != null) {
+      widget._contentCallbacks.onLocationTap!(message);
       return;
     }
     if (widget.messageMenuTrigger == ChatMessageMenuTrigger.tap) {
@@ -1688,10 +2049,11 @@ class _ChatViewState extends State<ChatView> {
       final generating = latest is TextMessage &&
           latest.isStreaming &&
           !_isOutgoing(latest) &&
-          widget.onStopGenerating != null;
+          widget._ai.onStopGenerating != null;
       final hasAttachments =
           _canAttach && widget.controller.composer.attachments.value.isNotEmpty;
-      return widget.inputBuilder?.call(context, _handleSend, _textController) ??
+      return widget._builders.inputBuilder
+              ?.call(context, _handleSend, _textController) ??
           ChatInput(
             onSend: _handleSend,
             controller: _textController,
@@ -1720,19 +2082,20 @@ class _ChatViewState extends State<ChatView> {
             onTypingChanged: widget.onTypingChanged,
             sendIcon:
                 editing ? Icons.check_rounded : Icons.arrow_upward_rounded,
-            onRecordStart: editing ? null : widget.onVoiceRecordStart,
-            onRecordEnd: widget.onVoiceRecordEnd,
+            onRecordStart: editing ? null : widget._media.onVoiceRecordStart,
+            onRecordEnd: widget._media.onVoiceRecordEnd,
             showEmojiButton: widget.enableEmojiPicker,
-            onStop: generating ? () => widget.onStopGenerating!(latest) : null,
+            onStop:
+                generating ? () => widget._ai.onStopGenerating!(latest) : null,
             onSchedule: _canSchedule && !editing ? _schedule : null,
             stickerPacks: widget.stickerPacks,
             onSticker: _canSendStickers ? _sendSticker : null,
-            imageProviderBuilder: widget.imageProviderBuilder,
+            imageProviderBuilder: widget._builders.imageProviderBuilder,
           );
     }
 
     final Widget input;
-    if (widget.readOnly) {
+    if (widget._moderation.readOnly) {
       input = Padding(
         key: const Key('chatx_read_only'),
         padding: const EdgeInsets.all(16),
@@ -1744,7 +2107,7 @@ class _ChatViewState extends State<ChatView> {
             const SizedBox(width: 8),
             Flexible(
               child: Text(
-                widget.readOnlyMessage ?? l10n.readOnly,
+                widget._moderation.readOnlyMessage ?? l10n.readOnly,
                 textAlign: TextAlign.center,
                 style: theme.systemMessageTextStyle,
               ),
@@ -1794,14 +2157,14 @@ class _ChatViewState extends State<ChatView> {
                     ),
                   if (widget.controller.isEmpty && !_loadingMore)
                     Positioned.fill(
-                      child: widget.emptyStateBuilder != null
+                      child: widget._builders.emptyStateBuilder != null
                           ? IgnorePointer(
                               child: Builder(
-                                builder: widget.emptyStateBuilder!,
+                                builder: widget._builders.emptyStateBuilder!,
                               ),
                             )
-                          : widget.suggestedPrompts.isNotEmpty &&
-                                  !widget.readOnly
+                          : widget._ai.suggestedPrompts.isNotEmpty &&
+                                  !widget._moderation.readOnly
                               ? _PromptSuggestions(
                                   state: this,
                                   title: l10n.emptyState,
@@ -1934,13 +2297,13 @@ class _ChatViewState extends State<ChatView> {
           typingUsers: widget.controller.typingUsers,
           currentUser: widget.currentUser,
           indent: widget.showAvatars ? theme.avatarSize + 8 : 0,
-          builder: widget.typingIndicatorBuilder,
+          builder: widget._builders.typingIndicatorBuilder,
         );
       case _DateEntry(:final day):
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),
           child: Center(
-            child: widget.dateSeparatorBuilder?.call(context, day) ??
+            child: widget._builders.dateSeparatorBuilder?.call(context, day) ??
                 _DateChip(day: day, onTap: _pickDateAndJump),
           ),
         );
@@ -2015,7 +2378,7 @@ class _ChatViewState extends State<ChatView> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Center(
-        child: widget.loadMoreIndicatorBuilder?.call(context) ??
+        child: widget._builders.loadMoreIndicatorBuilder?.call(context) ??
             const SizedBox.square(
               dimension: 24,
               child: CircularProgressIndicator(strokeWidth: 2.5),
@@ -2042,7 +2405,7 @@ class _ChatViewState extends State<ChatView> {
               child: ValueListenableBuilder<int>(
                 valueListenable: _unreadCount,
                 builder: (context, unread, _) =>
-                    widget.scrollToBottomBuilder
+                    widget._builders.scrollToBottomBuilder
                         ?.call(context, unread, _scrollToBottom) ??
                     _ScrollToBottomButton(
                       unreadCount: unread,
