@@ -4,6 +4,104 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## 0.2.0 - 2026-11-21
+
+Architecture review before 1.0. This release breaks the API on purpose;
+see "Migrating from 0.1" below.
+
+### Breaking changes
+
+- `ChatView.onSend` replaces `onSendMessage`, `onEditMessage`,
+  `onSendAttachments`, `onSendSticker`, `onScheduleMessage` and
+  `onSendScheduledNow`. It receives a sealed `ChatOutgoing`: `OutgoingText`
+  (text, prompts, quick replies and scheduled messages), `OutgoingAttachments`,
+  `OutgoingSticker`, `OutgoingEdit` and `OutgoingScheduledNow`.
+  `sendFeatures` turns on the UI of each feature beyond plain text.
+- `ChatView` options moved into five groups: `builders` (`ChatBuilders`), `ai`
+  (`ChatAiOptions`), `moderation` (`ChatModerationOptions`), `media`
+  (`ChatMediaOptions`) and `contentCallbacks` (`ChatContentCallbacks`).
+- The draft, reply, edit and attachments moved from `ChatController` to
+  `ChatController.composer` (`ChatComposerController`).
+- The `copyWith` of each message type no longer takes the shared fields
+  (`status`, `replyToId`, `reactions`, `thread`, `receipts`, `forwardedFrom`,
+  `expiresAt`, `deletedAt`, `scheduledFor`, `metadata`). Pass a `meta`, or use
+  `copyWithMeta` or `withMeta`. `copyWithMeta` now returns a `ChatMessage`.
+- `TextMessage.versions` is a `List<ChatAnswerVersion>` instead of a
+  `List<String>`.
+- `ChatRole` is defined in `chat_user.dart`. Code that imports
+  `package:chatx/chatx.dart` is not affected.
+- Removed `ChatSendCallback`, `ChatEditCallback`, `ChatScheduleCallback` and
+  `ChatAttachmentsCallback`.
+
+### Added
+
+- `ChatMessageMeta`: the shared fields of a message as one value
+  (`message.meta`), with `withMeta` to apply it and keep the message type.
+- `ChatBuilders.customMessageBuilders`: a builder per `CustomMessage.type`.
+  The set of built-in message types is fixed from 1.0, so new kinds of
+  content arrive as custom messages and your `switch`es keep compiling.
+- `ChatAnswerVersion`: earlier answers keep their reasoning, tool calls and
+  sources, and are shown with them.
+- Partial languages: every `ChatLocalizations` string defaults to English,
+  so a custom language only sets what it translates.
+- `ChatController.setMessages(messages, newConversation: true)` also clears
+  the reply, edit, typing users, attachments and draft.
+- `ChatController.contentChanges` notifies when a message changes without a
+  structural change.
+- `clearReplyToId`, `clearForwardedFrom` and `clearMetadata` flags.
+
+### Fixed
+
+- `setMessages` cancels a reply or edit whose message is gone, and the input
+  shows a draft changed from outside.
+- Reply quotes and the pinned banner follow edits and deletion of the
+  original message.
+- Calling the controller after `dispose` (for example from a late backend
+  callback) no longer throws.
+- `onSendQueued` fires once per reconnection when several views share a
+  controller.
+- Search results follow edited and streamed messages.
+- A regenerated answer no longer inherits the reasoning of the previous one.
+- Stickers sent while replying carry the message being replied to.
+
+### Performance
+
+- Messages are indexed by ID: lookups are O(1) and positions are found by
+  binary search instead of scanning the conversation.
+- Pages of history are merged in one pass instead of one insert per message.
+- Search parses the markdown of each message version once.
+- Rebuilding the parent of `ChatView` no longer walks every message.
+
+### Migrating from 0.1
+
+```dart
+// 0.1
+ChatView(
+  onSendMessage: (text, replyTo) => send(text, replyTo),
+  onEditMessage: (message, text) => edit(message, text),
+  onRegenerate: regenerate,
+  readOnly: !isAdmin,
+  imageProviderBuilder: provider,
+);
+controller.startReply(message);
+message.copyWith(status: MessageStatus.sent);
+
+// 0.2
+ChatView(
+  onSend: (outgoing) => switch (outgoing) {
+    OutgoingText(:final text, :final replyTo) => send(text, replyTo),
+    OutgoingEdit(:final message, :final text) => edit(message, text),
+    _ => null,
+  },
+  sendFeatures: const {ChatSendFeature.edit},
+  ai: ChatAiOptions(onRegenerate: regenerate),
+  moderation: ChatModerationOptions(readOnly: !isAdmin),
+  builders: ChatBuilders(imageProviderBuilder: provider),
+);
+controller.composer.startReply(message);
+message.copyWithMeta(status: MessageStatus.sent);
+```
+
 ## 0.1.1 - 2026-11-21
 
 Documentation only. No code changes.
