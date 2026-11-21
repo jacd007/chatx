@@ -393,6 +393,10 @@ class _ChatViewState extends State<ChatView> {
   List<_Entry> _newerEntries = const [_TypingEntry()];
   Map<Key, int> _newerIndexByKey = const {};
   bool _atBottom = true;
+
+  /// Programmatic scrolls in progress, such as jumping to a message. The
+  /// list does not stick to the bottom meanwhile.
+  int _scrollingTo = 0;
   // State of the last full rebuild, to take the cheap path when messages
   // were only appended.
   int _builtRevision = -1;
@@ -451,7 +455,8 @@ class _ChatViewState extends State<ChatView> {
         ];
       }
       WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _scrollToMessage(unread, highlight: false, alignment: 0.8),
+        // Low enough that the "New messages" line above it stays in view.
+        (_) => _scrollToMessage(unread, highlight: false, alignment: 0.6),
       );
     }
   }
@@ -672,7 +677,9 @@ class _ChatViewState extends State<ChatView> {
   // Keeps the newest message in view while the user is at the bottom, as
   // new messages or the typing indicator extend the list downward.
   bool _onMetricsChanged(ScrollMetricsNotification notification) {
-    if (notification.depth != 0 || !_atBottom) return false;
+    if (notification.depth != 0 || !_atBottom || _scrollingTo > 0) {
+      return false;
+    }
     final position = _scrollController.position;
     if (position.pixels != position.minScrollExtent) {
       position.jumpTo(position.minScrollExtent);
@@ -933,7 +940,29 @@ class _ChatViewState extends State<ChatView> {
     final isNewer = _newerIndexByKey.containsKey(key);
     if ((index == null && !isNewer) || !_scrollController.hasClients) return;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    _scrollingTo++;
+    try {
+      await _scrollToRow(
+        id,
+        index: index,
+        isNewer: isNewer,
+        highlight: highlight,
+        alignment: alignment,
+        reduceMotion: reduceMotion,
+      );
+    } finally {
+      _scrollingTo--;
+    }
+  }
 
+  Future<void> _scrollToRow(
+    String id, {
+    required int? index,
+    required bool isNewer,
+    required bool highlight,
+    required double alignment,
+    required bool reduceMotion,
+  }) async {
     for (var attempt = 0; attempt < 10 && mounted; attempt++) {
       final rowContext = _rowContexts[id];
       if (rowContext != null && rowContext.mounted) {

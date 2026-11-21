@@ -1034,7 +1034,13 @@ class _Bubble extends StatelessWidget {
           linkPolicy: view.linkPolicy,
           enableMarkdown: view.enableMarkdown,
           trailing: trailing,
-          mentionableUsers: view.mentionableUsers,
+          // Mentions of the current user are highlighted even when the
+          // user is not in the list of people others can mention.
+          mentionableUsers: [
+            ...view.mentionableUsers,
+            if (!view.mentionableUsers.any((u) => u.id == view.currentUser.id))
+              view.currentUser,
+          ],
           onMentionTap: view.onMentionTap,
           currentUserId: view.currentUser.id,
           highlight: query,

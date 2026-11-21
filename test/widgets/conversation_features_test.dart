@@ -446,6 +446,60 @@ void main() {
     expect(find.text('New messages'), findsOneWidget);
   });
 
+  testWidgets('opens with the unread separator in view in long chats',
+      (tester) async {
+    final now = DateTime.now();
+    controller.insertAll([
+      for (var i = 0; i < 40; i++)
+        message('m$i', at: now.subtract(Duration(minutes: 40 - i))),
+    ]);
+    // A phone, with a banner above the chat like the demo app.
+    tester.view.physicalSize = const Size(412, 915);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          appBar: AppBar(title: const Text('Chat')),
+          body: Column(
+            children: [
+              const SizedBox(height: 80),
+              Expanded(
+                child: ChatView(
+                  controller: controller,
+                  currentUser: me,
+                  onSend: (_) {},
+                  firstUnreadMessageId: 'm25',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final separator = find.byKey(const Key('chatx_unread_separator'));
+    expect(separator, findsOneWidget);
+    final rect = tester.getRect(separator);
+    final list = tester.getRect(find.byType(CustomScrollView).first);
+    expect(rect.top, greaterThanOrEqualTo(list.top));
+    expect(rect.bottom, lessThanOrEqualTo(list.bottom));
+  });
+
+  testWidgets('mentions of the current user are highlighted', (tester) async {
+    controller.insert(message('1', text: 'Hi @Me, can you check?'));
+    await pump(tester);
+    final spans = <TextSpan>[];
+    for (final text in tester.widgetList<RichText>(find.byType(RichText))) {
+      text.text.visitChildren((span) {
+        if (span is TextSpan) spans.add(span);
+        return true;
+      });
+    }
+    final mention = spans.firstWhere((s) => s.text == '@Me');
+    expect(mention.style?.backgroundColor, isNotNull);
+  });
+
   testWidgets('emoji-only messages render large without a bubble',
       (tester) async {
     controller.insertAll([
