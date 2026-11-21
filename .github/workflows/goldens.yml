@@ -1,0 +1,25 @@
+# Regenerates golden images with the same Flutter version and OS as CI.
+# Run it from the Actions tab, download the artifact, and commit the images.
+name: Update goldens
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter test --update-goldens --tags golden
+      - uses: actions/upload-artifact@v7
+        with:
+          name: goldens
+          path: test/goldens/goldens/*.png

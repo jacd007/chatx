@@ -49,12 +49,20 @@ flutter pub get && flutter test
 
 ### Golden tests
 
-Golden files live in `test/goldens/goldens/`. If you change visuals on
-purpose, regenerate them and review the images in your pull request:
+Golden files live in `test/goldens/goldens/`. They are rendered on CI
+(Linux, latest stable Flutter), because pixels differ slightly between
+Flutter versions and operating systems. Locally, skip them:
 
 ```bash
-flutter test --update-goldens --tags golden
+flutter test --exclude-tags golden
 ```
+
+If you change visuals on purpose:
+
+1. Push your branch.
+2. Run the **Update goldens** workflow from the Actions tab on that branch.
+3. Download the `goldens` artifact, copy the images into
+   `test/goldens/goldens/`, review them and commit.
 
 ## Commit messages
 
