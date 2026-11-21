@@ -37,6 +37,16 @@ flutter analyze --fatal-infos
 flutter test
 ```
 
+### material_ui interop
+
+`test_apps/material_ui_interop` checks that chatx works inside apps built on
+the `material_ui` package. It needs Flutter 3.47 or newer:
+
+```bash
+cd test_apps/material_ui_interop
+flutter pub get && flutter test
+```
+
 ### Golden tests
 
 Golden files live in `test/goldens/goldens/`. If you change visuals on

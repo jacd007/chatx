@@ -1,8 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
-
 import '../l10n/chat_localizations.dart';
+import '../material.dart';
 import '../models/chat_user.dart';
 import '../theme/chat_theme.dart';
 

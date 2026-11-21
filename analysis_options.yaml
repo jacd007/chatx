@@ -11,6 +11,8 @@ analyzer:
   exclude:
     - build/**
     - example/build/**
+    # Needs Flutter >= 3.47; analyzed by its own CI job.
+    - test_apps/**
 
 linter:
   rules:

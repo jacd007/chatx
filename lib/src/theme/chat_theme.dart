@@ -1,9 +1,9 @@
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 
 import '../chat_scope.dart';
+import '../material.dart';
 
 /// Visual overrides for chatx widgets.
 ///

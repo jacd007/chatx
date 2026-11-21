@@ -20,3 +20,6 @@ pubspec.lock
 **/failures/
 example/build/
 example/.dart_tool/
+
+# CI-only test projects
+test_apps/

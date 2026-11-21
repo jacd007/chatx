@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../l10n/chat_localizations.dart';
+import '../material.dart';
 import '../theme/chat_theme.dart';
 
 /// Message composer: a growing text field and a send button.
@@ -200,7 +200,9 @@ class _ChatInputState extends State<ChatInput> {
       borderSide: BorderSide.none,
     );
 
-    return ColoredBox(
+    // Material (not ColoredBox) so the text field works even without a
+    // Material ancestor, for example inside `material_ui` apps.
+    return Material(
       color: theme.inputBackgroundColor,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),

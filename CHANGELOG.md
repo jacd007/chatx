@@ -24,5 +24,6 @@ Initial release.
 - Builders to replace bubbles, avatars, input, separators, typing indicator,
   scroll button, loader and empty state.
 - English and Spanish strings, overridable through `ChatLocalizations`.
+- Works in apps built on `material_ui` through `MaterialUiCompatibilityBridge`.
 - Zero dependencies besides the Flutter SDK. Supports Android, iOS, web,
   macOS, Windows and Linux.

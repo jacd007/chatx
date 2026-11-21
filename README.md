@@ -38,6 +38,7 @@ follows your app's theme.
 ## Contents
 
 - [Installation](#installation)
+  - [Material and `material_ui`](#material-and-material_ui)
 - [Quick start](#quick-start)
 - [Core concepts](#core-concepts)
 - [Guides](#guides)
@@ -64,6 +65,27 @@ flutter pub add chatx
 ```
 
 Requires Flutter 3.27 or newer.
+
+### Material and `material_ui`
+
+Flutter 3.50 moved the Material library to the
+[`material_ui`](https://pub.dev/packages/material_ui) package and deprecated
+`package:flutter/material.dart`. The two libraries use separate types, so
+chatx keeps using `flutter/material.dart` to work in every app today:
+
+- **Your app imports `package:flutter/material.dart`:** nothing to do.
+- **Your app uses `material_ui`:** wrap your app once with the official
+  bridge, so chatx receives your theme and localizations:
+
+  ```dart
+  MaterialApp(
+    builder: (context, child) => MaterialUiCompatibilityBridge(child: child!),
+    // ...
+  )
+  ```
+
+chatx will move to `material_ui` in a future major version, once most apps
+have migrated. The bridge setup is tested in CI on every change.
 
 ## Quick start
 

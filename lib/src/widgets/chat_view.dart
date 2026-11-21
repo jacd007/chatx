@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 
@@ -11,6 +10,7 @@ import '../controller/chat_controller.dart';
 import '../l10n/chat_localizations.dart';
 import '../markdown/chat_link_policy.dart';
 import '../markdown/chat_text.dart';
+import '../material.dart';
 import '../models/chat_message.dart';
 import '../models/chat_user.dart';
 import '../models/message_status.dart';
@@ -500,7 +500,9 @@ class _ChatViewState extends State<ChatView> {
     return ChatScope(
       theme: theme,
       localizations: l10n,
-      child: ColoredBox(
+      // A Material ancestor for text fields and ink effects, also when the
+      // app is built on `material_ui` (see README).
+      child: Material(
         color: theme.backgroundColor,
         child: Column(
           children: [

@@ -1,6 +1,6 @@
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
 
+import '../material.dart';
 import 'chat_link_policy.dart';
 import 'markdown_parser.dart';
 

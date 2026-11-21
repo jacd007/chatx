@@ -1,0 +1,7 @@
+analyzer:
+  language:
+    strict-casts: true
+  errors:
+    # MaterialUiCompatibilityBridge is deprecated as a temporary migration
+    # utility. This app exists to test exactly that bridge.
+    deprecated_member_use: ignore

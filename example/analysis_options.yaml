@@ -1,13 +1,11 @@
-analyzer:
-  exclude:
-    - build/**
-    - android/**
-    - ios/**
-    - web/**
-    - windows/**
-    - macos/**
-    - linux/**
 include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    # Flutter 3.50 deprecated `package:flutter/material.dart` in favor of
+    # `material_ui`. This demo stays on flutter/material, like chatx itself.
+    # See "Material and material_ui" in the package README.
+    deprecated_member_use: ignore
 
 linter:
   rules:

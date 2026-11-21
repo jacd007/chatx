@@ -1,6 +1,5 @@
-import 'package:flutter/material.dart';
-
 import '../l10n/chat_localizations.dart';
+import '../material.dart';
 import '../models/message_status.dart';
 import '../theme/chat_theme.dart';
 

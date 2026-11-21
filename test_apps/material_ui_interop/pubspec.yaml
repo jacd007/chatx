@@ -1,0 +1,18 @@
+name: material_ui_interop
+description: Checks that chatx works inside apps built on material_ui.
+publish_to: 'none'
+
+environment:
+  sdk: ^3.13.0
+  flutter: ">=3.47.0"
+
+dependencies:
+  chatx:
+    path: ../../
+  flutter:
+    sdk: flutter
+  material_ui: ^1.11.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter

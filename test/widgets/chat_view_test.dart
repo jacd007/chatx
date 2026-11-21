@@ -1,7 +1,7 @@
 import 'package:chatx/chatx.dart';
+import 'package:chatx/src/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -40,6 +40,7 @@ Future<void> pumpChat(
     MaterialApp(
       locale: locale,
       supportedLocales: const [Locale('en'), Locale('es')],
+      // ignore: deprecated_member_use, matches the Material library chatx uses.
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       home: Scaffold(
         body: ChatView(

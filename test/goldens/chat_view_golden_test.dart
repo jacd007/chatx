@@ -2,7 +2,7 @@
 library;
 
 import 'package:chatx/chatx.dart';
-import 'package:flutter/material.dart';
+import 'package:chatx/src/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const me = ChatUser(id: 'me', name: 'Me');
