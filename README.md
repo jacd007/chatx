@@ -1894,8 +1894,22 @@ ChatView(
 )
 ```
 
-Add a language by creating a full `ChatLocalizations` instance and passing it
-to `ChatView.localizations`.
+Add a language by passing your strings to `ChatView.localizations`. Every
+string you leave out is English, so a chatx update that adds strings never
+breaks your translation:
+
+```dart
+ChatView(
+  localizations: const ChatLocalizations(
+    inputHint: 'Messaggio',
+    sendButton: 'Invia',
+    today: 'Oggi',
+    yesterday: 'Ieri',
+    // ...
+  ),
+  // ...
+)
+```
 
 ## Recipes
 
