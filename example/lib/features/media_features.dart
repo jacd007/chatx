@@ -241,7 +241,8 @@ final mediaFeatures = FeatureGroup('Media', [
     icon: Icons.emoji_emotions_outlined,
     builder: (_) => DemoChat(
       title: 'Stickers',
-      hint: 'Tap the sticker button in the input and pick one.',
+      hint: 'Tap the emoji button in the input, open the Faces tab and pick '
+          'a sticker.',
       seed: () => [
         StickerMessage(
           id: 'k1',
