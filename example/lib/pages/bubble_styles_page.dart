@@ -54,7 +54,7 @@ class _BubbleStylesPageState extends State<BubbleStylesPage> {
               controller: _controller,
               currentUser: me,
               inputEnabled: false,
-              onSendMessage: (_, __) {},
+              onSend: (_) {},
               theme: ChatTheme(
                 bubbleTail: _tail,
                 bubbleRadius: _radius,
@@ -66,7 +66,9 @@ class _BubbleStylesPageState extends State<BubbleStylesPage> {
                     ? BorderSide(color: scheme.outlineVariant)
                     : BorderSide.none,
               ),
-              inputBuilder: (_, __, ___) => const SizedBox.shrink(),
+              builders: ChatBuilders(
+                inputBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
             ),
           ),
           SafeArea(

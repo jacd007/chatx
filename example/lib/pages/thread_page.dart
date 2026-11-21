@@ -56,15 +56,19 @@ class _ThreadPageState extends State<ThreadPage> {
         controller: _controller,
         currentUser: me,
         threadRoot: widget.root,
-        onSendMessage: (text, replyTo) => _controller.insert(
-          TextMessage(
-            id: newId(),
-            author: me,
-            createdAt: DateTime.now(),
-            text: text,
-            status: MessageStatus.sent,
-          ),
-        ),
+        onSend: (outgoing) {
+          if (outgoing case OutgoingText(:final text)) {
+            _controller.insert(
+              TextMessage(
+                id: newId(),
+                author: me,
+                createdAt: DateTime.now(),
+                text: text,
+                status: MessageStatus.sent,
+              ),
+            );
+          }
+        },
       ),
     );
   }

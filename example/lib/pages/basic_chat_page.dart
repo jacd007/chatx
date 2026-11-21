@@ -149,7 +149,19 @@ class _BasicChatPageState extends State<BasicChatPage> {
       body: ChatView(
         controller: _controller,
         currentUser: me,
-        onSendMessage: _send,
+        onSend: (outgoing) {
+          switch (outgoing) {
+            case OutgoingText(:final text, :final replyTo):
+              _send(text, replyTo);
+            case OutgoingEdit(:final message, :final text):
+              _controller.editText(message.id, text);
+            case OutgoingAttachments() ||
+                  OutgoingSticker() ||
+                  OutgoingScheduledNow():
+              break;
+          }
+        },
+        sendFeatures: const {ChatSendFeature.edit},
         onRetry: _retry,
         onLinkTap: (uri) => showLink(context, uri),
         firstUnreadMessageId: 'm3',
@@ -160,8 +172,6 @@ class _BasicChatPageState extends State<BasicChatPage> {
         swipeAction: const ChatSwipeAction.reply(),
         onReactionSelected: (message, emoji) =>
             _controller.toggleReaction(message.id, emoji, me.id),
-        onEditMessage: (message, text) =>
-            _controller.editText(message.id, text),
         onDeleteMessage: (message) => _controller.remove(message.id),
       ),
     );

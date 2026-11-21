@@ -185,19 +185,25 @@ class _SupportBotPageState extends State<SupportBotPage> {
         currentUser: me,
         showUserNames: false,
         // One message every 5 seconds, to show slow mode.
-        slowMode: const Duration(seconds: 5),
-        onSendMessage: (text, _) => _userSays(text),
-        onMessageButton: (message, button) => _userSays(button.label),
-        imageProviderBuilder: demoImage,
-        onProductTap: (message, product) =>
-            ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${product.title} added to cart')),
+        moderation: const ChatModerationOptions(
+          slowMode: Duration(seconds: 5),
         ),
-        onPaymentAction: (message, action) => _controller.update(
-          message.copyWith(
-            paymentStatus: action == ChatPaymentAction.pay
-                ? ChatPaymentStatus.paid
-                : ChatPaymentStatus.declined,
+        onSend: (outgoing) {
+          if (outgoing case OutgoingText(:final text)) _userSays(text);
+        },
+        builders: const ChatBuilders(imageProviderBuilder: demoImage),
+        contentCallbacks: ChatContentCallbacks(
+          onMessageButton: (message, button) => _userSays(button.label),
+          onProductTap: (message, product) =>
+              ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${product.title} added to cart')),
+          ),
+          onPaymentAction: (message, action) => _controller.update(
+            message.copyWith(
+              paymentStatus: action == ChatPaymentAction.pay
+                  ? ChatPaymentStatus.paid
+                  : ChatPaymentStatus.declined,
+            ),
           ),
         ),
       ),

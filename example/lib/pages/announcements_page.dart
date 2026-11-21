@@ -64,9 +64,9 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
       body: ChatView(
         controller: _controller,
         currentUser: me,
-        readOnly: true,
+        moderation: const ChatModerationOptions(readOnly: true),
         showAvatars: false,
-        onSendMessage: (_, __) {},
+        onSend: (_) {},
         enableSelection: false,
         onReactionSelected: (m, emoji) =>
             _controller.toggleReaction(m.id, emoji, me.id),

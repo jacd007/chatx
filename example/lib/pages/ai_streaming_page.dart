@@ -182,31 +182,40 @@ controller.completeStream(id);
       body: ChatView(
         controller: _controller,
         currentUser: me,
-        onSendMessage: _send,
+        onSend: (outgoing) {
+          if (outgoing case OutgoingText(:final text, :final replyTo)) {
+            _send(text, replyTo);
+          }
+        },
         showUserNames: false,
-        onRegenerate: _regenerate,
-        onStopGenerating: _stop,
-        onFeedback: (message, feedback) => _controller.update(
-          message.copyWith(feedback: feedback, clearFeedback: feedback == null),
-        ),
         onLinkTap: (uri) => showLink(context, uri),
-        suggestedPrompts: const [
-          ChatPrompt(
-            title: 'Summarize chatx',
-            subtitle: 'in a few lines',
-            icon: Icons.auto_awesome_outlined,
+        ai: ChatAiOptions(
+          onRegenerate: _regenerate,
+          onStopGenerating: _stop,
+          onFeedback: (message, feedback) => _controller.update(
+            message.copyWith(
+              feedback: feedback,
+              clearFeedback: feedback == null,
+            ),
           ),
-          ChatPrompt(
-            title: 'Write Dart code',
-            subtitle: 'to stream an answer',
-            icon: Icons.code_rounded,
-          ),
-          ChatPrompt(
-            title: 'Compare plans',
-            subtitle: 'in a table',
-            icon: Icons.table_chart_outlined,
-          ),
-        ],
+          suggestedPrompts: const [
+            ChatPrompt(
+              title: 'Summarize chatx',
+              subtitle: 'in a few lines',
+              icon: Icons.auto_awesome_outlined,
+            ),
+            ChatPrompt(
+              title: 'Write Dart code',
+              subtitle: 'to stream an answer',
+              icon: Icons.code_rounded,
+            ),
+            ChatPrompt(
+              title: 'Compare plans',
+              subtitle: 'in a table',
+              icon: Icons.table_chart_outlined,
+            ),
+          ],
+        ),
       ),
     );
   }
