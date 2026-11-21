@@ -373,6 +373,10 @@ class _ChatViewState extends State<ChatView> {
   final ValueNotifier<bool> _showScrollButton = ValueNotifier(false);
   final ValueNotifier<int> _unreadCount = ValueNotifier(0);
   final ValueNotifier<String?> _highlightedId = ValueNotifier(null);
+
+  /// The message whose menu is open. Its bubble hides while the menu shows
+  /// a lifted copy.
+  final ValueNotifier<String?> _menuMessageId = ValueNotifier(null);
   Timer? _highlightTimer;
 
   /// Contexts of the message rows currently built, used to jump to them.
@@ -501,6 +505,7 @@ class _ChatViewState extends State<ChatView> {
     _showScrollButton.dispose();
     _unreadCount.dispose();
     _highlightedId.dispose();
+    _menuMessageId.dispose();
     _highlightTimer?.cancel();
     _floatingDate.dispose();
     _floatingDateTimer?.cancel();
@@ -1347,28 +1352,20 @@ class _ChatViewState extends State<ChatView> {
 
     unawaited(HapticFeedback.mediumImpact());
     final l10n = _l10n;
-    final Future<Object?> menu = switch (widget.messageMenuStyle) {
-      ChatMessageMenuStyle.bottomSheet => _showSheetMenu(
-          context,
-          actions: actions,
-          emojis: emojis,
-          message: message,
-          currentUserId: widget.currentUser.id,
-          l10n: l10n,
-          showMore: widget.enableEmojiPicker,
-        ),
-      ChatMessageMenuStyle.popup => _showPopupMenu(
-          anchor,
-          actions: actions,
-          emojis: emojis,
-          message: message,
-          currentUserId: widget.currentUser.id,
-          l10n: l10n,
-          showMore: widget.enableEmojiPicker,
-        ),
-    };
+    final menu = _showFocusedMenu(
+      anchor,
+      style: widget.messageMenuStyle,
+      actions: actions,
+      emojis: emojis,
+      message: message,
+      currentUserId: widget.currentUser.id,
+      l10n: l10n,
+      showMore: widget.enableEmojiPicker,
+      focusedId: _menuMessageId,
+    );
     final selection = await menu;
     if (!mounted) return;
+    _menuMessageId.value = null;
     switch (selection) {
       case _ReactionChoice(:final emoji):
         widget.onReactionSelected?.call(message, emoji);

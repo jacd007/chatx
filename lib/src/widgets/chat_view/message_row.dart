@@ -323,11 +323,16 @@ class _Bubble extends StatelessWidget {
     required this.state,
     required this.details,
     required this.maxWidth,
+    this.isMenuCopy = false,
   });
 
   final _ChatViewState state;
   final ChatMessageDetails details;
   final double maxWidth;
+
+  /// Whether this is the copy the message menu shows in focus. The bubble
+  /// in the list hides meanwhile, so the message appears only once.
+  final bool isMenuCopy;
 
   ChatView get view => state.widget;
 
@@ -342,6 +347,18 @@ class _Bubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (isMenuCopy) return _content(context);
+    return ValueListenableBuilder<String?>(
+      valueListenable: state._menuMessageId,
+      builder: (context, menuId, child) => Opacity(
+        opacity: menuId == details.message.id ? 0 : 1,
+        child: child,
+      ),
+      child: _content(context),
+    );
+  }
+
+  Widget _content(BuildContext context) {
     final message = details.message;
     // A regenerated answer shows the version picked with "‹ 2/3 ›", with
     // its own reasoning, tools and sources.
@@ -1158,13 +1175,29 @@ String _messagePreview(ChatMessage message, ChatLocalizations l10n) =>
       CustomMessage(:final type) => '📎 $type',
     };
 
-/// Reaction chips under a bubble.
+/// Reactions under a bubble, as one pill that overlaps its edge: the most
+/// used emoji and the total count. Tapping it opens every reaction, where
+/// the user adds or removes theirs.
 class _Reactions extends StatelessWidget {
   const _Reactions({
     required this.message,
     required this.currentUserId,
     required this.onTap,
   });
+
+  /// Emoji shown in the pill; the sheet lists all of them.
+  static const _maxShown = 3;
+
+  // Most used first. List.sort is not stable, so ties keep the order they
+  // were added through their index.
+  static List<ChatReaction> _byCount(List<ChatReaction> reactions) {
+    final indexed = reactions.indexed.toList()
+      ..sort((a, b) {
+        final byCount = b.$2.count.compareTo(a.$2.count);
+        return byCount != 0 ? byCount : a.$1.compareTo(b.$1);
+      });
+    return [for (final (_, reaction) in indexed) reaction];
+  }
 
   final ChatMessage message;
   final String currentUserId;
@@ -1174,96 +1207,131 @@ class _Reactions extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = ChatThemeData.of(context);
     final l10n = ChatLocalizations.of(context);
-    final textStyle = Theme.of(context).textTheme.labelMedium;
     final scheme = Theme.of(context).colorScheme;
+    final textStyle = Theme.of(context)
+        .textTheme
+        .labelMedium
+        ?.copyWith(color: scheme.onSurface);
+    final reactions = message.reactions;
+    final shown = _byCount(reactions);
+    final total = reactions.fold<int>(0, (sum, r) => sum + r.count);
+    final mine = reactions.any((r) => r.hasUser(currentUserId));
+
     return Transform.translate(
-      // Pull the chips up so they overlap the bubble edge, and the 48 dp
-      // touch targets do not push the next message away.
+      // Overlap the bubble edge, so the 48 dp touch target does not push
+      // the next message away.
       offset: const Offset(0, -16),
-      child: Wrap(
-        spacing: 4,
-        runSpacing: 4,
-        children: [
-          for (final reaction in message.reactions)
-            _ReactionChip(
-              key: Key('chatx_reaction_${message.id}_${reaction.emoji}'),
-              reaction: reaction,
-              selected: reaction.hasUser(currentUserId),
-              color: theme.reactionChipColor,
-              selectedColor: theme.reactionChipSelectedColor,
-              outlineColor: theme.backgroundColor,
-              textStyle: textStyle?.copyWith(color: scheme.onSurface),
-              semanticLabel: l10n.reactionLabel(
-                reaction.emoji,
-                reaction.count,
-                includesYou: reaction.hasUser(currentUserId),
-              ),
-              onTap: onTap == null
-                  ? null
-                  : () {
-                      HapticFeedback.selectionClick();
-                      onTap!(message, reaction.emoji);
-                    },
+      child: Semantics(
+        button: true,
+        selected: mine,
+        label: [
+          for (final r in reactions)
+            l10n.reactionLabel(
+              r.emoji,
+              r.count,
+              includesYou: r.hasUser(currentUserId),
             ),
-        ],
+        ].join(', '),
+        excludeSemantics: true,
+        child: GestureDetector(
+          key: Key('chatx_reactions_${message.id}'),
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            HapticFeedback.selectionClick();
+            _showReactions(context, l10n, textStyle);
+          },
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            child: Center(
+              widthFactor: 1,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: ShapeDecoration(
+                  color: mine
+                      ? theme.reactionChipSelectedColor
+                      : theme.reactionChipColor,
+                  shape: StadiumBorder(
+                    side: BorderSide(color: theme.backgroundColor, width: 2),
+                  ),
+                ),
+                child: Text(
+                  [
+                    shown.take(_maxShown).map((r) => r.emoji).join(),
+                    if (total > 1) ' $total',
+                  ].join(),
+                  style: textStyle,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
-}
 
-class _ReactionChip extends StatelessWidget {
-  const _ReactionChip({
-    super.key,
-    required this.reaction,
-    required this.selected,
-    required this.color,
-    required this.selectedColor,
-    required this.outlineColor,
-    required this.textStyle,
-    required this.semanticLabel,
-    required this.onTap,
-  });
-
-  final ChatReaction reaction;
-  final bool selected;
-  final Color color;
-  final Color selectedColor;
-  final Color outlineColor;
-  final TextStyle? textStyle;
-  final String semanticLabel;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final chip = AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: ShapeDecoration(
-        color: selected ? selectedColor : color,
-        shape: StadiumBorder(side: BorderSide(color: outlineColor, width: 2)),
+  Future<void> _showReactions(
+    BuildContext context,
+    ChatLocalizations l10n,
+    TextStyle? textStyle,
+  ) {
+    final onTap = this.onTap;
+    return showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.6,
       ),
-      child: Text(
-        reaction.count > 1
-            ? '${reaction.emoji} ${reaction.count}'
-            : reaction.emoji,
-        style: textStyle,
-      ),
-    );
-    return Semantics(
-      button: onTap != null,
-      selected: selected,
-      label: semanticLabel,
-      onTap: onTap,
-      excludeSemantics: true,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        // The chip looks small, but the touch target is 48 dp tall.
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-          child: Center(widthFactor: 1, child: chip),
-        ),
-      ),
+      builder: (sheetContext) {
+        final textTheme = Theme.of(sheetContext).textTheme;
+        final scheme = Theme.of(sheetContext).colorScheme;
+        return SafeArea(
+          child: ListView(
+            key: Key('chatx_reactions_sheet_${message.id}'),
+            shrinkWrap: true,
+            padding: const EdgeInsets.only(bottom: 16),
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Text(l10n.reactions, style: textTheme.titleLarge),
+              ),
+              for (final reaction in _byCount(message.reactions))
+                ListTile(
+                  key: Key('chatx_reaction_${message.id}_${reaction.emoji}'),
+                  leading: Text(
+                    reaction.emoji,
+                    semanticsLabel: l10n.reactionLabel(
+                      reaction.emoji,
+                      reaction.count,
+                      includesYou: reaction.hasUser(currentUserId),
+                    ),
+                    style: const TextStyle(fontSize: 26),
+                  ),
+                  title: ExcludeSemantics(
+                    child: Text(
+                      reaction.hasUser(currentUserId)
+                          ? '${reaction.count} · ${l10n.you}'
+                          : '${reaction.count}',
+                    ),
+                  ),
+                  trailing: reaction.hasUser(currentUserId)
+                      ? Icon(Icons.check_circle_rounded, color: scheme.primary)
+                      : null,
+                  enabled: onTap != null,
+                  onTap: onTap == null
+                      ? null
+                      : () {
+                          HapticFeedback.selectionClick();
+                          Navigator.of(sheetContext).pop();
+                          onTap(message, reaction.emoji);
+                        },
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

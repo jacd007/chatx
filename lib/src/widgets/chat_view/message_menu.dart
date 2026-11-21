@@ -6,171 +6,544 @@ class _ReactionChoice {
   final String emoji;
 }
 
-/// Shows the menu as a bottom sheet. Returns a [ChatMessageAction], a
-/// [_ReactionChoice] or `null`.
-Future<Object?> _showSheetMenu(
-  BuildContext context, {
-  required List<ChatMessageAction> actions,
-  required List<String> emojis,
-  required ChatMessage message,
-  required String currentUserId,
-  required ChatLocalizations l10n,
-  required bool showMore,
-}) {
-  return showModalBottomSheet<Object>(
-    context: context,
-    showDragHandle: true,
-    useSafeArea: true,
-    // Grows with the number of entries and scrolls past 80% of the screen.
-    isScrollControlled: true,
-    constraints: BoxConstraints(
-      maxHeight: MediaQuery.sizeOf(context).height * 0.8,
-    ),
-    builder: (sheetContext) {
-      final error = Theme.of(sheetContext).colorScheme.error;
-      return SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (emojis.isNotEmpty) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: _ReactionPicker(
-                    emojis: emojis,
-                    message: message,
-                    currentUserId: currentUserId,
-                    label: l10n.addReaction,
-                    showMore: showMore,
-                  ),
-                ),
-                if (actions.isNotEmpty) const Divider(height: 16),
-              ],
-              for (final action in actions)
-                ListTile(
-                  leading: action.icon == null
-                      ? null
-                      : Icon(
-                          action.icon,
-                          color: action.isDestructive ? error : null,
-                        ),
-                  title: Text(
-                    action.label,
-                    style:
-                        action.isDestructive ? TextStyle(color: error) : null,
-                  ),
-                  onTap: () => Navigator.of(sheetContext).pop(action),
-                ),
-            ],
-          ),
-        ),
-      );
-    },
-  );
-}
+/// Bubbles taller than this share of the screen are not lifted into
+/// focus: there would be little room left for the menu.
+const double _maxFocusedBubbleShare = 0.4;
 
-/// Shows the menu as a popup anchored under the bubble of [anchor].
-Future<Object?> _showPopupMenu(
+/// Shows the message menu.
+///
+/// The chat behind blurs. When the bubble is small enough to stay on
+/// screen with the menu, it is shown sharp above the blur, and the menu
+/// sits next to it with a small pointer toward it. When the menu does not
+/// fit above or below the bubble, the bubble moves to make room, so it is
+/// never hidden by its own menu.
+///
+/// Taller bubbles stay in place, blurred like the rest, and the menu opens
+/// at the bottom with a preview of the message, so the user still knows
+/// which message it is about.
+///
+/// With [ChatMessageMenuStyle.popup] the menu is a card next to the bubble;
+/// with [ChatMessageMenuStyle.bottomSheet] it is a panel at the bottom and
+/// the bubble rises above it.
+///
+/// [focusedId] holds the ID of a lifted bubble, so the list hides its
+/// original meanwhile. Returns a [ChatMessageAction], a [_ReactionChoice]
+/// or `null`.
+Future<Object?> _showFocusedMenu(
   BuildContext anchor, {
+  required ChatMessageMenuStyle style,
   required List<ChatMessageAction> actions,
   required List<String> emojis,
   required ChatMessage message,
   required String currentUserId,
   required ChatLocalizations l10n,
   required bool showMore,
+  required ValueNotifier<String?> focusedId,
 }) {
+  final navigator = Navigator.of(anchor);
+  final overlay = navigator.overlay!.context.findRenderObject()! as RenderBox;
   final box = anchor.findRenderObject()! as RenderBox;
-  final overlay =
-      Navigator.of(anchor).overlay!.context.findRenderObject()! as RenderBox;
-  final topLeft = box.localToGlobal(Offset.zero, ancestor: overlay);
-  final bubble = topLeft & box.size;
-  // Open from the bottom edge of the bubble, on the author's side.
-  final position = RelativeRect.fromRect(
-    Rect.fromLTWH(bubble.left, bubble.bottom, bubble.width, 0),
-    Offset.zero & overlay.size,
-  );
-  final error = Theme.of(anchor).colorScheme.error;
+  final bubbleRect =
+      box.localToGlobal(Offset.zero, ancestor: overlay) & box.size;
+  final bubble = anchor.findAncestorWidgetOfExactType<_Bubble>();
+  final scope = ChatScope.maybeOf(anchor);
+  final theme = scope?.theme ?? ChatThemeData.of(anchor);
+  final padding = MediaQuery.paddingOf(anchor);
+  final usableHeight = overlay.size.height - padding.vertical;
 
-  return showMenu<Object>(
-    context: anchor,
-    position: position,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-    // Wide enough for the reaction row; the default caps menus at 280.
-    constraints: BoxConstraints(
-      minWidth: 200,
-      maxWidth: math.max(280, emojis.length * 48.0 + 24),
-    ),
-    items: [
-      if (emojis.isNotEmpty)
-        _ReactionMenuEntry(
+  // Validate the size first: only bubbles that leave room for the menu are
+  // lifted into focus.
+  final focused = bubble != null &&
+      scope != null &&
+      bubbleRect.height <= usableHeight * _maxFocusedBubbleShare;
+  if (focused) focusedId.value = message.id;
+
+  return navigator.push<Object>(
+    _FocusedMenuRoute(
+      // A large bubble cannot sit next to a card: use the bottom panel.
+      style: focused ? style : ChatMessageMenuStyle.bottomSheet,
+      bubbleRect: bubbleRect,
+      isOutgoing: bubble?.details.isOutgoing ?? false,
+      barrierLabel: MaterialLocalizations.of(anchor).modalBarrierDismissLabel,
+      bubble: focused
+          ? ChatScope(
+              theme: scope.theme,
+              localizations: scope.localizations,
+              child: _Bubble(
+                state: bubble.state,
+                details: bubble.details,
+                maxWidth: bubbleRect.width,
+                isMenuCopy: true,
+              ),
+            )
+          : null,
+      menu: ChatScope(
+        theme: theme,
+        localizations: scope?.localizations ?? l10n,
+        child: _MenuPanel(
+          style: focused ? style : ChatMessageMenuStyle.bottomSheet,
+          actions: actions,
           emojis: emojis,
           message: message,
           currentUserId: currentUserId,
-          label: l10n.addReaction,
+          l10n: l10n,
           showMore: showMore,
+          showPreview: !focused,
         ),
-      if (emojis.isNotEmpty && actions.isNotEmpty) const PopupMenuDivider(),
-      for (final action in actions)
-        PopupMenuItem<Object>(
-          value: action,
-          child: Row(
-            children: [
-              if (action.icon != null) ...[
-                Icon(
-                  action.icon,
-                  size: 20,
-                  color: action.isDestructive ? error : null,
+      ),
+    ),
+  );
+}
+
+class _FocusedMenuRoute extends PopupRoute<Object> {
+  _FocusedMenuRoute({
+    required this.style,
+    required this.bubbleRect,
+    required this.isOutgoing,
+    required this.bubble,
+    required this.menu,
+    required this.barrierLabel,
+  });
+
+  final ChatMessageMenuStyle style;
+  final Rect bubbleRect;
+  final bool isOutgoing;
+  final Widget? bubble;
+  final Widget menu;
+
+  @override
+  final String barrierLabel;
+
+  @override
+  Color? get barrierColor => null;
+
+  @override
+  bool get barrierDismissible => true;
+
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 220);
+
+  @override
+  Widget buildPage(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+  ) {
+    final scheme = Theme.of(context).colorScheme;
+    final curved = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    final bubble = this.bubble;
+    final popup = bubble != null && style == ChatMessageMenuStyle.popup;
+    final menuColor = _MenuPanel.colorOf(scheme, style);
+    return Stack(
+      children: [
+        // Blurs and slightly dims the chat; tapping it closes the menu.
+        Positioned.fill(
+          child: GestureDetector(
+            key: const Key('chatx_menu_scrim'),
+            behavior: HitTestBehavior.opaque,
+            onTap: () => Navigator.of(context).pop(),
+            child: AnimatedBuilder(
+              animation: curved,
+              builder: (context, _) => BackdropFilter(
+                filter: ImageFilter.blur(
+                  sigmaX: 8 * curved.value,
+                  sigmaY: 8 * curved.value,
                 ),
-                const SizedBox(width: 12),
-              ],
-              Text(
-                action.label,
-                style: action.isDestructive ? TextStyle(color: error) : null,
+                child: ColoredBox(
+                  color: scheme.scrim.withValues(alpha: 0.25 * curved.value),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: CustomMultiChildLayout(
+            delegate: _FocusedMenuLayout(
+              style: style,
+              bubbleRect: bubbleRect,
+              isOutgoing: isOutgoing,
+              hasBubble: bubble != null,
+              padding: MediaQuery.paddingOf(context) +
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            ),
+            children: [
+              if (bubble != null)
+                LayoutId(
+                  id: _MenuSlot.bubble,
+                  // The copy is drawn as is, sharp over the blur. It leaves
+                  // at once on close, when the original shows again.
+                  child: IgnorePointer(
+                    child: _HideWhenClosing(
+                      animation: animation,
+                      child: KeyedSubtree(
+                        key: const Key('chatx_menu_focus'),
+                        // Very tall bubbles are clipped to the room left.
+                        child: SingleChildScrollView(
+                          physics: const NeverScrollableScrollPhysics(),
+                          child: bubble,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              // Drawn before the menu, so only the half outside the menu
+              // shows: a small triangle pointing at the bubble.
+              if (popup)
+                LayoutId(
+                  id: _MenuSlot.pointer,
+                  child: FadeTransition(
+                    opacity: curved,
+                    child: Transform.rotate(
+                      angle: math.pi / 4,
+                      child: ColoredBox(
+                        key: const Key('chatx_menu_pointer'),
+                        color: menuColor,
+                      ),
+                    ),
+                  ),
+                ),
+              LayoutId(
+                id: _MenuSlot.menu,
+                child: FadeTransition(
+                  opacity: curved,
+                  child: ScaleTransition(
+                    scale: Tween<double>(begin: 0.92, end: 1).animate(curved),
+                    alignment: style == ChatMessageMenuStyle.bottomSheet
+                        ? Alignment.bottomCenter
+                        : isOutgoing
+                            ? Alignment.topRight
+                            : Alignment.topLeft,
+                    child: menu,
+                  ),
+                ),
               ),
             ],
           ),
         ),
-    ],
-  );
+      ],
+    );
+  }
 }
 
-class _ReactionMenuEntry extends PopupMenuEntry<Object> {
-  const _ReactionMenuEntry({
+enum _MenuSlot { bubble, pointer, menu }
+
+class _HideWhenClosing extends AnimatedWidget {
+  const _HideWhenClosing({
+    required Animation<double> animation,
+    required this.child,
+  }) : super(listenable: animation);
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = (listenable as Animation<double>).status;
+    final closing = status == AnimationStatus.reverse ||
+        status == AnimationStatus.dismissed;
+    return closing ? const SizedBox.shrink() : child;
+  }
+}
+
+/// Places the bubble copy where the bubble is, the menu next to it and the
+/// pointer between them. When both do not fit, the bubble moves so that
+/// the menu fits.
+class _FocusedMenuLayout extends MultiChildLayoutDelegate {
+  _FocusedMenuLayout({
+    required this.style,
+    required this.bubbleRect,
+    required this.isOutgoing,
+    required this.hasBubble,
+    required this.padding,
+  });
+
+  static const double _gap = 10;
+  static const double _pointer = 12;
+
+  final ChatMessageMenuStyle style;
+  final Rect bubbleRect;
+  final bool isOutgoing;
+  final bool hasBubble;
+  final EdgeInsets padding;
+
+  @override
+  void performLayout(Size size) {
+    final top = padding.top;
+    final bottom = size.height - padding.bottom;
+    final sheet = style == ChatMessageMenuStyle.bottomSheet;
+
+    final menu = layoutChild(
+      _MenuSlot.menu,
+      BoxConstraints(
+        maxWidth: sheet ? size.width : size.width - padding.horizontal,
+        maxHeight: (bottom - top) * 0.6,
+      ),
+    );
+
+    var bubble = Size.zero;
+    if (hasChild(_MenuSlot.bubble)) {
+      bubble = layoutChild(
+        _MenuSlot.bubble,
+        BoxConstraints(
+          minWidth: bubbleRect.width,
+          maxWidth: bubbleRect.width,
+          maxHeight: math.max(0, bottom - top - menu.height - _gap),
+        ),
+      );
+    }
+    var bubbleTop = bubbleRect.top;
+
+    final double menuTop;
+    var menuBelow = true;
+    if (sheet) {
+      menuTop = size.height - menu.height;
+      // The bubble rises above the panel when the panel would cover it.
+      bubbleTop = math.max(
+        top,
+        math.min(bubbleTop, menuTop - _gap - bubble.height),
+      );
+    } else {
+      final below = bubbleTop + bubble.height + _gap;
+      final above = bubbleTop - _gap - menu.height;
+      if (below + menu.height <= bottom) {
+        menuTop = below;
+      } else if (above >= top) {
+        menuTop = above;
+        menuBelow = false;
+      } else {
+        // Neither side has room: move the bubble up so the menu fits under.
+        bubbleTop = math.max(top, bottom - menu.height - _gap - bubble.height);
+        menuTop = bubbleTop + bubble.height + _gap;
+      }
+    }
+
+    if (hasChild(_MenuSlot.bubble)) {
+      positionChild(_MenuSlot.bubble, Offset(bubbleRect.left, bubbleTop));
+    }
+
+    final double menuLeft;
+    if (sheet) {
+      menuLeft = (size.width - menu.width) / 2;
+    } else {
+      // On the author's side, like the bubble, kept on screen.
+      final preferred =
+          isOutgoing ? bubbleRect.right - menu.width : bubbleRect.left;
+      menuLeft = preferred.clamp(
+        padding.left,
+        math.max(padding.left, size.width - padding.right - menu.width),
+      );
+    }
+    positionChild(_MenuSlot.menu, Offset(menuLeft, menuTop));
+
+    if (hasChild(_MenuSlot.pointer)) {
+      layoutChild(
+        _MenuSlot.pointer,
+        BoxConstraints.tight(const Size.square(_pointer)),
+      );
+      // Under the middle of the bubble, but on the menu's straight edge.
+      final x = bubbleRect.center.dx.clamp(
+        menuLeft + 24,
+        math.max(menuLeft + 24, menuLeft + menu.width - 24),
+      );
+      final y = menuBelow ? menuTop : menuTop + menu.height;
+      positionChild(
+        _MenuSlot.pointer,
+        Offset(x - _pointer / 2, y - _pointer / 2),
+      );
+    }
+  }
+
+  @override
+  bool shouldRelayout(_FocusedMenuLayout old) =>
+      old.style != style ||
+      old.bubbleRect != bubbleRect ||
+      old.isOutgoing != isOutgoing ||
+      old.hasBubble != hasBubble ||
+      old.padding != padding;
+}
+
+/// Quick reactions and actions of the menu.
+class _MenuPanel extends StatelessWidget {
+  const _MenuPanel({
+    required this.style,
+    required this.actions,
     required this.emojis,
     required this.message,
     required this.currentUserId,
-    required this.label,
+    required this.l10n,
     required this.showMore,
+    this.showPreview = false,
   });
 
-  final bool showMore;
+  /// Background of the menu, shared with its pointer.
+  static Color colorOf(ColorScheme scheme, ChatMessageMenuStyle style) =>
+      style == ChatMessageMenuStyle.bottomSheet
+          ? scheme.surfaceContainerLow
+          : scheme.surfaceContainer;
 
+  /// Whether to show which message the menu is about, for bubbles too
+  /// large to be lifted into focus.
+  final bool showPreview;
+  final ChatMessageMenuStyle style;
+  final List<ChatMessageAction> actions;
   final List<String> emojis;
   final ChatMessage message;
   final String currentUserId;
-  final String label;
+  final ChatLocalizations l10n;
+  final bool showMore;
 
-  @override
-  double get height => 52;
-
-  @override
-  bool represents(Object? value) => false;
-
-  @override
-  State<_ReactionMenuEntry> createState() => _ReactionMenuEntryState();
-}
-
-class _ReactionMenuEntryState extends State<_ReactionMenuEntry> {
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: _ReactionPicker(
-        emojis: widget.emojis,
-        message: widget.message,
-        currentUserId: widget.currentUserId,
-        label: widget.label,
-        showMore: widget.showMore,
+    final scheme = Theme.of(context).colorScheme;
+    final sheet = style == ChatMessageMenuStyle.bottomSheet;
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (sheet)
+          Center(
+            child: Container(
+              width: 32,
+              height: 4,
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              decoration: BoxDecoration(
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+        if (showPreview)
+          Padding(
+            key: const Key('chatx_menu_preview'),
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+            child: Row(
+              children: [
+                Container(
+                  width: 3,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        message.author.id == currentUserId
+                            ? l10n.you
+                            : message.author.name ?? l10n.someone,
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelLarge
+                            ?.copyWith(color: scheme.primary),
+                      ),
+                      Text(
+                        _messagePreview(message, l10n),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (emojis.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            child: _ReactionPicker(
+              emojis: emojis,
+              message: message,
+              currentUserId: currentUserId,
+              label: l10n.addReaction,
+              showMore: showMore,
+            ),
+          ),
+          if (actions.isNotEmpty) const Divider(height: 8),
+        ],
+        for (final action in actions)
+          _MenuItem(
+            action: action,
+            dense: !sheet,
+            onTap: () => Navigator.of(context).pop(action),
+          ),
+        if (sheet) SizedBox(height: MediaQuery.paddingOf(context).bottom + 8),
+      ],
+    );
+
+    return Material(
+      key: const Key('chatx_message_menu'),
+      color: colorOf(scheme, style),
+      elevation: 6,
+      shadowColor: Colors.black54,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: sheet
+            ? const BorderRadius.vertical(top: Radius.circular(28))
+            : BorderRadius.circular(16),
+      ),
+      child: sheet
+          ? SingleChildScrollView(child: content)
+          : ConstrainedBox(
+              constraints: BoxConstraints(
+                minWidth: 200,
+                maxWidth: math.max(280, emojis.length * 48.0 + 24),
+              ),
+              child: IntrinsicWidth(
+                child: SingleChildScrollView(child: content),
+              ),
+            ),
+    );
+  }
+}
+
+class _MenuItem extends StatelessWidget {
+  const _MenuItem({
+    required this.action,
+    required this.dense,
+    required this.onTap,
+  });
+
+  final ChatMessageAction action;
+  final bool dense;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final error = Theme.of(context).colorScheme.error;
+    final color = action.isDestructive ? error : null;
+    return InkWell(
+      onTap: onTap,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: dense ? 48 : 56),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: dense ? 16 : 24),
+          child: Row(
+            children: [
+              if (action.icon != null) ...[
+                Icon(action.icon, size: dense ? 20 : 24, color: color),
+                SizedBox(width: dense ? 12 : 20),
+              ],
+              Flexible(
+                child: Text(
+                  action.label,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyLarge
+                      ?.copyWith(color: color),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
