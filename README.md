@@ -46,7 +46,7 @@ follows your app's theme.
 
 | Suggested prompts | Reasoning while thinking | Versions and sources |
 | :---: | :---: | :---: |
-| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/36_ai_prompts.png" width="240" alt="Empty AI chat with suggested prompt cards"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/35_ai_reasoning.png" width="240" alt="Thinking block streaming the reasoning"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/37_ai_versions_sources.png" width="240" alt="Answer with source chips and a 2/2 version switcher"> |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/36_ai_prompts.png" width="240" alt="Empty AI chat with suggested prompt cards"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/35_ai_reasoning.png" width="240" alt="Thinking block streaming the reasoning"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/37_ai_versions_sources.png" width="240" alt="Regenerated answer with its source chip and a 2/2 version switcher"> |
 
 | Video and attachments | Voice transcript | Unread mentions |
 | :---: | :---: | :---: |
@@ -60,9 +60,9 @@ follows your app's theme.
 | :---: | :---: | :---: |
 | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/45_gallery.png" width="240" alt="Gallery with media, files and links tabs"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/46_offline_queue.png" width="240" alt="Offline banner and a queued message"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/47_products.png" width="240" alt="Product carousel"> |
 
-| Payment request | Hover actions (mouse) | |
+| Payment request | Hover actions (mouse) | Earlier answer version |
 | :---: | :---: | :---: |
-| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/48_payment.png" width="240" alt="Payment request with Pay and Decline"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/49_hover_actions.png" width="240" alt="Reply, react and more buttons shown on hover"> |  |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/48_payment.png" width="240" alt="Payment request with Pay and Decline"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/49_hover_actions.png" width="240" alt="Reply, react and more buttons shown on hover"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/50_ai_previous_version.png" width="240" alt="Version 1/2 of an answer with its own tool call and sources"> |
 
 ## Features
 
@@ -134,6 +134,7 @@ follows your app's theme.
 - [Core concepts](#core-concepts)
 - [Guides](#guides)
   - [Connect your backend](#connect-your-backend)
+  - [Sending](#sending)
   - [Delivery status and retry](#delivery-status-and-retry)
   - [Streaming answers (AI chats)](#streaming-answers-ai-chats)
   - [AI answer controls](#ai-answer-controls)
@@ -192,6 +193,7 @@ follows your app's theme.
   - [Theming](#theming)
   - [Bubble shape](#bubble-shape)
   - [Builders](#builders)
+  - [Option groups](#option-groups)
   - [Localization](#localization)
 - [Recipes](#recipes)
   - [Firebase Cloud Firestore](#firebase-cloud-firestore)
@@ -263,7 +265,9 @@ class _ChatPageState extends State<ChatPage> {
     super.dispose();
   }
 
-  void send(String text, ChatMessage? replyTo) {
+  void send(ChatOutgoing outgoing) {
+    if (outgoing is! OutgoingText) return;
+    final OutgoingText(:text, :replyTo) = outgoing;
     controller.insert(TextMessage(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       author: me,
@@ -286,7 +290,7 @@ class _ChatPageState extends State<ChatPage> {
       body: ChatView(
         controller: controller,
         currentUser: me,
-        onSendMessage: send,
+        onSend: send,
       ),
     );
   }
@@ -312,22 +316,54 @@ const ana = ChatUser(
 
 ### Messages
 
-`ChatMessage` is a sealed class with three kinds:
+`ChatMessage` is a sealed class, so a `switch` over a message is
+exhaustive:
 
 | Type | Use it for |
 | --- | --- |
-| `TextMessage` | Text with markdown. Supports streaming and an "edited" label. |
+| `TextMessage` | Text with markdown. Streaming, edits, bot buttons and AI answers. |
 | `SystemMessage` | Centered notices like "Ana joined the chat". |
 | `ImageMessage` | One or more images with an optional caption. |
+| `VideoMessage` | A video with a poster and duration. |
 | `FileMessage` | A file with icon, name, size and upload progress. |
-| `VoiceMessage` | A voice note with waveform and playback. |
+| `VoiceMessage` | A voice note with waveform, playback and transcript. |
 | `PollMessage` | A quick vote: one question, closed options. |
 | `SurveyMessage` | A questionnaire with several questions. |
 | `CountdownMessage` | An announcement with a live countdown. |
-| `CustomMessage` | Anything else: images, polls, locations… Rendered by your builder. |
+| `EventMessage` | An event with RSVP. |
+| `ChecklistMessage` | A shared to-do list. |
+| `LocationMessage` | A place or a live location. |
+| `ContactMessage` | A contact card. |
+| `ProductMessage` | One or more products, as a card or a carousel. |
+| `PaymentMessage` | A payment request or receipt. |
+| `CallMessage` | A call log entry. |
+| `StickerMessage` | A sticker or GIF, without a bubble. |
+| `CustomMessage` | Your own types, rendered by your builders. |
 
-Every message has an `id`, an `author`, a `createdAt` date, and optionally a
-`status`, a `replyToId`, `reactions` and `metadata` for your own data.
+The set of types is fixed from 1.0. New kinds of content are
+`CustomMessage`s with your own `type`, rendered by
+`ChatBuilders.customMessageBuilders`, so your switches keep compiling when
+chatx updates.
+
+Every message has an `id`, an `author` and a `createdAt` date. The shared
+optional fields (`status`, `replyToId`, `reactions`, `thread`, `receipts`,
+`forwardedFrom`, `expiresAt`, `deletedAt`, `scheduledFor` and `metadata`
+for your own data) are also available together as `message.meta`, a
+`ChatMessageMeta`:
+
+```dart
+// Any message type; the result is a ChatMessage.
+controller.update(message.copyWithMeta(status: MessageStatus.read));
+
+// Keeps the type: the result is a TextMessage.
+final sent = text.withMeta(text.meta.copyWith(status: MessageStatus.sent));
+
+// copyWith changes the fields of the type, and takes a meta too.
+final retried = text.copyWith(
+  text: fixed,
+  meta: text.meta.copyWith(status: MessageStatus.sending),
+);
+```
 
 ### The controller
 
@@ -344,21 +380,29 @@ the view updates.
 | `appendText(id, delta)` | Appends streamed text. |
 | `completeStream(id)` | Marks a streamed message as finished. |
 | `remove(id)` | Deletes a message. |
-| `setMessages(messages)` | Replaces everything, for example when switching chats. |
+| `setMessages(messages, newConversation: true)` | Replaces everything. With `newConversation`, also clears the reply, edit, typing users, attachments and draft, for example when switching chats. |
 | `editText(id, text)` | Replaces the text and shows the "edited" label. |
 | `toggleReaction(id, emoji, userId)` | Adds or removes a user's reaction. |
 | `setTyping(user, isTyping: true)` | Shows or hides the typing indicator. |
-| `startReply(message)` / `cancelReply()` | Shows or hides the reply banner. |
-| `startEditing(message)` / `cancelEditing()` | Starts or stops editing in the input bar. |
 | `votePoll(id, optionId, userId)` | Records or removes a vote. |
 | `pin(id)` / `unpin(id)` | Pins or unpins a message. |
 | `toggleSelection(id)` / `clearSelection()` | Controls selection mode. |
 | `search(query)` | Returns matching message IDs, newest first. |
 | `recordSurveyResponse(id, userId)` | Marks a survey as answered by a user. |
-| `setDraft(text)` / `draft` | The unsent text of the input. |
 | `scrollToMessage(id)` | Scrolls the view to a message and highlights it. |
 
-Always call `controller.dispose()` when the screen goes away.
+The input bar has its own state in `controller.composer`:
+
+| Method | What it does |
+| --- | --- |
+| `startReply(message)` / `cancelReply()` | Shows or hides the reply banner. |
+| `startEditing(message)` / `cancelEditing()` | Starts or stops editing in the input bar. |
+| `setDraft(text)` / `draft` | The unsent text of the input. |
+| `addAttachments(files)` / `removeAttachment(id)` / `clearAttachments()` | The files waiting in the input tray. |
+| `reset()` | Clears all of the above. |
+
+Always call `controller.dispose()` when the screen goes away. It also
+disposes the composer.
 
 > **Performance note.** Changes to a single message (status, text, metadata)
 > rebuild only that bubble. Listeners added with `addListener` run only for
@@ -372,7 +416,7 @@ Always call `controller.dispose()` when the screen goes away.
 chatx does not know about your server. The pattern is always the same:
 
 1. Listen to your backend and copy its messages into the controller.
-2. In `onSendMessage`, show the message right away and send it to the backend.
+2. In `onSend`, show the message right away and send it to the backend.
 
 ```dart
 // 1. Incoming messages (WebSocket, Firestore snapshot, SSE, ...).
@@ -390,18 +434,19 @@ subscription = api.messages(roomId).listen((dto) {
 ChatView(
   controller: controller,
   currentUser: me,
-  onSendMessage: (text, replyTo) async {
+  onSend: (outgoing) async {
+    if (outgoing is! OutgoingText) return;
     final id = uuid();
     controller.insert(TextMessage(
       id: id,
       author: me,
       createdAt: DateTime.now(),
-      text: text,
-      replyToId: replyTo?.id,
+      text: outgoing.text,
+      replyToId: outgoing.replyTo?.id,
       status: MessageStatus.sending,
     ));
     try {
-      await api.send(roomId, id: id, text: text);
+      await api.send(roomId, id: id, text: outgoing.text);
       controller.updateStatus(id, MessageStatus.sent);
     } catch (_) {
       controller.updateStatus(id, MessageStatus.failed);
@@ -412,6 +457,44 @@ ChatView(
 
 Use `upsert` for incoming messages: when the server echoes back a message you
 already inserted, it is replaced instead of duplicated.
+
+### Sending
+
+Everything the user sends from the input bar reaches `onSend` as a
+`ChatOutgoing`. The hierarchy is sealed, so a `switch` covers every case:
+
+```dart
+ChatView(
+  onSend: (outgoing) => switch (outgoing) {
+    OutgoingText(:final text, :final replyTo, :final scheduledFor) =>
+      api.send(text, replyTo: replyTo?.id, at: scheduledFor),
+    OutgoingAttachments(:final attachments, :final caption) =>
+      api.upload(attachments, caption),
+    OutgoingSticker(:final sticker) => api.sendSticker(sticker.id),
+    OutgoingEdit(:final message, :final text) => api.edit(message.id, text),
+    OutgoingScheduledNow(:final message) => api.sendNow(message.id),
+  },
+  sendFeatures: const {
+    ChatSendFeature.edit,
+    ChatSendFeature.attachments,
+    ChatSendFeature.schedule,
+    ChatSendFeature.stickers,
+    ChatSendFeature.sendScheduledNow,
+  },
+  // ...
+)
+```
+
+Text, suggested prompts and quick replies always arrive as `OutgoingText`.
+The rest only appear in the UI when you list them in `sendFeatures`:
+
+| Feature | What it shows | What `onSend` receives |
+| --- | --- | --- |
+| `edit` | "Edit" on the user's text messages, up arrow to edit the last one | `OutgoingEdit` |
+| `attachments` | The attachment tray and images pasted from the keyboard | `OutgoingAttachments` |
+| `schedule` | Long press on send to schedule | `OutgoingText` with `scheduledFor` |
+| `stickers` | The `stickerPacks` tabs in the emoji picker | `OutgoingSticker` |
+| `sendScheduledNow` | "Send now" on scheduled messages | `OutgoingScheduledNow` |
 
 ### Delivery status and retry
 
@@ -471,21 +554,23 @@ const assistant = ChatUser(id: 'bot', name: 'Assistant', isBot: true);
 
 ChatView(
   // ...
-  onStopGenerating: (message) {
-    subscription.cancel();
-    controller.completeStream(message.id);
-  },
-  onRegenerate: (message) {
-    controller.update(message.copyWith(text: '', isStreaming: true));
-    streamAnswer(message.id);
-  },
-  onFeedback: (message, feedback) {
-    // feedback is ChatFeedback.positive, .negative or null (removed).
-    controller.update(
-      message.copyWith(feedback: feedback, clearFeedback: feedback == null),
-    );
-    api.rate(message.id, feedback);
-  },
+  ai: ChatAiOptions(
+    onStopGenerating: (message) {
+      subscription.cancel();
+      controller.completeStream(message.id);
+    },
+    onRegenerate: (message) {
+      controller.update(message.copyWith(text: '', isStreaming: true));
+      streamAnswer(message.id);
+    },
+    onFeedback: (message, feedback) {
+      // feedback is ChatFeedback.positive, .negative or null (removed).
+      controller.update(
+        message.copyWith(feedback: feedback, clearFeedback: feedback == null),
+      );
+      api.rate(message.id, feedback);
+    },
+  ),
 )
 ```
 
@@ -524,31 +609,37 @@ Source chips open the link through `onLinkTap`, or call `onSourceTap`.
 
 ### Answer versions
 
-`ChatController.startRegeneration` keeps the current answer in
-`TextMessage.versions` and clears the text for a new stream. The actions row
-then shows "‹ 2/2 ›" to browse the versions; Copy copies the one on screen.
+`ChatController.startRegeneration` keeps the current answer, with its
+reasoning, tool calls and sources, as a `ChatAnswerVersion` in
+`TextMessage.versions`, and clears them for a new stream. The actions row
+then shows "‹ 2/2 ›" to browse the versions. Each version is shown with its
+own reasoning, tools and sources; Copy copies the one on screen.
 
 ```dart
-onRegenerate: (message) {
-  controller.startRegeneration(message.id);
-  streamAnswer(message.id); // appendText + completeStream
-},
+ai: ChatAiOptions(
+  onRegenerate: (message) {
+    controller.startRegeneration(message.id);
+    streamAnswer(message.id); // appendText + completeStream
+  },
+),
 ```
 
 ### Suggested prompts
 
-Cards in the empty conversation. Tapping one sends its text through
-`onSendMessage`. For follow-up suggestions after an answer, use
+Cards in the empty conversation. Tapping one sends its text to `onSend` as
+an `OutgoingText`. For follow-up suggestions after an answer, use
 `TextMessage.quickReplies`.
 
 ```dart
 ChatView(
   // ...
-  suggestedPrompts: const [
-    ChatPrompt(title: 'Plan a trip', subtitle: 'to Lisbon in spring',
-        icon: Icons.flight_outlined),
-    ChatPrompt(title: 'Explain', subtitle: 'how streaming works'),
-  ],
+  ai: ChatAiOptions(
+    suggestedPrompts: const [
+      ChatPrompt(title: 'Plan a trip', subtitle: 'to Lisbon in spring',
+          icon: Icons.flight_outlined),
+      ChatPrompt(title: 'Explain', subtitle: 'how streaming works'),
+    ],
+  ),
 )
 ```
 
@@ -561,9 +652,11 @@ and the original. chatx keeps the translation in memory only.
 ```dart
 ChatView(
   // ...
-  onTranslate: (message) => myTranslator.translate(
-    message.text,
-    to: Localizations.localeOf(context).languageCode,
+  ai: ChatAiOptions(
+    onTranslate: (message) => myTranslator.translate(
+      message.text,
+      to: Localizations.localeOf(context).languageCode,
+    ),
   ),
 )
 ```
@@ -638,19 +731,24 @@ ChatView(
 ### Replies and swipe actions
 
 Swiping a bubble toward the center starts a reply: a banner appears above the
-input, and `onSendMessage` receives the message being replied to. Store its
+input, and `onSend` receives the message being replied to in
+`replyTo`. Store its
 ID in `replyToId` and the new bubble shows a quote. Tapping the quote scrolls
 to the original message and highlights it.
 
 ```dart
 ChatView(
-  onSendMessage: (text, replyTo) => controller.insert(TextMessage(
-    id: uuid(),
-    author: me,
-    createdAt: DateTime.now(),
-    text: text,
-    replyToId: replyTo?.id,
-  )),
+  onSend: (outgoing) {
+    if (outgoing case OutgoingText(:final text, :final replyTo)) {
+      controller.insert(TextMessage(
+        id: uuid(),
+        author: me,
+        createdAt: DateTime.now(),
+        text: text,
+        replyToId: replyTo?.id,
+      ));
+    }
+  },
   // ...
 )
 ```
@@ -688,7 +786,7 @@ ChatView(
 
 The menu includes the built-in entries that apply to each message: Reply,
 Copy text, Edit and Delete (the last two only for the current user's messages
-and only when you provide `onEditMessage` and `onDeleteMessage`). Add, remove
+and only with `ChatSendFeature.edit` and `onDeleteMessage`). Add, remove
 or reorder entries with `messageActionsBuilder`, which receives those
 defaults:
 
@@ -738,9 +836,13 @@ TextMessage(
 
 ```dart
 ChatView(
-  onEditMessage: (message, newText) {
-    controller.editText(message.id, newText);
-    api.edit(message.id, newText);
+  sendFeatures: const {ChatSendFeature.edit},
+  onSend: (outgoing) {
+    if (outgoing case OutgoingEdit(:final message, :final text)) {
+      controller.editText(message.id, text);
+      api.edit(message.id, text);
+    }
+    // ...
   },
   onDeleteMessage: (message) {
     controller.remove(message.id);
@@ -803,8 +905,12 @@ assets, files, caching or authenticated URLs:
 
 ```dart
 ChatView(
-  imageProviderBuilder: (uri) => NetworkImage(uri, headers: authHeaders),
-  onFileTap: (file) => openFile(file.uri),
+  builders: ChatBuilders(
+    imageProviderBuilder: (uri) => NetworkImage(uri, headers: authHeaders),
+  ),
+  media: ChatMediaOptions(
+    onFileTap: (file) => openFile(file.uri),
+  ),
   // ...
 )
 ```
@@ -818,16 +924,18 @@ app plays and records with the plugin of its choice.
 final playback = ValueNotifier<ChatVoicePlayback?>(null);
 
 ChatView(
-  voicePlayback: playback, // update from your player
-  onVoicePlay: (message) => player.play(message.uri),
-  onVoicePause: (message) => player.pause(),
-  onVoiceSeek: (message, position) => player.seek(position),
-  // Show the microphone button and record while it is held.
-  onVoiceRecordStart: recorder.start,
-  onVoiceRecordEnd: (duration, {required cancelled}) async {
-    final file = await recorder.stop();
-    if (!cancelled) sendVoiceNote(file, duration);
-  },
+  media: ChatMediaOptions(
+    voicePlayback: playback, // update from your player
+    onVoicePlay: (message) => player.play(message.uri),
+    onVoicePause: (message) => player.pause(),
+    onVoiceSeek: (message, position) => player.seek(position),
+    // Show the microphone button and record while it is held.
+    onVoiceRecordStart: recorder.start,
+    onVoiceRecordEnd: (duration, {required cancelled}) async {
+      final file = await recorder.stop();
+      if (!cancelled) sendVoiceNote(file, duration);
+    },
+  ),
   // ...
 )
 ```
@@ -855,10 +963,12 @@ controller.insert(PollMessage(
 ));
 
 ChatView(
-  onPollVote: (poll, optionId) {
-    controller.votePoll(poll.id, optionId, me.id);
-    api.vote(poll.id, optionId);
-  },
+  contentCallbacks: ChatContentCallbacks(
+    onPollVote: (poll, optionId) {
+      controller.votePoll(poll.id, optionId, me.id);
+      api.vote(poll.id, optionId);
+    },
+  ),
   // ...
 )
 ```
@@ -896,10 +1006,12 @@ controller.insert(SurveyMessage(
 ));
 
 ChatView(
-  onSurveySubmit: (survey, response) {
-    controller.recordSurveyResponse(survey.id, me.id);
-    api.saveAnswers(survey.id, response.answers);
-  },
+  contentCallbacks: ChatContentCallbacks(
+    onSurveySubmit: (survey, response) {
+      controller.recordSurveyResponse(survey.id, me.id);
+      api.saveAnswers(survey.id, response.answers);
+    },
+  ),
   // ...
 )
 ```
@@ -933,9 +1045,11 @@ controller.insert(TextMessage(
 ));
 
 ChatView(
-  onMessageButton: (message, button) => bot.handle(button.id),
+  contentCallbacks: ChatContentCallbacks(
+    onMessageButton: (message, button) => bot.handle(button.id),
+    onQuickReply: (reply, message) => bot.send(reply.text),
+  ),
   // Optional: by default a quick reply sends its text.
-  onQuickReply: (reply, message) => bot.send(reply.text),
   // ...
 )
 ```
@@ -962,7 +1076,7 @@ ChatView(
         controller: threadControllerFor(message),
         threadRoot: message, // shown on top, followed by the reply count
         currentUser: me,
-        onSendMessage: sendToThread,
+        onSend: sendToThread,
       ),
     ),
   )),
@@ -1008,7 +1122,7 @@ TextMessage(
 The controller keeps the unsent text in `draft`. Keep the controller alive
 (for example one per conversation in your state management) and the draft is
 there when the user comes back, together with any reply in progress.
-Persist it across restarts by listening to `controller.draft` and passing
+Persist it across restarts by listening to `controller.composer.draft` and passing
 `initialDraft` when you create the controller.
 
 ### Chat header
@@ -1198,7 +1312,9 @@ EventMessage(
 
 ChatView(
   // ...
-  onRsvp: (event, rsvp) => controller.setRsvp(event.id, me.id, rsvp),
+  contentCallbacks: ChatContentCallbacks(
+    onRsvp: (event, rsvp) => controller.setRsvp(event.id, me.id, rsvp),
+  ),
 )
 ```
 
@@ -1212,11 +1328,13 @@ Buttons appear only when the data exists.
 ```dart
 ChatView(
   // ...
-  onContactAction: (contact, action) => switch (action) {
-    ChatContactAction.call => launchUrl(Uri.parse('tel:${contact.phone}')),
-    ChatContactAction.email => launchUrl(Uri.parse('mailto:${contact.email}')),
-    ChatContactAction.save => saveToAddressBook(contact),
-  },
+  contentCallbacks: ChatContentCallbacks(
+    onContactAction: (contact, action) => switch (action) {
+      ChatContactAction.call => launchUrl(Uri.parse('tel:${contact.phone}')),
+      ChatContactAction.email => launchUrl(Uri.parse('mailto:${contact.email}')),
+      ChatContactAction.save => saveToAddressBook(contact),
+    },
+  ),
 )
 ```
 
@@ -1236,18 +1354,23 @@ ChatView(
       stickers: [ChatSticker(id: 'smile', uri: 'asset:smile', label: 'Smile')],
     ),
   ],
-  imageProviderBuilder: (uri) => uri.startsWith('asset:')
-      ? AssetImage('assets/stickers/${uri.substring(6)}.png')
-      : NetworkImage(uri),
-  onSendSticker: (sticker) => controller.insert(
-    StickerMessage(
-      id: uuid(),
-      author: me,
-      createdAt: DateTime.now(),
-      uri: sticker.uri,
-      label: sticker.label,
-    ),
+  builders: ChatBuilders(
+    imageProviderBuilder: (uri) => uri.startsWith('asset:')
+        ? AssetImage('assets/stickers/${uri.substring(6)}.png')
+        : NetworkImage(uri),
   ),
+  sendFeatures: const {ChatSendFeature.stickers},
+  onSend: (outgoing) {
+    if (outgoing case OutgoingSticker(:final sticker)) {
+      controller.insert(StickerMessage(
+        id: uuid(),
+        author: me,
+        createdAt: DateTime.now(),
+        uri: sticker.uri,
+        label: sticker.label,
+      ));
+    }
+  },
 )
 ```
 
@@ -1262,10 +1385,12 @@ content:
 ```dart
 ChatView(
   // ...
-  onDeleteForEveryone: (message) {
-    controller.markDeleted(message.id);
-    api.deleteForEveryone(message.id);
-  },
+  moderation: ChatModerationOptions(
+    onDeleteForEveryone: (message) {
+      controller.markDeleted(message.id);
+      api.deleteForEveryone(message.id);
+    },
+  ),
 )
 ```
 
@@ -1274,24 +1399,31 @@ ChatView(
 
 ### Scheduled messages
 
-With `onScheduleMessage`, a long press on the send button opens quick
+With `ChatSendFeature.schedule`, a long press on the send button opens quick
 options (in 1 hour, tonight, tomorrow morning, pick a date and time):
 
 ```dart
 ChatView(
   // ...
-  onScheduleMessage: (text, at, replyTo) => controller.insert(
-    TextMessage(
-      id: uuid(),
-      author: me,
-      createdAt: DateTime.now(),
-      text: text,
-      scheduledFor: at,
-    ),
-  ),
-  onSendScheduledNow: (message) => controller.update(
-    message.copyWithMeta(clearScheduledFor: true),
-  ),
+  sendFeatures: const {
+    ChatSendFeature.schedule,
+    ChatSendFeature.sendScheduledNow,
+  },
+  onSend: (outgoing) => switch (outgoing) {
+    OutgoingText(:final text, :final scheduledFor?) => controller.insert(
+        TextMessage(
+          id: uuid(),
+          author: me,
+          createdAt: DateTime.now(),
+          text: text,
+          scheduledFor: scheduledFor,
+        ),
+      ),
+    OutgoingScheduledNow(:final message) => controller.update(
+        message.copyWithMeta(clearScheduledFor: true),
+      ),
+    _ => sendNow(outgoing),
+  },
 )
 ```
 
@@ -1304,9 +1436,11 @@ time.
 ```dart
 ChatView(
   // ...
-  readOnly: !isAdmin, // hides the input, shows "Only admins can send messages"
-  readOnlyMessage: 'Only moderators can post here', // optional
-  slowMode: const Duration(seconds: 30), // one message every 30 seconds
+  moderation: ChatModerationOptions(
+    readOnly: !isAdmin, // hides the input, shows "Only admins can send messages"
+    readOnlyMessage: 'Only moderators can post here', // optional
+    slowMode: const Duration(seconds: 30), // one message every 30 seconds
+  ),
 )
 ```
 
@@ -1320,8 +1454,10 @@ Each callback adds an entry to the message menu:
 ```dart
 ChatView(
   // ...
-  onReportMessage: (message) => api.report(message.id),
-  onBlockUser: (user) => api.block(user.id),
+  moderation: ChatModerationOptions(
+    onReportMessage: (message) => api.report(message.id),
+    onBlockUser: (user) => api.block(user.id),
+  ),
   onSaveMessage: (message, saved) => controller.toggleSaved(message.id),
 )
 ```
@@ -1334,7 +1470,9 @@ Saved messages show a bookmark icon. Read them with
 ```dart
 ChatView(
   // ...
-  wordFilter: ChatWordFilter({'darn', 'heck'}), // "darn it" -> "d*** it"
+  moderation: ChatModerationOptions(
+    wordFilter: ChatWordFilter({'darn', 'heck'}), // "darn it" -> "d*** it"
+  ),
 )
 ```
 
@@ -1351,7 +1489,7 @@ ChatView(
   // ...
   onAttach: () async {
     final files = await pickFiles(); // file_picker, image_picker…
-    controller.addAttachments([
+    controller.composer.addAttachments([
       for (final f in files)
         ChatAttachment(
           id: f.path,
@@ -1361,8 +1499,12 @@ ChatView(
         ),
     ]);
   },
-  onSendAttachments: (attachments, caption, replyTo) {
-    upload(attachments, caption); // then insert ImageMessage / FileMessage
+  sendFeatures: const {ChatSendFeature.attachments},
+  onSend: (outgoing) {
+    if (outgoing case OutgoingAttachments(:final attachments, :final caption)) {
+      upload(attachments, caption); // then insert ImageMessage / FileMessage
+    }
+    // ...
   },
 )
 ```
@@ -1452,8 +1594,10 @@ ChecklistMessage(
 
 ChatView(
   // ...
-  onChecklistToggle: (list, item) =>
-      controller.toggleChecklistItem(list.id, item.id, me.id),
+  contentCallbacks: ChatContentCallbacks(
+    onChecklistToggle: (list, item) =>
+        controller.toggleChecklistItem(list.id, item.id, me.id),
+  ),
 )
 ```
 
@@ -1485,11 +1629,13 @@ PaymentMessage(
 
 ChatView(
   // ...
-  onProductTap: (message, product) => cart.add(product.id),
-  onPaymentAction: (message, action) => action == ChatPaymentAction.pay
-      ? checkout(message)
-      : controller.update(
-          message.copyWith(paymentStatus: ChatPaymentStatus.declined)),
+  contentCallbacks: ChatContentCallbacks(
+    onProductTap: (message, product) => cart.add(product.id),
+    onPaymentAction: (message, action) => action == ChatPaymentAction.pay
+        ? checkout(message)
+        : controller.update(
+            message.copyWith(paymentStatus: ChatPaymentStatus.declined)),
+  ),
 )
 ```
 
@@ -1560,27 +1706,31 @@ From code, call `controller.scrollToDate(date)`.
 
 ### Custom message types
 
-Use `CustomMessage` with a `type` and a `payload`, and render it with
-`customMessageBuilder`. The result is placed inside a regular bubble, with
-time and status.
+Use `CustomMessage` with a `type` and a `payload`, and register a builder
+for the type in `customMessageBuilders`. The result is placed inside a
+regular bubble, with time and status. `customMessageBuilder` renders the
+types that have no builder, for example ones added by a newer version of
+your app.
 
 ```dart
 controller.insert(CustomMessage(
-  id: 'img-1',
+  id: 'inv-1',
   author: ana,
   createdAt: DateTime.now(),
-  type: 'image',
-  payload: 'https://example.com/photo.jpg',
+  type: 'invoice',
+  payload: Invoice(number: 'F-102', total: 120),
 ));
 
 ChatView(
-  customMessageBuilder: (context, message, details) => switch (message.type) {
-    'image' => ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.network(message.payload! as String, width: 240),
-      ),
-    _ => const Text('Unsupported message'),
-  },
+  builders: ChatBuilders(
+    customMessageBuilders: {
+      'invoice': (context, message, details) =>
+          InvoiceCard(message.payload! as Invoice),
+    },
+    // Optional: any other type.
+    customMessageBuilder: (context, message, details) =>
+        const Text('Update the app to see this message'),
+  ),
   // ...
 )
 ```
@@ -1663,7 +1813,8 @@ your own widgets.
 
 ### Builders
 
-Replace any part of the UI:
+Replace any part of the UI with the builders of `ChatBuilders`, passed as
+`ChatView.builders`:
 
 | Builder | Replaces |
 | --- | --- |
@@ -1682,17 +1833,31 @@ Example: add an attachment button to the input bar.
 
 ```dart
 ChatView(
-  inputBuilder: (context, send, textController) => ChatInput(
-    onSend: send,
-    controller: textController, // lets "Edit" fill the field
-    leading: IconButton(
-      icon: const Icon(Icons.attach_file),
-      onPressed: pickFile,
+  builders: ChatBuilders(
+    inputBuilder: (context, send, textController) => ChatInput(
+      onSend: send,
+      controller: textController, // lets "Edit" fill the field
+      leading: IconButton(
+        icon: const Icon(Icons.attach_file),
+        onPressed: pickFile,
+      ),
     ),
   ),
   // ...
 )
 ```
+
+### Option groups
+
+Besides `builders`, related `ChatView` options come in groups:
+
+| Parameter | Class | What it holds |
+| --- | --- | --- |
+| `builders` | `ChatBuilders` | Builders that replace parts of the UI, and `imageProviderBuilder` |
+| `ai` | `ChatAiOptions` | Regenerate, rating, stop, translation, reasoning, sources and suggested prompts |
+| `moderation` | `ChatModerationOptions` | Read-only mode, slow mode, reports, blocks, the word filter and delete for everyone |
+| `media` | `ChatMediaOptions` | Images, files, video and voice notes |
+| `contentCallbacks` | `ChatContentCallbacks` | Polls, surveys, bot buttons, quick replies, locations, events, contacts, checklists, products, payments and calls |
 
 Other `ChatView` options: `showAvatars`, `showUserNames`,
 `showDateSeparators`, `enableMarkdown`, `enableJumboEmoji`,
@@ -1729,8 +1894,22 @@ ChatView(
 )
 ```
 
-Add a language by creating a full `ChatLocalizations` instance and passing it
-to `ChatView.localizations`.
+Add a language by passing your strings to `ChatView.localizations`. Every
+string you leave out is English, so a chatx update that adds strings never
+breaks your translation:
+
+```dart
+ChatView(
+  localizations: const ChatLocalizations(
+    inputHint: 'Messaggio',
+    sendButton: 'Invia',
+    today: 'Oggi',
+    yesterday: 'Ieri',
+    // ...
+  ),
+  // ...
+)
+```
 
 ## Recipes
 
@@ -1880,16 +2059,19 @@ ChatView(
   onTypingChanged: (typing) => socket.sink.add(
     jsonEncode({'type': 'typing', 'active': typing}),
   ),
-  onSendMessage: (text, replyTo) {
+  onSend: (outgoing) {
+    if (outgoing is! OutgoingText) return;
     final id = uuid();
     controller.insert(TextMessage(
       id: id,
       author: me,
       createdAt: DateTime.now(),
-      text: text,
+      text: outgoing.text,
       status: MessageStatus.sending,
     ));
-    socket.sink.add(jsonEncode({'type': 'message', 'id': id, 'text': text}));
+    socket.sink.add(
+      jsonEncode({'type': 'message', 'id': id, 'text': outgoing.text}),
+    );
   },
 )
 ```
@@ -1941,13 +2123,13 @@ depend on texts or layout:
 ```dart
 testWidgets('sends a message', (tester) async {
   final controller = ChatController();
-  final sent = <String>[];
+  final sent = <ChatOutgoing>[];
   await tester.pumpWidget(MaterialApp(
     home: Scaffold(
       body: ChatView(
         controller: controller,
         currentUser: const ChatUser(id: 'me'),
-        onSendMessage: (text, _) => sent.add(text),
+        onSend: sent.add,
       ),
     ),
   ));
@@ -1956,7 +2138,7 @@ testWidgets('sends a message', (tester) async {
   await tester.pump();
   await tester.tap(find.byKey(const Key('chatx_send_button')));
 
-  expect(sent, ['Hi']);
+  expect(sent, [const OutgoingText('Hi')]);
 });
 
 testWidgets('shows incoming messages', (tester) async {
@@ -2113,7 +2295,7 @@ is a normal widget; put it in any page.
 
 **How do I keep the conversation when the user leaves the screen?** Keep the
 `ChatController` alive longer than the page (for example in a provider), or
-save `controller.messages` and `controller.draft` and restore them.
+save `controller.messages` and `controller.composer.draft` and restore them.
 
 **Can I use my own bubble design?** Yes. Change colors and shapes with
 `ChatTheme`, or replace bubbles, avatars, input and separators with

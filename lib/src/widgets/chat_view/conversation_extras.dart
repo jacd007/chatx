@@ -129,7 +129,7 @@ class _MessageButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final onPressed = state.widget.onMessageButton;
+    final onPressed = state.widget.contentCallbacks.onMessageButton;
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Column(
@@ -238,7 +238,7 @@ class _QuickReplies extends StatelessWidget {
                 child: InkWell(
                   onTap: () {
                     HapticFeedback.selectionClick();
-                    final onQuickReply = view.onQuickReply;
+                    final onQuickReply = view.contentCallbacks.onQuickReply;
                     if (onQuickReply != null) {
                       onQuickReply(reply, message);
                     } else {

@@ -27,10 +27,15 @@ class _PinnedBannerState extends State<_PinnedBanner> {
           content = const SizedBox(width: double.infinity);
         } else {
           final position = pins.length - 1 - (_offset % pins.length);
-          final message = controller.messageById(pins[position]);
-          content = message == null
+          final id = pins[position];
+          // Watch the pin so the banner follows its edits.
+          content = !controller.contains(id)
               ? const SizedBox(width: double.infinity)
-              : _banner(context, message, position, pins.length);
+              : ValueListenableBuilder<ChatMessage>(
+                  valueListenable: controller.watch(id),
+                  builder: (context, message, _) =>
+                      _banner(context, message, position, pins.length),
+                );
         }
         return AnimatedSize(
           duration: const Duration(milliseconds: 220),

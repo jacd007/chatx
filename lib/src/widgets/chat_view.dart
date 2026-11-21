@@ -17,6 +17,7 @@ import '../markdown/chat_text.dart';
 import '../markdown/markdown_parser.dart';
 import '../material.dart';
 import '../models/chat_message.dart';
+import '../models/chat_outgoing.dart';
 import '../models/chat_reaction.dart';
 import '../models/chat_user.dart';
 import '../models/message_status.dart';
@@ -29,6 +30,7 @@ import 'chat_builders.dart';
 import 'chat_header.dart';
 import 'chat_input.dart';
 import 'chat_people.dart';
+import 'chat_view_options.dart';
 import 'message_status_icon.dart';
 import 'typing_indicator.dart';
 
@@ -53,16 +55,18 @@ part 'chat_view/swipe_to_action.dart';
 /// ChatView(
 ///   controller: controller,
 ///   currentUser: me,
-///   onSendMessage: (text, replyTo) {
-///     controller.insert(TextMessage(
-///       id: uuid(),
-///       author: me,
-///       createdAt: DateTime.now(),
-///       text: text,
-///       replyToId: replyTo?.id,
-///       status: MessageStatus.sending,
-///     ));
-///     // Send the message to your backend here.
+///   onSend: (outgoing) {
+///     if (outgoing case OutgoingText(:final text, :final replyTo)) {
+///       controller.insert(TextMessage(
+///         id: uuid(),
+///         author: me,
+///         createdAt: DateTime.now(),
+///         text: text,
+///         replyToId: replyTo?.id,
+///         status: MessageStatus.sending,
+///       ));
+///       // Send the message to your backend here.
+///     }
 ///   },
 /// )
 /// ```
@@ -79,8 +83,8 @@ class ChatView extends StatefulWidget {
     super.key,
     required this.controller,
     required this.currentUser,
-    required this.onSendMessage,
-    this.onEditMessage,
+    required this.onSend,
+    this.sendFeatures = const {},
     this.onDeleteMessage,
     this.onReactionSelected,
     this.reactionEmojis = defaultReactionEmojis,
@@ -108,26 +112,6 @@ class ChatView extends StatefulWidget {
     this.enableJumboEmoji = true,
     this.groupingInterval = const Duration(minutes: 5),
     this.inputEnabled = true,
-    this.bubbleBuilder,
-    this.customMessageBuilder,
-    this.systemMessageBuilder,
-    this.avatarBuilder,
-    this.inputBuilder,
-    this.dateSeparatorBuilder,
-    this.typingIndicatorBuilder,
-    this.scrollToBottomBuilder,
-    this.loadMoreIndicatorBuilder,
-    this.emptyStateBuilder,
-    this.imageProviderBuilder,
-    this.onImageTap,
-    this.onFileTap,
-    this.voicePlayback,
-    this.onVoicePlay,
-    this.onVoicePause,
-    this.onVoiceSeek,
-    this.onVoiceRecordStart,
-    this.onVoiceRecordEnd,
-    this.onPollVote,
     this.mentionableUsers = const [],
     this.onMentionTap,
     this.onPinMessage,
@@ -135,48 +119,22 @@ class ChatView extends StatefulWidget {
     this.enableSelection = true,
     this.selectionActionsBuilder,
     this.showFloatingDate = true,
-    this.onSurveySubmit,
-    this.onMessageButton,
-    this.onQuickReply,
     this.onThreadTap,
     this.threadRoot,
     this.onForwardMessages,
     this.showReadReceipts = true,
     this.enableEmojiPicker = true,
-    this.onRegenerate,
-    this.onFeedback,
-    this.onStopGenerating,
-    this.onTranslate,
-    this.locationMapBuilder,
-    this.onLocationTap,
-    this.onRsvp,
-    this.onContactAction,
     this.stickerPacks = const [],
-    this.onSendSticker,
-    this.onDeleteForEveryone,
-    this.onScheduleMessage,
-    this.onSendScheduledNow,
-    this.readOnly = false,
-    this.readOnlyMessage,
-    this.slowMode,
-    this.onReportMessage,
-    this.onBlockUser,
     this.onSaveMessage,
-    this.wordFilter,
-    this.onReasoningTap,
-    this.onSourceTap,
-    this.onVideoTap,
-    this.onTranscribe,
-    this.onChecklistToggle,
-    this.onProductTap,
-    this.onPaymentAction,
-    this.onCallBack,
     this.onAttach,
-    this.onSendAttachments,
     this.connectionState = ChatConnectionState.online,
     this.onSendQueued,
-    this.suggestedPrompts = const [],
     this.showHoverActions = true,
+    this.builders = const ChatBuilders(),
+    this.ai = const ChatAiOptions(),
+    this.moderation = const ChatModerationOptions(),
+    this.media = const ChatMediaOptions(),
+    this.contentCallbacks = const ChatContentCallbacks(),
   });
 
   /// Reactions offered in the message menu by default.
@@ -195,20 +153,19 @@ class ChatView extends StatefulWidget {
   /// The user of this device. Their messages are shown as outgoing.
   final ChatUser currentUser;
 
-  /// Called with the trimmed text when the user sends a message, and the
-  /// message being replied to, if any.
+  /// Called with everything the user sends from the input bar: text,
+  /// prompts, quick replies and, when enabled in [sendFeatures], edits,
+  /// attachments, stickers and scheduled messages.
   ///
   /// chatx does not add the message to [controller] for you. Insert it
   /// yourself (usually with [MessageStatus.sending] and
-  /// `replyToId: replyTo?.id`) for an optimistic UI. The reply banner closes
-  /// automatically.
-  final ChatSendCallback onSendMessage;
+  /// `replyToId: outgoing.replyTo?.id`) for an optimistic UI. The reply
+  /// banner closes automatically.
+  final ChatOutgoingCallback onSend;
 
-  /// Called when the user saves an edited message. When set, the menu offers
-  /// "Edit" on the current user's text messages.
-  ///
-  /// Update the message with [ChatController.editText] and your backend.
-  final ChatEditCallback? onEditMessage;
+  /// The features [onSend] handles beyond plain text. Each one shows its
+  /// part of the UI, such as the "Edit" action or the attachment tray.
+  final Set<ChatSendFeature> sendFeatures;
 
   /// Called when the user chooses "Delete". When set, the menu offers it on
   /// the current user's messages.
@@ -313,74 +270,6 @@ class ChatView extends StatefulWidget {
   /// Whether the default input bar accepts text.
   final bool inputEnabled;
 
-  /// Wraps or replaces message bubbles.
-  final ChatBubbleBuilder? bubbleBuilder;
-
-  /// Renders [CustomMessage]s inside a bubble.
-  final ChatCustomMessageBuilder? customMessageBuilder;
-
-  /// Renders [SystemMessage]s.
-  final ChatSystemMessageBuilder? systemMessageBuilder;
-
-  /// Replaces avatars.
-  final ChatAvatarBuilder? avatarBuilder;
-
-  /// Replaces the input bar. See [ChatInput].
-  final ChatInputBuilder? inputBuilder;
-
-  /// Replaces day labels.
-  final ChatDateSeparatorBuilder? dateSeparatorBuilder;
-
-  /// Replaces the typing indicator.
-  final ChatTypingIndicatorBuilder? typingIndicatorBuilder;
-
-  /// Replaces the scroll-to-bottom button.
-  final ChatScrollToBottomBuilder? scrollToBottomBuilder;
-
-  /// Replaces the progress indicator shown while [onLoadMore] runs.
-  final WidgetBuilder? loadMoreIndicatorBuilder;
-
-  /// Shown when there are no messages.
-  final WidgetBuilder? emptyStateBuilder;
-
-  /// Turns an image URI ([ChatImage.uri], [ChatLinkPreview.imageUri]) into
-  /// an [ImageProvider]. Defaults to [NetworkImage]. Use it for assets,
-  /// files, caching or authenticated requests.
-  final ImageProvider Function(String uri)? imageProviderBuilder;
-
-  /// Called when an image is tapped. When `null`, chatx opens a full-screen
-  /// viewer with zoom and swipe-down to close.
-  final ChatImageTapCallback? onImageTap;
-
-  /// Called when a [FileMessage] is tapped. Open or download the file here.
-  final ValueChanged<FileMessage>? onFileTap;
-
-  /// What your audio player is doing. Drives play buttons and progress of
-  /// [VoiceMessage]s.
-  final ValueListenable<ChatVoicePlayback?>? voicePlayback;
-
-  /// Called when the user taps play on a voice note.
-  final ValueChanged<VoiceMessage>? onVoicePlay;
-
-  /// Called when the user taps pause on a voice note.
-  final ValueChanged<VoiceMessage>? onVoicePause;
-
-  /// Called when the user taps the waveform to jump to a position.
-  final void Function(VoiceMessage message, Duration position)? onVoiceSeek;
-
-  /// Called when the user starts holding the microphone button. When set,
-  /// the send button turns into a microphone while the input is empty.
-  final VoidCallback? onVoiceRecordStart;
-
-  /// Called when the user releases the microphone button or slides to
-  /// cancel.
-  final ChatVoiceRecordEndCallback? onVoiceRecordEnd;
-
-  /// Called when the user votes in a [PollMessage]. Typically calls
-  /// [ChatController.votePoll] and your backend. When `null`, polls are
-  /// read-only.
-  final ChatPollVoteCallback? onPollVote;
-
   /// Users that can be mentioned. Typing `@` in the input suggests them, and
   /// `@Name` in messages is highlighted.
   final List<ChatUser> mentionableUsers;
@@ -405,19 +294,6 @@ class ChatView extends StatefulWidget {
   /// Whether a date chip floats at the top while scrolling.
   final bool showFloatingDate;
 
-  /// Called with the answers when the user completes a [SurveyMessage].
-  /// When `null`, surveys cannot be answered.
-  final void Function(SurveyMessage survey, ChatSurveyResponse response)?
-      onSurveySubmit;
-
-  /// Called when the user taps a [ChatMessageButton] of a [TextMessage].
-  final void Function(ChatMessage message, ChatMessageButton button)?
-      onMessageButton;
-
-  /// Called when the user taps a quick reply. When `null`, the reply text is
-  /// sent through [onSendMessage].
-  final void Function(ChatQuickReply reply, ChatMessage message)? onQuickReply;
-
   /// Called when the user taps the thread summary of a message. Open a
   /// screen with another [ChatView] and [threadRoot] set.
   final ValueChanged<ChatMessage>? onThreadTap;
@@ -439,117 +315,17 @@ class ChatView extends StatefulWidget {
   /// emoji picker.
   final bool enableEmojiPicker;
 
-  /// Called when the user asks for a new answer to the newest message of a
-  /// bot ([ChatUser.isBot]). Shows a regenerate button under it.
-  final ValueChanged<TextMessage>? onRegenerate;
-
-  /// Called when the user rates an answer of a bot. Shows thumbs up and down
-  /// under bot answers.
-  final ChatFeedbackCallback? onFeedback;
-
-  /// Called when the user taps stop while the newest incoming message is
-  /// streaming. The send button turns into a stop button meanwhile.
-  final ValueChanged<TextMessage>? onStopGenerating;
-
-  /// Translates a message. When set, the menu offers "Translate" and the
-  /// bubble can switch between the translation and the original.
-  final Future<String> Function(TextMessage message)? onTranslate;
-
-  /// Draws the map of a [LocationMessage], for example with your maps SDK.
-  final Widget Function(BuildContext context, LocationMessage message)?
-      locationMapBuilder;
-
-  /// Called when a location card is tapped, for example to open a maps app.
-  final ValueChanged<LocationMessage>? onLocationTap;
-
-  /// Called when the user answers an [EventMessage].
-  final ChatRsvpCallback? onRsvp;
-
-  /// Called when the user taps a button of a [ContactMessage].
-  final void Function(ContactMessage message, ChatContactAction action)?
-      onContactAction;
-
   /// Sticker packs shown as tabs in the emoji picker. Requires
-  /// [onSendSticker].
+  /// [ChatSendFeature.stickers] in [sendFeatures].
   final List<ChatStickerPack> stickerPacks;
-
-  /// Called when the user picks a sticker. Insert a [StickerMessage].
-  final ValueChanged<ChatSticker>? onSendSticker;
-
-  /// Called when the user deletes their message for everyone. Offered in
-  /// the menu when set; usually calls [ChatController.markDeleted].
-  final ValueChanged<ChatMessage>? onDeleteForEveryone;
-
-  /// Called when the user schedules a message by long-pressing send.
-  final ChatScheduleCallback? onScheduleMessage;
-
-  /// Called when the user chooses "Send now" on a scheduled message.
-  final ValueChanged<ChatMessage>? onSendScheduledNow;
-
-  /// Replaces the input with a banner, for channels where only some people
-  /// can write.
-  final bool readOnly;
-
-  /// Text of the read-only banner. Defaults to the localized "Only admins
-  /// can send messages".
-  final String? readOnlyMessage;
-
-  /// Minimum time between two messages of the current user. The input is
-  /// disabled with a countdown in between.
-  final Duration? slowMode;
-
-  /// Called when the user reports a message of someone else.
-  final ValueChanged<ChatMessage>? onReportMessage;
-
-  /// Called when the user blocks the author of a message.
-  final ValueChanged<ChatUser>? onBlockUser;
 
   /// Called when the user saves or unsaves a message. Usually calls
   /// [ChatController.toggleSaved].
   final void Function(ChatMessage message, bool saved)? onSaveMessage;
 
-  /// Masks offensive words in messages.
-  final ChatWordFilter? wordFilter;
-
-  /// Called when the user expands or collapses a reasoning block. Optional;
-  /// the block works without it.
-  final ValueChanged<TextMessage>? onReasoningTap;
-
-  /// Called when the user taps a source chip. Defaults to [onLinkTap] with
-  /// the source URL.
-  final ValueChanged<ChatSource>? onSourceTap;
-
-  /// Called when the user taps a [VideoMessage]. Play the video here.
-  final ValueChanged<VideoMessage>? onVideoTap;
-
-  /// Called when the user asks for the transcript of a voice note. Produce
-  /// it and update the message with `VoiceMessage.transcript`. While the
-  /// future runs, the bubble shows "Transcribing…".
-  final Future<void> Function(VoiceMessage message)? onTranscribe;
-
-  /// Called when the user checks or unchecks an item of a
-  /// [ChecklistMessage]. Record it with `ChatController.toggleChecklistItem`.
-  final void Function(ChecklistMessage message, ChecklistItem item)?
-      onChecklistToggle;
-
-  /// Called when the user taps a product of a [ProductMessage].
-  final void Function(ProductMessage message, ChatProduct product)?
-      onProductTap;
-
-  /// Called when the user pays or declines a [PaymentMessage].
-  final void Function(PaymentMessage message, ChatPaymentAction action)?
-      onPaymentAction;
-
-  /// Called when the user taps "Call back" on a [CallMessage].
-  final ValueChanged<CallMessage>? onCallBack;
-
   /// When set, the input shows an attach button that calls this. Open your
-  /// file picker and add the files with `ChatController.addAttachments`.
+  /// file picker and add the files with `controller.composer.addAttachments`.
   final VoidCallback? onAttach;
-
-  /// Called when the user sends the files waiting in the input. Required to
-  /// show the attachment tray.
-  final ChatAttachmentsCallback? onSendAttachments;
 
   /// Network state. Anything but [ChatConnectionState.online] shows a banner
   /// at the top of the list.
@@ -559,16 +335,34 @@ class ChatView extends StatefulWidget {
   /// [connectionState] changes back to online. Send them here.
   final ValueChanged<List<ChatMessage>>? onSendQueued;
 
-  /// Cards shown in the empty conversation. Tapping one sends its text.
-  final List<ChatPrompt> suggestedPrompts;
-
   /// Whether a mouse hovering a message shows Reply, React and More
   /// buttons next to it.
   final bool showHoverActions;
 
+  /// Builders that replace pieces of the default UI.
+  final ChatBuilders builders;
+
+  /// Controls for AI assistant answers in this view.
+  final ChatAiOptions ai;
+
+  /// Moderation tools: read-only channels, slow mode, reports, blocks and the
+  /// word filter.
+  final ChatModerationOptions moderation;
+
+  /// Callbacks of images, files, video and voice notes in this view.
+  final ChatMediaOptions media;
+
+  /// Callbacks of the rich content this view renders: polls, surveys, bot
+  /// buttons, quick replies, locations, events, contacts, checklists, products,
+  /// payments and calls.
+  final ChatContentCallbacks contentCallbacks;
+
   @override
   State<ChatView> createState() => _ChatViewState();
 }
+
+/// Controllers whose queued messages were handed out during this frame.
+final Expando<bool> _flushingQueued = Expando('chatx queued flush');
 
 class _ChatViewState extends State<ChatView> {
   static const double _scrollButtonOffset = 240;
@@ -634,7 +428,7 @@ class _ChatViewState extends State<ChatView> {
   @override
   void initState() {
     super.initState();
-    _textController.text = widget.controller.draft.value;
+    _textController.text = widget.controller.composer.draft.value;
     _textController.addListener(_onComposerTextChanged);
     _textController.addListener(_saveDraft);
     _attachController(widget.controller);
@@ -676,12 +470,24 @@ class _ChatViewState extends State<ChatView> {
     }
     if (oldWidget.connectionState != ChatConnectionState.online &&
         widget.connectionState == ChatConnectionState.online) {
-      final queued = widget.controller.queuedMessages;
-      if (queued.isNotEmpty) widget.onSendQueued?.call(queued);
+      _flushQueued();
     }
-    _builtRevision = -1; // Settings may have changed: rebuild everything.
-    _rebuildEntries();
+    // Rebuilding the entries walks every message: only do it when a setting
+    // they depend on changed, not on every rebuild of the parent.
+    if (oldWidget.controller != widget.controller ||
+        _entrySettingsChanged(oldWidget)) {
+      _builtRevision = -1;
+      _rebuildEntries();
+    }
   }
+
+  bool _entrySettingsChanged(ChatView old) =>
+      old.currentUser.id != widget.currentUser.id ||
+      old.showDateSeparators != widget.showDateSeparators ||
+      old.groupingInterval != widget.groupingInterval ||
+      old.firstUnreadMessageId != widget.firstUnreadMessageId ||
+      (old.threadRoot == null) != (widget.threadRoot == null) ||
+      (old.onLoadMore == null) != (widget.onLoadMore == null);
 
   @override
   void dispose() {
@@ -706,12 +512,29 @@ class _ChatViewState extends State<ChatView> {
     super.dispose();
   }
 
+  // Hands the queued messages to onSendQueued once per reconnection, even
+  // when several views (a chat and its thread) share the controller.
+  void _flushQueued() {
+    final onSendQueued = widget.onSendQueued;
+    final controller = widget.controller;
+    if (onSendQueued == null || _flushingQueued[controller] != null) return;
+    final queued = controller.queuedMessages;
+    if (queued.isEmpty) return;
+    _flushingQueued[controller] = true;
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _flushingQueued[controller] = null,
+    );
+    onSendQueued(queued);
+  }
+
   void _attachController(ChatController controller) {
     controller
       ..addListener(_onMessagesChanged)
+      ..selectedIds.addListener(_onSelectionChanged);
+    controller.composer
       ..editing.addListener(_onEditingChanged)
       ..replyingTo.addListener(_onReplyingChanged)
-      ..selectedIds.addListener(_onSelectionChanged);
+      ..draft.addListener(_onDraftChanged);
     _scrollRequests = controller.scrollRequests.listen(
       (request) => _scrollToMessage(
         request.messageId,
@@ -723,9 +546,11 @@ class _ChatViewState extends State<ChatView> {
   void _detachController(ChatController controller) {
     controller
       ..removeListener(_onMessagesChanged)
+      ..selectedIds.removeListener(_onSelectionChanged);
+    controller.composer
       ..editing.removeListener(_onEditingChanged)
       ..replyingTo.removeListener(_onReplyingChanged)
-      ..selectedIds.removeListener(_onSelectionChanged);
+      ..draft.removeListener(_onDraftChanged);
     _scrollRequests?.cancel();
     _scrollRequests = null;
   }
@@ -733,7 +558,7 @@ class _ChatViewState extends State<ChatView> {
   void _onSelectionChanged() => setState(() {});
 
   void _onEditingChanged() {
-    final editing = widget.controller.editing.value;
+    final editing = widget.controller.composer.editing.value;
     final previous = _editingMessage;
     _editingMessage = editing;
     if (editing is TextMessage) {
@@ -753,13 +578,26 @@ class _ChatViewState extends State<ChatView> {
   void _saveDraft() {
     if (_editingMessage != null) return;
     final text = _textController.text;
-    if (widget.controller.draft.value != text) {
-      widget.controller.setDraft(text);
+    if (widget.controller.composer.draft.value != text) {
+      widget.controller.composer.setDraft(text);
     }
   }
 
+  // Shows a draft set from outside, for example cleared by
+  // `setMessages(newConversation: true)`.
+  void _onDraftChanged() {
+    if (_editingMessage != null) return;
+    final draft = widget.controller.composer.draft.value;
+    if (_textController.text != draft) _textController.text = draft;
+  }
+
+  String? _replyingToId;
+
+  // Focuses the input when a reply starts, not when its message updates.
   void _onReplyingChanged() {
-    if (widget.controller.replyingTo.value != null) _focusNode.requestFocus();
+    final id = widget.controller.composer.replyingTo.value?.id;
+    if (id != null && id != _replyingToId) _focusNode.requestFocus();
+    _replyingToId = id;
   }
 
   void _resetKnownMessages() {
@@ -1128,34 +966,60 @@ class _ChatViewState extends State<ChatView> {
     });
   }
 
+  bool _sends(ChatSendFeature feature) => widget.sendFeatures.contains(feature);
+
+  bool get _canEdit => _sends(ChatSendFeature.edit);
+
+  bool get _canAttach => _sends(ChatSendFeature.attachments);
+
+  bool get _canSchedule => _sends(ChatSendFeature.schedule);
+
+  bool get _canSendStickers => _sends(ChatSendFeature.stickers);
+
+  bool get _canSendScheduledNow => _sends(ChatSendFeature.sendScheduledNow);
+
+  void _sendText(String text, ChatMessage? replyTo) =>
+      widget.onSend(OutgoingText(text, replyTo: replyTo));
+
+  void _sendSticker(ChatSticker sticker) {
+    final composer = widget.controller.composer;
+    widget.onSend(OutgoingSticker(sticker, replyTo: composer.replyingTo.value));
+    composer.cancelReply();
+    _scrollToBottom();
+  }
+
+  void _sendScheduledNow(ChatMessage message) =>
+      widget.onSend(OutgoingScheduledNow(message));
+
   void _handleSend(String text) {
     final controller = widget.controller;
-    final editing = controller.editing.value;
+    final editing = controller.composer.editing.value;
     if (editing is TextMessage) {
-      widget.onEditMessage?.call(editing, text);
-      controller.cancelEditing();
+      if (_canEdit) widget.onSend(OutgoingEdit(editing, text));
+      controller.composer.cancelEditing();
       return;
     }
     // Slow mode also applies to quick replies and prompts.
     if (_slowRemaining != null) return;
-    final replyTo = controller.replyingTo.value;
-    final attachments = controller.attachments.value;
-    final onSendAttachments = widget.onSendAttachments;
-    if (attachments.isNotEmpty && onSendAttachments != null) {
-      onSendAttachments(attachments, text, replyTo);
-      controller.clearAttachments();
+    final replyTo = controller.composer.replyingTo.value;
+    final attachments = controller.composer.attachments.value;
+    if (attachments.isNotEmpty && _canAttach) {
+      widget.onSend(
+        OutgoingAttachments(attachments, caption: text, replyTo: replyTo),
+      );
+      controller.composer.clearAttachments();
     } else if (text.isNotEmpty) {
-      widget.onSendMessage(text, replyTo);
+      _sendText(text, replyTo);
     } else {
       return;
     }
-    controller.cancelReply();
+    controller.composer.cancelReply();
     _startSlowMode();
     _scrollToBottom();
   }
 
   void _startSlowMode() {
-    final slowMode = widget.slowMode;
+    final slowMode = widget.moderation.slowMode;
     if (slowMode == null || slowMode <= Duration.zero) return;
     _slowTimer?.cancel();
     setState(() => _slowRemaining = slowMode);
@@ -1231,20 +1095,20 @@ class _ChatViewState extends State<ChatView> {
 
   void _sendPrompt(ChatPrompt prompt) {
     HapticFeedback.selectionClick();
-    widget.onSendMessage(prompt.message, null);
+    _sendText(prompt.message, null);
     _scrollToBottom();
   }
 
   /// Edits the newest text message of the current user (up arrow).
   void _editLastMessage() {
-    if (widget.onEditMessage == null) return;
+    if (!_canEdit) return;
     final messages = widget.controller.messages;
     for (var i = messages.length - 1; i >= 0; i--) {
       final message = messages[i];
       if (_isOutgoing(message) &&
           message is TextMessage &&
           message.deletedAt == null) {
-        widget.controller.startEditing(message);
+        widget.controller.composer.startEditing(message);
         return;
       }
     }
@@ -1252,20 +1116,20 @@ class _ChatViewState extends State<ChatView> {
 
   void _onEscape() {
     final controller = widget.controller;
-    if (controller.editing.value != null) {
-      controller.cancelEditing();
-    } else if (controller.replyingTo.value != null) {
-      controller.cancelReply();
+    if (controller.composer.editing.value != null) {
+      controller.composer.cancelEditing();
+    } else if (controller.composer.replyingTo.value != null) {
+      controller.composer.cancelReply();
     } else {
-      controller.clearAttachments();
+      controller.composer.clearAttachments();
     }
   }
 
   void _onContentInserted(KeyboardInsertedContent content) {
     final data = content.data;
-    if (data == null || widget.onSendAttachments == null) return;
+    if (data == null || !_canAttach) return;
     final name = Uri.tryParse(content.uri)?.pathSegments.lastOrNull ?? 'image';
-    widget.controller.addAttachments([
+    widget.controller.composer.addAttachments([
       ChatAttachment(
         id: '${DateTime.now().microsecondsSinceEpoch}',
         name: name,
@@ -1280,17 +1144,17 @@ class _ChatViewState extends State<ChatView> {
   }
 
   Future<void> _schedule(String text) async {
-    final onSchedule = widget.onScheduleMessage;
-    if (onSchedule == null) return;
+    if (!_canSchedule) return;
     final at = await _pickScheduleTime(context);
     if (at == null || !mounted) return;
-    onSchedule(text, at, widget.controller.replyingTo.value);
-    widget.controller.cancelReply();
+    final replyTo = widget.controller.composer.replyingTo.value;
+    widget.onSend(OutgoingText(text, replyTo: replyTo, scheduledFor: at));
+    widget.controller.composer.cancelReply();
     _textController.clear();
   }
 
   void _startReply(ChatMessage message) {
-    widget.controller.startReply(message);
+    widget.controller.composer.startReply(message);
   }
 
   void _onSwipe(ChatMessage message) {
@@ -1311,17 +1175,18 @@ class _ChatViewState extends State<ChatView> {
     if (message.deletedAt != null) return const [];
     if (message.scheduledFor != null) {
       return [
-        if (widget.onSendScheduledNow != null)
+        if (_canSendScheduledNow)
           ChatMessageAction(
             label: l10n.sendNow,
             icon: Icons.send_rounded,
-            onSelected: widget.onSendScheduledNow!,
+            onSelected: _sendScheduledNow,
           ),
-        if (message is TextMessage && widget.onEditMessage != null)
+        if (message is TextMessage && _canEdit)
           ChatMessageAction(
             label: l10n.edit,
             icon: Icons.edit_outlined,
-            onSelected: (m) => widget.controller.startEditing(m as TextMessage),
+            onSelected: (m) =>
+                widget.controller.composer.startEditing(m as TextMessage),
           ),
         if (widget.onDeleteMessage != null)
           ChatMessageAction(
@@ -1342,20 +1207,18 @@ class _ChatViewState extends State<ChatView> {
         ),
       if (message is TextMessage)
         ChatMessageAction.copyText(label: l10n.copy, icon: Icons.copy_rounded),
-      if (message is TextMessage && !streaming && widget.onTranslate != null)
+      if (message is TextMessage && !streaming && widget.ai.onTranslate != null)
         ChatMessageAction(
           label: l10n.translate,
           icon: Icons.translate_rounded,
           onSelected: (m) => _translate(m as TextMessage),
         ),
-      if (mine &&
-          !streaming &&
-          message is TextMessage &&
-          widget.onEditMessage != null)
+      if (mine && !streaming && message is TextMessage && _canEdit)
         ChatMessageAction(
           label: l10n.edit,
           icon: Icons.edit_outlined,
-          onSelected: (m) => widget.controller.startEditing(m as TextMessage),
+          onSelected: (m) =>
+              widget.controller.composer.startEditing(m as TextMessage),
         ),
       if (widget.onPinMessage != null)
         widget.controller.isPinned(message.id)
@@ -1395,19 +1258,19 @@ class _ChatViewState extends State<ChatView> {
           icon: Icons.check_circle_outline_rounded,
           onSelected: (m) => widget.controller.toggleSelection(m.id),
         ),
-      if (!mine && widget.onReportMessage != null)
+      if (!mine && widget.moderation.onReportMessage != null)
         ChatMessageAction(
           label: l10n.report,
           icon: Icons.flag_outlined,
           isDestructive: true,
-          onSelected: widget.onReportMessage!,
+          onSelected: widget.moderation.onReportMessage!,
         ),
-      if (!mine && widget.onBlockUser != null)
+      if (!mine && widget.moderation.onBlockUser != null)
         ChatMessageAction(
           label: l10n.block(message.author.name ?? l10n.someone),
           icon: Icons.block_rounded,
           isDestructive: true,
-          onSelected: (m) => widget.onBlockUser!(m.author),
+          onSelected: (m) => widget.moderation.onBlockUser!(m.author),
         ),
       if (mine && widget.onDeleteMessage != null)
         ChatMessageAction(
@@ -1416,12 +1279,12 @@ class _ChatViewState extends State<ChatView> {
           isDestructive: true,
           onSelected: widget.onDeleteMessage!,
         ),
-      if (mine && widget.onDeleteForEveryone != null)
+      if (mine && widget.moderation.onDeleteForEveryone != null)
         ChatMessageAction(
           label: l10n.deleteForEveryone,
           icon: Icons.delete_forever_outlined,
           isDestructive: true,
-          onSelected: widget.onDeleteForEveryone!,
+          onSelected: widget.moderation.onDeleteForEveryone!,
         ),
     ];
   }
@@ -1454,12 +1317,13 @@ class _ChatViewState extends State<ChatView> {
       _toggleSelection(message);
       return;
     }
-    if (message is FileMessage && widget.onFileTap != null) {
-      widget.onFileTap!(message);
+    if (message is FileMessage && widget.media.onFileTap != null) {
+      widget.media.onFileTap!(message);
       return;
     }
-    if (message is LocationMessage && widget.onLocationTap != null) {
-      widget.onLocationTap!(message);
+    if (message is LocationMessage &&
+        widget.contentCallbacks.onLocationTap != null) {
+      widget.contentCallbacks.onLocationTap!(message);
       return;
     }
     if (widget.messageMenuTrigger == ChatMessageMenuTrigger.tap) {
@@ -1533,10 +1397,11 @@ class _ChatViewState extends State<ChatView> {
       final generating = latest is TextMessage &&
           latest.isStreaming &&
           !_isOutgoing(latest) &&
-          widget.onStopGenerating != null;
-      final hasAttachments = widget.onSendAttachments != null &&
-          widget.controller.attachments.value.isNotEmpty;
-      return widget.inputBuilder?.call(context, _handleSend, _textController) ??
+          widget.ai.onStopGenerating != null;
+      final hasAttachments =
+          _canAttach && widget.controller.composer.attachments.value.isNotEmpty;
+      return widget.builders.inputBuilder
+              ?.call(context, _handleSend, _textController) ??
           ChatInput(
             onSend: _handleSend,
             controller: _textController,
@@ -1559,27 +1424,26 @@ class _ChatViewState extends State<ChatView> {
                     onPressed:
                         widget.inputEnabled && !slowed ? widget.onAttach : null,
                   ),
-            onArrowUp: widget.onEditMessage == null ? null : _editLastMessage,
+            onArrowUp: _canEdit ? _editLastMessage : null,
             onEscape: _onEscape,
-            onContentInserted:
-                widget.onSendAttachments == null ? null : _onContentInserted,
+            onContentInserted: _canAttach ? _onContentInserted : null,
             onTypingChanged: widget.onTypingChanged,
             sendIcon:
                 editing ? Icons.check_rounded : Icons.arrow_upward_rounded,
-            onRecordStart: editing ? null : widget.onVoiceRecordStart,
-            onRecordEnd: widget.onVoiceRecordEnd,
+            onRecordStart: editing ? null : widget.media.onVoiceRecordStart,
+            onRecordEnd: widget.media.onVoiceRecordEnd,
             showEmojiButton: widget.enableEmojiPicker,
-            onStop: generating ? () => widget.onStopGenerating!(latest) : null,
-            onSchedule:
-                widget.onScheduleMessage == null || editing ? null : _schedule,
+            onStop:
+                generating ? () => widget.ai.onStopGenerating!(latest) : null,
+            onSchedule: _canSchedule && !editing ? _schedule : null,
             stickerPacks: widget.stickerPacks,
-            onSticker: widget.onSendSticker,
-            imageProviderBuilder: widget.imageProviderBuilder,
+            onSticker: _canSendStickers ? _sendSticker : null,
+            imageProviderBuilder: widget.builders.imageProviderBuilder,
           );
     }
 
     final Widget input;
-    if (widget.readOnly) {
+    if (widget.moderation.readOnly) {
       input = Padding(
         key: const Key('chatx_read_only'),
         padding: const EdgeInsets.all(16),
@@ -1591,7 +1455,7 @@ class _ChatViewState extends State<ChatView> {
             const SizedBox(width: 8),
             Flexible(
               child: Text(
-                widget.readOnlyMessage ?? l10n.readOnly,
+                widget.moderation.readOnlyMessage ?? l10n.readOnly,
                 textAlign: TextAlign.center,
                 style: theme.systemMessageTextStyle,
               ),
@@ -1603,7 +1467,7 @@ class _ChatViewState extends State<ChatView> {
       // Rebuilt when attachments change, to switch the send button and
       // the placeholder.
       input = ValueListenableBuilder<List<ChatAttachment>>(
-        valueListenable: widget.controller.attachments,
+        valueListenable: widget.controller.composer.attachments,
         builder: (context, _, __) => newest == null
             ? buildInput(null)
             : ValueListenableBuilder<ChatMessage>(
@@ -1641,14 +1505,14 @@ class _ChatViewState extends State<ChatView> {
                     ),
                   if (widget.controller.isEmpty && !_loadingMore)
                     Positioned.fill(
-                      child: widget.emptyStateBuilder != null
+                      child: widget.builders.emptyStateBuilder != null
                           ? IgnorePointer(
                               child: Builder(
-                                builder: widget.emptyStateBuilder!,
+                                builder: widget.builders.emptyStateBuilder!,
                               ),
                             )
-                          : widget.suggestedPrompts.isNotEmpty &&
-                                  !widget.readOnly
+                          : widget.ai.suggestedPrompts.isNotEmpty &&
+                                  !widget.moderation.readOnly
                               ? _PromptSuggestions(
                                   state: this,
                                   title: l10n.emptyState,
@@ -1781,13 +1645,13 @@ class _ChatViewState extends State<ChatView> {
           typingUsers: widget.controller.typingUsers,
           currentUser: widget.currentUser,
           indent: widget.showAvatars ? theme.avatarSize + 8 : 0,
-          builder: widget.typingIndicatorBuilder,
+          builder: widget.builders.typingIndicatorBuilder,
         );
       case _DateEntry(:final day):
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),
           child: Center(
-            child: widget.dateSeparatorBuilder?.call(context, day) ??
+            child: widget.builders.dateSeparatorBuilder?.call(context, day) ??
                 _DateChip(day: day, onTap: _pickDateAndJump),
           ),
         );
@@ -1862,7 +1726,7 @@ class _ChatViewState extends State<ChatView> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Center(
-        child: widget.loadMoreIndicatorBuilder?.call(context) ??
+        child: widget.builders.loadMoreIndicatorBuilder?.call(context) ??
             const SizedBox.square(
               dimension: 24,
               child: CircularProgressIndicator(strokeWidth: 2.5),
@@ -1889,7 +1753,7 @@ class _ChatViewState extends State<ChatView> {
               child: ValueListenableBuilder<int>(
                 valueListenable: _unreadCount,
                 builder: (context, unread, _) =>
-                    widget.scrollToBottomBuilder
+                    widget.builders.scrollToBottomBuilder
                         ?.call(context, unread, _scrollToBottom) ??
                     _ScrollToBottomButton(
                       unreadCount: unread,

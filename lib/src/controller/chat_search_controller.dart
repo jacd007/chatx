@@ -19,7 +19,9 @@ import 'chat_controller.dart';
 class ChatSearchController extends ChangeNotifier {
   /// Creates a search controller for [chatController].
   ChatSearchController({required this.chatController}) {
-    chatController.addListener(_onMessagesChanged);
+    chatController
+      ..addListener(_onMessagesChanged)
+      ..contentChanges.addListener(_onMessagesChanged);
   }
 
   /// The conversation being searched.
@@ -83,12 +85,15 @@ class ChatSearchController extends ChangeNotifier {
     if (id != null) chatController.scrollToMessage(id);
   }
 
-  // Keeps results in sync with new, edited or deleted messages, staying on
+  // Keeps results in sync with new, edited, streamed or deleted messages, staying on
   // the same message when it still matches.
   void _onMessagesChanged() {
     if (!isActive) return;
     final current = currentId;
-    _results = chatController.search(_query);
+    final results = chatController.search(_query);
+    // Streamed text changes often: only notify when the results did.
+    if (listEquals(results, _results)) return;
+    _results = results;
     final index = current == null ? -1 : _results.indexOf(current);
     _index = index != -1 ? index : (_results.isEmpty ? -1 : 0);
     notifyListeners();
@@ -96,7 +101,9 @@ class ChatSearchController extends ChangeNotifier {
 
   @override
   void dispose() {
-    chatController.removeListener(_onMessagesChanged);
+    chatController
+      ..removeListener(_onMessagesChanged)
+      ..contentChanges.removeListener(_onMessagesChanged);
     super.dispose();
   }
 }

@@ -33,7 +33,7 @@ class _LocationContent extends StatelessWidget {
     final mapHeight = width * 9 / 16;
 
     final Widget map;
-    final custom = view.locationMapBuilder;
+    final custom = view.builders.locationMapBuilder;
     final image = message.mapImageUri;
     if (custom != null) {
       map = custom(context, message);
@@ -277,7 +277,7 @@ class _EventContent extends StatelessWidget {
 
     Widget rsvpButton(ChatRsvp rsvp, String label, IconData icon) {
       final selected = mine == rsvp;
-      final onRsvp = view.onRsvp;
+      final onRsvp = view.contentCallbacks.onRsvp;
       return Expanded(
         child: Semantics(
           button: true,
@@ -445,7 +445,7 @@ class _ContactContent extends StatelessWidget {
     final l10n = ChatLocalizations.of(context);
     final textTheme = Theme.of(context).textTheme;
     final subtle = textColor.withValues(alpha: 0.75);
-    final onAction = view.onContactAction;
+    final onAction = view.contentCallbacks.onContactAction;
     final actions = [
       if (message.phone != null)
         (ChatContactAction.call, Icons.call_outlined, l10n.call),

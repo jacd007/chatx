@@ -11,10 +11,11 @@ class _ComposerBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return AnimatedBuilder(
-      animation: Listenable.merge([controller.replyingTo, controller.editing]),
+      animation: Listenable.merge(
+          [controller.composer.replyingTo, controller.composer.editing]),
       builder: (context, _) {
-        final editing = controller.editing.value;
-        final replying = controller.replyingTo.value;
+        final editing = controller.composer.editing.value;
+        final replying = controller.composer.replyingTo.value;
         final Widget content;
         if (editing != null) {
           content = _bannerContent(
@@ -24,7 +25,7 @@ class _ComposerBanner extends StatelessWidget {
             icon: Icons.edit_outlined,
             title: ChatLocalizations.of(context).editingMessage,
             message: editing,
-            onCancel: controller.cancelEditing,
+            onCancel: controller.composer.cancelEditing,
           );
         } else if (replying != null) {
           final l10n = ChatLocalizations.of(context);
@@ -38,7 +39,7 @@ class _ComposerBanner extends StatelessWidget {
             icon: Icons.reply_rounded,
             title: l10n.replyingTo(name),
             message: replying,
-            onCancel: controller.cancelReply,
+            onCancel: controller.composer.cancelReply,
           );
         } else {
           content = const SizedBox(width: double.infinity);

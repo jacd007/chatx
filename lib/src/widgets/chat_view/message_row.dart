@@ -154,7 +154,7 @@ class _MessageRowState extends State<_MessageRow> {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Center(
-          child: view.systemMessageBuilder?.call(context, message) ??
+          child: view.builders.systemMessageBuilder?.call(context, message) ??
               Text(
                 message.text,
                 textAlign: TextAlign.center,
@@ -203,7 +203,7 @@ class _MessageRowState extends State<_MessageRow> {
             ),
           ),
         _withHoverActions(
-          view.bubbleBuilder?.call(context, details, bubble) ?? bubble,
+          view.builders.bubbleBuilder?.call(context, details, bubble) ?? bubble,
           message,
           outgoing,
         ),
@@ -221,7 +221,8 @@ class _MessageRowState extends State<_MessageRow> {
             SizedBox(
               width: theme.avatarSize,
               child: details.isLastInGroup
-                  ? view.avatarBuilder?.call(context, message.author) ??
+                  ? view.builders.avatarBuilder
+                          ?.call(context, message.author) ??
                       ChatAvatar(
                         user: message.author,
                         onTap: view.onAvatarTap == null
@@ -248,8 +249,8 @@ class _MessageRowState extends State<_MessageRow> {
         message is TextMessage &&
         message.author.isBot &&
         !message.isStreaming &&
-        (view.onFeedback != null ||
-            view.onRegenerate != null ||
+        (view.ai.onFeedback != null ||
+            view.ai.onRegenerate != null ||
             message.versions.isNotEmpty);
     final failed = outgoing && message.status == MessageStatus.failed;
     // The root of an open thread does not link to itself.
@@ -341,9 +342,44 @@ class _Bubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final message = details.message;
+    // A regenerated answer shows the version picked with "‹ 2/3 ›", with
+    // its own reasoning, tools and sources.
+    if (message is TextMessage &&
+        message.versions.isNotEmpty &&
+        !message.isStreaming) {
+      return ValueListenableBuilder<Map<String, int>>(
+        valueListenable: state._versionIndex,
+        builder: (context, indexes, _) {
+          final index = indexes[message.id];
+          if (index == null || index >= message.versions.length) {
+            return _build(context, message, pastVersion: false);
+          }
+          final version = message.versions[index];
+          return _build(
+            context,
+            message.copyWith(
+              text: version.text,
+              reasoning: version.reasoning,
+              clearReasoning: version.reasoning == null,
+              toolCalls: version.toolCalls,
+              sources: version.sources,
+            ),
+            pastVersion: true,
+          );
+        },
+      );
+    }
+    return _build(context, message, pastVersion: false);
+  }
+
+  Widget _build(
+    BuildContext context,
+    ChatMessage message, {
+    required bool pastVersion,
+  }) {
     final theme = ChatThemeData.of(context);
     final l10n = ChatLocalizations.of(context);
-    final message = details.message;
     final outgoing = details.isOutgoing;
     final jumbo = _isJumbo(message);
     final bubbleStyle = theme.bubbleTextStyle(isOutgoing: outgoing);
@@ -398,19 +434,25 @@ class _Bubble extends StatelessWidget {
     );
 
     final replyToId = message.replyToId;
+    Widget replyQuote(ChatMessage? original) => _ReplyQuote(
+          original: original,
+          replyToId: replyToId!,
+          messageId: message.id,
+          textColor: textColor,
+          accentColor:
+              outgoing ? textColor : theme.userNameTextStyle.color ?? textColor,
+          currentUserId: view.currentUser.id,
+          onTap: () => state._scrollToMessage(replyToId),
+        );
+    // Watch the original so the quote follows its edits and deletion.
     final quote = replyToId == null
         ? null
-        : _ReplyQuote(
-            original: view.controller.messageById(replyToId),
-            replyToId: replyToId,
-            messageId: message.id,
-            textColor: textColor,
-            accentColor: outgoing
-                ? textColor
-                : theme.userNameTextStyle.color ?? textColor,
-            currentUserId: view.currentUser.id,
-            onTap: () => state._scrollToMessage(replyToId),
-          );
+        : view.controller.contains(replyToId)
+            ? ValueListenableBuilder<ChatMessage>(
+                valueListenable: view.controller.watch(replyToId),
+                builder: (context, original, _) => replyQuote(original),
+              )
+            : replyQuote(null);
 
     final accent =
         outgoing ? textColor : theme.userNameTextStyle.color ?? textColor;
@@ -482,7 +524,9 @@ class _Bubble extends StatelessWidget {
                   ),
                 )
               else
-                _textContent(message, theme, textStyle, textColor),
+                pastVersion
+                    ? _richText(message.text, textStyle, theme)
+                    : _currentText(message, theme, textStyle, textColor),
               if (message.sources.isNotEmpty && !message.isStreaming)
                 _SourceChips(
                   state: state,
@@ -654,7 +698,9 @@ class _Bubble extends StatelessWidget {
           );
         case CustomMessage():
           body = withQuote([
-            view.customMessageBuilder?.call(context, message, details) ??
+            (view.builders.customMessageBuilders[message.type] ??
+                        view.builders.customMessageBuilder)
+                    ?.call(context, message, details) ??
                 Text(
                   l10n.unsupportedMessage,
                   style: textStyle.copyWith(fontStyle: FontStyle.italic),
@@ -720,7 +766,8 @@ class _Bubble extends StatelessWidget {
                   image: ResizeImage.resizeIfNeeded(
                     pixels,
                     null,
-                    view.imageProviderBuilder?.call(uri) ?? NetworkImage(uri),
+                    view.builders.imageProviderBuilder?.call(uri) ??
+                        NetworkImage(uri),
                   ),
                   width: 150,
                   height: 150,
@@ -891,28 +938,6 @@ class _Bubble extends StatelessWidget {
     );
   }
 
-  Widget _textContent(
-    TextMessage message,
-    ChatThemeData theme,
-    TextStyle textStyle,
-    Color textColor,
-  ) {
-    // A regenerated answer shows the version picked with "‹ 2/3 ›".
-    if (message.versions.isNotEmpty && !message.isStreaming) {
-      return ValueListenableBuilder<Map<String, int>>(
-        valueListenable: state._versionIndex,
-        builder: (context, indexes, _) {
-          final index = indexes[message.id];
-          if (index == null || index >= message.versions.length) {
-            return _currentText(message, theme, textStyle, textColor);
-          }
-          return _richText(message.versions[index], textStyle, theme);
-        },
-      );
-    }
-    return _currentText(message, theme, textStyle, textColor);
-  }
-
   Widget _currentText(
     TextMessage message,
     ChatThemeData theme,
@@ -928,7 +953,7 @@ class _Bubble extends StatelessWidget {
         ),
       );
     }
-    if (view.onTranslate != null) {
+    if (view.ai.onTranslate != null) {
       return ValueListenableBuilder<Map<String, _Translation>>(
         valueListenable: state._translations,
         builder: (context, translations, _) {
@@ -982,7 +1007,7 @@ class _Bubble extends StatelessWidget {
     ChatThemeData theme, {
     InlineSpan? trailing,
   }) {
-    final filtered = view.wordFilter?.apply(text) ?? text;
+    final filtered = view.moderation.wordFilter?.apply(text) ?? text;
     Widget build(String? query) => ChatText(
           filtered,
           style: textStyle,

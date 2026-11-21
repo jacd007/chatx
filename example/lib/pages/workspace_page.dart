@@ -207,22 +207,34 @@ class _WorkspacePageState extends State<WorkspacePage> {
       body: ChatView(
         controller: _controller,
         currentUser: me,
-        onSendMessage: _send,
+        onSend: (outgoing) {
+          switch (outgoing) {
+            case OutgoingText(:final text, :final replyTo):
+              _send(text, replyTo);
+            case OutgoingEdit(:final message, :final text):
+              _controller.editText(message.id, text);
+            case OutgoingAttachments() ||
+                  OutgoingSticker() ||
+                  OutgoingScheduledNow():
+              break;
+          }
+        },
+        sendFeatures: const {ChatSendFeature.edit},
         firstUnreadMessageId: 'u1',
         connectionState: connection,
         onSendQueued: (messages) => unawaited(_deliver(messages)),
         mentionableUsers: const [_omar, _bea, _kai, _lu, me],
         onAvatarTap: _showProfile,
-        imageProviderBuilder: demoImage,
-        onChecklistToggle: (list, item) =>
-            _controller.toggleChecklistItem(list.id, item.id, me.id),
-        onCallBack: (call) => ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Calling ${call.author.name}…')),
+        builders: const ChatBuilders(imageProviderBuilder: demoImage),
+        contentCallbacks: ChatContentCallbacks(
+          onChecklistToggle: (list, item) =>
+              _controller.toggleChecklistItem(list.id, item.id, me.id),
+          onCallBack: (call) => ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Calling ${call.author.name}…')),
+          ),
         ),
         onReactionSelected: (message, emoji) =>
             _controller.toggleReaction(message.id, emoji, me.id),
-        onEditMessage: (message, text) =>
-            _controller.editText(message.id, text),
       ),
     );
   }

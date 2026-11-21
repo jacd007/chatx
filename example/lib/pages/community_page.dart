@@ -224,62 +224,84 @@ class _CommunityPageState extends State<CommunityPage> {
       body: ChatView(
         controller: _controller,
         currentUser: me,
-        onSendMessage: _send,
+        onSend: (outgoing) {
+          switch (outgoing) {
+            case OutgoingText(:final text, :final replyTo, :final scheduledFor):
+              if (scheduledFor == null) {
+                _send(text, replyTo);
+              } else {
+                _controller.insert(
+                  TextMessage(
+                    id: newId(),
+                    author: me,
+                    createdAt: DateTime.now(),
+                    text: text,
+                    replyToId: replyTo?.id,
+                    scheduledFor: scheduledFor,
+                  ),
+                );
+              }
+            case OutgoingEdit(:final message, :final text):
+              _controller.editText(message.id, text);
+            case OutgoingScheduledNow(:final message):
+              _controller.update(
+                message.copyWithMeta(
+                  clearScheduledFor: true,
+                  status: MessageStatus.sent,
+                ),
+              );
+            case OutgoingAttachments() || OutgoingSticker():
+              break;
+          }
+        },
+        sendFeatures: const {
+          ChatSendFeature.edit,
+          ChatSendFeature.schedule,
+          ChatSendFeature.sendScheduledNow,
+        },
         searchController: _search,
         mentionableUsers: const [ana, leo, sam, me],
         onMentionTap: (user) => ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Open profile of ${user.name}')),
         ),
-        onPollVote: (poll, option) =>
-            _controller.votePoll(poll.id, option, me.id),
         onPinMessage: (message, pinned) => pinned
             ? _controller.pin(message.id)
             : _controller.unpin(message.id),
         onDeleteMessage: (message) => _controller.remove(message.id),
-        onDeleteForEveryone: (message) => _controller.markDeleted(message.id),
-        onEditMessage: (message, text) =>
-            _controller.editText(message.id, text),
-        onRsvp: (event, rsvp) => _controller.setRsvp(event.id, me.id, rsvp),
-        onTranslate: (message) async {
-          await latency(500);
-          return _translations[message.id] ?? '(translated) ${message.text}';
-        },
         onSaveMessage: (message, saved) => _controller.toggleSaved(message.id),
-        onReportMessage: (message) => ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Reported. Thanks!'))),
-        onBlockUser: (user) => ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${user.name} blocked')),
-        ),
-        wordFilter: ChatWordFilter({'darn'}),
-        onScheduleMessage: (text, at, replyTo) => _controller.insert(
-          TextMessage(
-            id: newId(),
-            author: me,
-            createdAt: DateTime.now(),
-            text: text,
-            replyToId: replyTo?.id,
-            scheduledFor: at,
+        moderation: ChatModerationOptions(
+          onDeleteForEveryone: (message) => _controller.markDeleted(message.id),
+          onReportMessage: (message) => ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('Reported. Thanks!'))),
+          onBlockUser: (user) => ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${user.name} blocked')),
           ),
+          wordFilter: ChatWordFilter({'darn'}),
         ),
-        onSendScheduledNow: (message) => _controller.update(
-          message.copyWithMeta(
-            clearScheduledFor: true,
-            status: MessageStatus.sent,
-          ),
+        ai: ChatAiOptions(
+          onTranslate: (message) async {
+            await latency(500);
+            return _translations[message.id] ?? '(translated) ${message.text}';
+          },
         ),
         onThreadTap: (message) => Navigator.of(context).push(
           MaterialPageRoute<void>(builder: (_) => ThreadPage(root: message)),
         ),
-        onSurveySubmit: (survey, response) {
-          _controller.recordSurveyResponse(survey.id, me.id);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Thanks! ${response.answers.length} answers sent',
+        contentCallbacks: ChatContentCallbacks(
+          onPollVote: (poll, option) =>
+              _controller.votePoll(poll.id, option, me.id),
+          onRsvp: (event, rsvp) => _controller.setRsvp(event.id, me.id, rsvp),
+          onSurveySubmit: (survey, response) {
+            _controller.recordSurveyResponse(survey.id, me.id);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Thanks! ${response.answers.length} answers sent',
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
         onForwardMessages: (messages) =>
             ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

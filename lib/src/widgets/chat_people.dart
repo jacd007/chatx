@@ -1,7 +1,6 @@
 import '../chat_scope.dart';
 import '../l10n/chat_localizations.dart';
 import '../material.dart';
-import '../models/chat_message.dart';
 import '../models/chat_user.dart';
 import '../theme/chat_theme.dart';
 import 'chat_avatar.dart';

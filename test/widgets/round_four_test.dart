@@ -95,7 +95,7 @@ void main() {
 
   ChatView view({
     ValueChanged<String>? onSend,
-    ChatEditCallback? onEdit,
+    void Function(TextMessage message, String text)? onEdit,
     ValueChanged<ChatSource>? onSource,
     ValueChanged<VideoMessage>? onVideo,
     Future<void> Function(VoiceMessage)? onTranscribe,
@@ -104,7 +104,7 @@ void main() {
     void Function(PaymentMessage, ChatPaymentAction)? onPayment,
     ValueChanged<CallMessage>? onCallBack,
     VoidCallback? onAttach,
-    ChatAttachmentsCallback? onAttachments,
+    void Function(List<ChatAttachment> files, String caption)? onAttachments,
     ChatConnectionState connection = ChatConnectionState.online,
     ValueChanged<List<ChatMessage>>? onQueued,
     List<ChatPrompt> prompts = const [],
@@ -113,23 +113,44 @@ void main() {
     return ChatView(
       controller: controller,
       currentUser: me,
-      onSendMessage: (text, _) => onSend?.call(text),
-      onEditMessage: onEdit,
-      onSourceTap: onSource,
-      onVideoTap: onVideo,
-      onTranscribe: onTranscribe,
-      onChecklistToggle: onCheck,
-      onProductTap: onProduct,
-      onPaymentAction: onPayment,
-      onCallBack: onCallBack,
+      onSend: (outgoing) {
+        switch (outgoing) {
+          case OutgoingText(:final text):
+            onSend?.call(text);
+          case OutgoingEdit(:final message, :final text):
+            onEdit?.call(message, text);
+          case OutgoingAttachments(:final attachments, :final caption):
+            onAttachments?.call(attachments, caption);
+          case OutgoingSticker() || OutgoingScheduledNow():
+            break;
+        }
+      },
+      sendFeatures: {
+        if (onEdit != null) ChatSendFeature.edit,
+        if (onAttachments != null) ChatSendFeature.attachments,
+      },
+      ai: ChatAiOptions(
+        onSourceTap: onSource,
+        suggestedPrompts: prompts,
+        onRegenerate: onRegenerate,
+      ),
+      media: ChatMediaOptions(
+        onVideoTap: onVideo,
+        onTranscribe: onTranscribe,
+      ),
+      contentCallbacks: ChatContentCallbacks(
+        onChecklistToggle: onCheck,
+        onProductTap: onProduct,
+        onPaymentAction: onPayment,
+        onCallBack: onCallBack,
+      ),
       onAttach: onAttach,
-      onSendAttachments: onAttachments,
       connectionState: connection,
       onSendQueued: onQueued,
-      suggestedPrompts: prompts,
-      onRegenerate: onRegenerate,
       onReactionSelected: (_, __) {},
-      imageProviderBuilder: (_) => MemoryImage(_pixel),
+      builders: ChatBuilders(
+        imageProviderBuilder: (_) => MemoryImage(_pixel),
+      ),
     );
   }
 
@@ -166,17 +187,17 @@ void main() {
         ..appendText('t', 'v2')
         ..completeStream('t');
       final regenerated = controller.messageById('t')! as TextMessage;
-      expect(regenerated.versions, ['v1']);
+      expect(regenerated.versions, [const ChatAnswerVersion(text: 'v1')]);
       expect(regenerated.text, 'v2');
 
-      controller.addAttachments(const [
+      controller.composer.addAttachments(const [
         ChatAttachment(id: '1', name: 'a.png'),
         ChatAttachment(id: '2', name: 'b.pdf'),
       ]);
-      controller.removeAttachment('1');
-      expect(controller.attachments.value.map((a) => a.id), ['2']);
-      controller.clearAttachments();
-      expect(controller.attachments.value, isEmpty);
+      controller.composer.removeAttachment('1');
+      expect(controller.composer.attachments.value.map((a) => a.id), ['2']);
+      controller.composer.clearAttachments();
+      expect(controller.composer.attachments.value, isEmpty);
 
       expect(controller.queuedMessages.map((m) => m.id), ['q']);
     });
@@ -223,7 +244,12 @@ void main() {
           sources: const [
             ChatSource(title: 'Docs', url: 'https://www.dart.dev/x'),
           ],
-          versions: const ['Answer one'],
+          versions: const [
+            ChatAnswerVersion(
+              text: 'Answer one',
+              sources: [ChatSource(title: 'Spec', url: 'https://spec.dev')],
+            ),
+          ],
         ),
       );
       await pump(
@@ -250,6 +276,11 @@ void main() {
       expect(find.text('1/2'), findsOneWidget);
       expect(find.text('Answer one', findRichText: true), findsOneWidget);
       expect(find.text('Answer two', findRichText: true), findsNothing);
+      // The old version shows its own extras, not the current ones.
+      expect(find.text('Thought for 12s'), findsNothing);
+      expect(find.text('Searched the web'), findsNothing);
+      await tester.tap(find.byKey(const Key('chatx_source_a_0')));
+      expect(opened, ['dart.dev', 'spec.dev']);
     });
 
     testWidgets('thinking pulses and prompts send', (tester) async {
@@ -412,14 +443,14 @@ void main() {
         tester,
         view(
           onAttach: () => attachTaps++,
-          onAttachments: (files, caption, _) =>
+          onAttachments: (files, caption) =>
               sent.add((files.map((f) => f.name).toList(), caption)),
         ),
       );
       await tester.tap(find.byKey(const Key('chatx_attach_button')));
       expect(attachTaps, 1);
 
-      controller.addAttachments([
+      controller.composer.addAttachments([
         ChatAttachment(
           id: '1',
           name: 'photo.png',
@@ -471,10 +502,10 @@ void main() {
       await tester.pump();
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
       await tester.pump();
-      expect(controller.editing.value?.id, 'mine');
+      expect(controller.composer.editing.value?.id, 'mine');
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pump();
-      expect(controller.editing.value, isNull);
+      expect(controller.composer.editing.value, isNull);
     });
   });
 

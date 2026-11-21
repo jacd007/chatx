@@ -53,6 +53,19 @@ controller.completeStream(id);
     super.dispose();
   }
 
+  // A shorter answer for "Regenerate", so the versions differ.
+  static const _shortAnswer =
+      'In short: insert an empty `TextMessage` with `isStreaming: true`, '
+      'call `appendText` for every token and `completeStream` at the end. '
+      'Only that bubble rebuilds.';
+
+  static const _shortSources = [
+    ChatSource(
+      title: 'Streaming answers',
+      url: 'https://pub.dev/packages/chatx',
+    ),
+  ];
+
   static const _sources = [
     ChatSource(
       title: 'ChatController API',
@@ -139,24 +152,29 @@ controller.completeStream(id);
     _stream(id);
   }
 
-  void _stream(String id) {
+  void _stream(
+    String id, {
+    String text = _answer,
+    List<ChatSource> sources = _sources,
+  }) {
     unawaited(_subscription?.cancel());
-    _subscription = _fakeTokens(_answer).listen(
+    _subscription = _fakeTokens(text).listen(
       (token) => _controller.appendText(id, token),
       onDone: () {
         final message = _controller.messageById(id);
         if (message is TextMessage) {
-          _controller.update(message.copyWith(sources: _sources));
+          _controller.update(message.copyWith(sources: sources));
         }
         _controller.completeStream(id);
       },
     );
   }
 
-  /// Keeps the old answer as a version and streams a new one.
+  /// Keeps the old answer, with its reasoning, tools and sources, as a
+  /// version and streams a new one.
   void _regenerate(TextMessage message) {
     _controller.startRegeneration(message.id);
-    _stream(message.id);
+    _stream(message.id, text: _shortAnswer, sources: _shortSources);
   }
 
   void _stop(TextMessage message) {
@@ -182,31 +200,40 @@ controller.completeStream(id);
       body: ChatView(
         controller: _controller,
         currentUser: me,
-        onSendMessage: _send,
+        onSend: (outgoing) {
+          if (outgoing case OutgoingText(:final text, :final replyTo)) {
+            _send(text, replyTo);
+          }
+        },
         showUserNames: false,
-        onRegenerate: _regenerate,
-        onStopGenerating: _stop,
-        onFeedback: (message, feedback) => _controller.update(
-          message.copyWith(feedback: feedback, clearFeedback: feedback == null),
-        ),
         onLinkTap: (uri) => showLink(context, uri),
-        suggestedPrompts: const [
-          ChatPrompt(
-            title: 'Summarize chatx',
-            subtitle: 'in a few lines',
-            icon: Icons.auto_awesome_outlined,
+        ai: ChatAiOptions(
+          onRegenerate: _regenerate,
+          onStopGenerating: _stop,
+          onFeedback: (message, feedback) => _controller.update(
+            message.copyWith(
+              feedback: feedback,
+              clearFeedback: feedback == null,
+            ),
           ),
-          ChatPrompt(
-            title: 'Write Dart code',
-            subtitle: 'to stream an answer',
-            icon: Icons.code_rounded,
-          ),
-          ChatPrompt(
-            title: 'Compare plans',
-            subtitle: 'in a table',
-            icon: Icons.table_chart_outlined,
-          ),
-        ],
+          suggestedPrompts: const [
+            ChatPrompt(
+              title: 'Summarize chatx',
+              subtitle: 'in a few lines',
+              icon: Icons.auto_awesome_outlined,
+            ),
+            ChatPrompt(
+              title: 'Write Dart code',
+              subtitle: 'to stream an answer',
+              icon: Icons.code_rounded,
+            ),
+            ChatPrompt(
+              title: 'Compare plans',
+              subtitle: 'in a table',
+              icon: Icons.table_chart_outlined,
+            ),
+          ],
+        ),
       ),
     );
   }

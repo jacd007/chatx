@@ -141,6 +141,45 @@ void main() {
     expect(search.isActive, isFalse);
   });
 
+  test('ChatSearchController follows edits and streamed text', () {
+    final c = ChatController(
+      messages: [
+        TextMessage(id: 'a', author: me, createdAt: t0, text: 'hello'),
+        TextMessage(
+          id: 'b',
+          author: me,
+          createdAt: t0.add(const Duration(minutes: 1)),
+          text: '',
+          isStreaming: true,
+        ),
+      ],
+    );
+    final search = ChatSearchController(chatController: c);
+    var notifications = 0;
+    search.addListener(() => notifications++);
+    addTearDown(() {
+      search.dispose();
+      c.dispose();
+    });
+    var contentChanges = 0;
+    c.contentChanges.addListener(() => contentChanges++);
+
+    search.search('hello');
+    expect(search.results, ['a']);
+    notifications = 0;
+
+    c.editText('a', 'goodbye');
+    expect(search.results, isEmpty);
+    c.appendText('b', 'hel');
+    c.appendText('b', 'lo');
+    expect(search.results, ['b']);
+    c.appendText('b', ' world');
+    expect(search.results, ['b']);
+    // Two changes of the results; the last delta changed nothing.
+    expect(notifications, 2);
+    expect(contentChanges, 4);
+  });
+
   test('file extensions and image ratios', () {
     expect(
       FileMessage(id: 'f', author: me, createdAt: t0, name: 'Report.PDF')
@@ -169,9 +208,9 @@ void main() {
       ],
     );
     addTearDown(c.dispose);
-    expect(c.draft.value, 'hi');
-    c.setDraft('hello');
-    expect(c.draft.value, 'hello');
+    expect(c.composer.draft.value, 'hi');
+    c.composer.setDraft('hello');
+    expect(c.composer.draft.value, 'hello');
     expect(c.recordSurveyResponse('s', 'me'), isTrue);
     c.recordSurveyResponse('s', 'me');
     expect((c.messageById('s')! as SurveyMessage).respondentIds, ['me']);
@@ -186,9 +225,43 @@ void main() {
       question: 'Q',
       options: const [PollOption(id: 'a', text: 'A')],
     );
-    final copy = poll.copyWithMeta(forwardedFrom: 'Ana');
+    final copy = poll.withMeta(poll.meta.copyWith(forwardedFrom: 'Ana'));
     expect(copy.question, 'Q');
     expect(copy.forwardedFrom, 'Ana');
     expect(copy.withStatus(null).status, isNull);
+  });
+
+  test('startRegeneration keeps the whole answer as a version', () {
+    final c = ChatController(
+      messages: [
+        TextMessage(
+          id: 'a',
+          author: me,
+          createdAt: t0,
+          text: 'v1',
+          reasoning: const ChatReasoning(text: 'Hmm'),
+          toolCalls: const [ChatToolCall(id: 'w', name: 'Search')],
+          sources: const [ChatSource(title: 'Docs', url: 'https://dart.dev')],
+          feedback: ChatFeedback.negative,
+        ),
+      ],
+    );
+    addTearDown(c.dispose);
+    expect(c.startRegeneration('a'), isTrue);
+    final m = c.messageById('a')! as TextMessage;
+    expect(m.versions, [
+      const ChatAnswerVersion(
+        text: 'v1',
+        reasoning: ChatReasoning(text: 'Hmm'),
+        toolCalls: [ChatToolCall(id: 'w', name: 'Search')],
+        sources: [ChatSource(title: 'Docs', url: 'https://dart.dev')],
+      ),
+    ]);
+    expect(m.text, isEmpty);
+    expect(m.reasoning, isNull);
+    expect(m.toolCalls, isEmpty);
+    expect(m.sources, isEmpty);
+    expect(m.feedback, isNull);
+    expect(m.isStreaming, isTrue);
   });
 }

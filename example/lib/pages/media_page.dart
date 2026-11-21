@@ -166,7 +166,7 @@ class _MediaPageState extends State<MediaPage> {
         _controller.update(
           file.copyWith(
             clearUploadProgress: true,
-            status: MessageStatus.delivered,
+            meta: file.meta.copyWith(status: MessageStatus.delivered),
           ),
         );
       } else {
@@ -219,7 +219,7 @@ class _MediaPageState extends State<MediaPage> {
 
   /// A real app opens a file picker here (for example `file_picker`).
   void _attach() {
-    _controller.addAttachments(const [
+    _controller.composer.addAttachments(const [
       ChatAttachment(
         id: 'dunes',
         name: 'dunes.png',
@@ -298,58 +298,83 @@ class _MediaPageState extends State<MediaPage> {
       body: ChatView(
         controller: _controller,
         currentUser: me,
-        onSendMessage: _send,
-        imageProviderBuilder: demoImage,
-        onAttach: _attach,
-        onSendAttachments: _sendAttachments,
-        onTranscribe: _transcribe,
-        onVideoTap: (video) => ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Play ${video.uri} with video_player')),
-        ),
-        stickerPacks: const [demoStickers],
-        onSendSticker: (sticker) => _controller.insert(
-          StickerMessage(
-            id: newId(),
-            author: me,
-            createdAt: DateTime.now(),
-            uri: sticker.uri,
-            label: sticker.label,
-            status: MessageStatus.sent,
-          ),
-        ),
-        onLocationTap: (location) => ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Open ${location.title} in maps'))),
-        onContactAction: (contact, action) => ScaffoldMessenger.of(context)
-            .showSnackBar(
-                SnackBar(content: Text('${action.name}: ${contact.name}'))),
-        onLinkTap: (uri) => showLink(context, uri),
-        onFileTap: (file) => ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Open ${file.name} with your viewer')),
-        ),
-        voicePlayback: _playback,
-        onVoicePlay: _play,
-        onVoicePause: _pause,
-        onVoiceSeek: (message, position) => _playback.value = ChatVoicePlayback(
-          messageId: message.id,
-          position: position,
-          isPlaying: false,
-        ),
-        // Hold the mic to "record"; releasing sends a fake voice note.
-        onVoiceRecordStart: () {},
-        onVoiceRecordEnd: (duration, {required cancelled}) {
-          if (cancelled || duration < const Duration(milliseconds: 500)) return;
-          _controller.insert(
-            VoiceMessage(
-              id: newId(),
-              author: me,
-              createdAt: DateTime.now(),
-              uri: 'recording.m4a',
-              duration: duration,
-              waveform: _wave(40),
-              status: MessageStatus.sent,
-            ),
-          );
+        onSend: (outgoing) {
+          switch (outgoing) {
+            case OutgoingText(:final text, :final replyTo):
+              _send(text, replyTo);
+            case OutgoingAttachments(
+                :final attachments,
+                :final caption,
+                :final replyTo,
+              ):
+              _sendAttachments(attachments, caption, replyTo);
+            case OutgoingSticker(:final sticker):
+              _controller.insert(
+                StickerMessage(
+                  id: newId(),
+                  author: me,
+                  createdAt: DateTime.now(),
+                  uri: sticker.uri,
+                  label: sticker.label,
+                  status: MessageStatus.sent,
+                ),
+              );
+            case OutgoingEdit() || OutgoingScheduledNow():
+              break;
+          }
         },
+        sendFeatures: const {
+          ChatSendFeature.attachments,
+          ChatSendFeature.stickers,
+        },
+        builders: const ChatBuilders(imageProviderBuilder: demoImage),
+        onAttach: _attach,
+        stickerPacks: const [demoStickers],
+        contentCallbacks: ChatContentCallbacks(
+          onLocationTap: (location) => ScaffoldMessenger.of(context)
+              .showSnackBar(
+                  SnackBar(content: Text('Open ${location.title} in maps'))),
+          onContactAction: (contact, action) => ScaffoldMessenger.of(context)
+              .showSnackBar(
+                  SnackBar(content: Text('${action.name}: ${contact.name}'))),
+        ),
+        onLinkTap: (uri) => showLink(context, uri),
+        media: ChatMediaOptions(
+          onTranscribe: _transcribe,
+          onVideoTap: (video) => ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Play ${video.uri} with video_player')),
+          ),
+          onFileTap: (file) => ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Open ${file.name} with your viewer')),
+          ),
+          voicePlayback: _playback,
+          onVoicePlay: _play,
+          onVoicePause: _pause,
+          onVoiceSeek: (message, position) =>
+              _playback.value = ChatVoicePlayback(
+            messageId: message.id,
+            position: position,
+            isPlaying: false,
+          ),
+          // Hold the mic to "record"; releasing sends a fake voice note.
+          onVoiceRecordStart: () {},
+          onVoiceRecordEnd: (duration, {required cancelled}) {
+            if (cancelled || duration < const Duration(milliseconds: 500)) {
+              return;
+            }
+            _controller.insert(
+              VoiceMessage(
+                id: newId(),
+                author: me,
+                createdAt: DateTime.now(),
+                uri: 'recording.m4a',
+                duration: duration,
+                waveform: _wave(40),
+                status: MessageStatus.sent,
+              ),
+            );
+          },
+        ),
         onReactionSelected: (m, emoji) =>
             _controller.toggleReaction(m.id, emoji, me.id),
       ),

@@ -126,6 +126,27 @@ void main() {
     // Let the floating date fade out.
     await wait(tester, 2200);
     await shoot('37_ai_versions_sources');
+
+    // The earlier version comes back with its own reasoning, tools and
+    // sources.
+    await tester.tap(
+      find.byWidgetPredicate(
+        (w) =>
+            w.key is ValueKey<String> &&
+            (w.key! as ValueKey<String>)
+                .value
+                .startsWith('chatx_version_previous_'),
+      ),
+    );
+    await settle(tester);
+    expect(find.text('1/2'), findsOneWidget);
+    expect(find.text('Searched the chatx docs'), findsOneWidget);
+    await tester.drag(
+      find.byType(CustomScrollView).first,
+      const Offset(0, -2000),
+    );
+    await wait(tester, 2200);
+    await shoot('50_ai_previous_version');
   });
 
   testWidgets('bubble styles', (tester) async {

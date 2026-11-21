@@ -45,10 +45,14 @@ void main() {
           body: ChatView(
             controller: controller,
             currentUser: me,
-            onSendMessage: (text, _) => onSend?.call(text),
-            onSurveySubmit: onSurveySubmit,
-            onMessageButton: onMessageButton,
-            onQuickReply: onQuickReply,
+            onSend: (outgoing) {
+              if (outgoing is OutgoingText) onSend?.call(outgoing.text);
+            },
+            contentCallbacks: ChatContentCallbacks(
+              onSurveySubmit: onSurveySubmit,
+              onMessageButton: onMessageButton,
+              onQuickReply: onQuickReply,
+            ),
             onThreadTap: onThreadTap,
             threadRoot: threadRoot,
             onForwardMessages: onForward,
@@ -205,7 +209,7 @@ void main() {
           body: ChatView(
             controller: thread,
             currentUser: me,
-            onSendMessage: (_, __) {},
+            onSend: (_) {},
             threadRoot: root,
           ),
         ),
@@ -299,12 +303,13 @@ void main() {
     await pump(tester);
     final field = find.byKey(const Key('chatx_input_field'));
     await tester.enterText(field, 'half-written');
-    expect(controller.draft.value, 'half-written');
+    expect(controller.composer.draft.value, 'half-written');
 
-    controller.startEditing(controller.messageById('m')! as TextMessage);
+    controller.composer
+        .startEditing(controller.messageById('m')! as TextMessage);
     await tester.pumpAndSettle();
     expect(tester.widget<TextField>(field).controller!.text, 'old');
-    controller.cancelEditing();
+    controller.composer.cancelEditing();
     await tester.pumpAndSettle();
     expect(tester.widget<TextField>(field).controller!.text, 'half-written');
 

@@ -9,6 +9,8 @@ import '../models/chat_reaction.dart';
 import '../models/chat_user.dart';
 import '../models/message_status.dart';
 
+part 'chat_composer_controller.dart';
+
 /// Holds the messages and typing state of one conversation.
 ///
 /// chatx never talks to a backend. Your code feeds the controller from any
@@ -28,7 +30,9 @@ import '../models/message_status.dart';
 ///   text). These only notify the listenable returned by [watch] for that
 ///   message, so only its bubble rebuilds.
 ///
-/// Call [dispose] when the conversation is no longer shown.
+/// Call [dispose] when the conversation is no longer shown. After that,
+/// every method does nothing and returns `false`, so late backend
+/// callbacks are safe.
 class ChatController extends ChangeNotifier {
   /// Creates a controller, optionally pre-filled with [messages].
   ///
@@ -37,7 +41,7 @@ class ChatController extends ChangeNotifier {
     Iterable<ChatMessage> messages = const [],
     String initialDraft = '',
     this.removeExpiredMessages = true,
-  }) : _draft = ValueNotifier<String>(initialDraft) {
+  }) : composer = ChatComposerController(initialDraft: initialDraft) {
     _addAllSorted(messages);
     _messages.forEach(_scheduleExpiry);
   }
@@ -46,9 +50,17 @@ class ChatController extends ChangeNotifier {
   /// [ChatMessage.expiresAt] passes.
   final bool removeExpiredMessages;
 
-  final ValueNotifier<String> _draft;
+  /// The input bar state of this conversation: draft, reply, edit and
+  /// attachments. Disposed with this controller.
+  final ChatComposerController composer;
+
   final Map<String, Timer> _expiryTimers = {};
-  final Set<String> _ids = {};
+  // Same messages as _messages, by ID. Every entry is identical to the one
+  // in the list, which lets _indexOf find it by binary search.
+  final Map<String, ChatMessage> _byId = {};
+  // Lowercase plain text for search, valid while the message is identical.
+  final Map<String, (ChatMessage, String)> _searchText = {};
+  bool _disposed = false;
   int _structureRevision = 0;
 
   /// Changes whenever messages are inserted anywhere but at the end,
@@ -63,18 +75,23 @@ class ChatController extends ChangeNotifier {
   final Map<String, ValueNotifier<ChatMessage>> _watchers = {};
   final ValueNotifier<List<ChatUser>> _typingUsers =
       ValueNotifier<List<ChatUser>>(const []);
-  final ValueNotifier<ChatMessage?> _replyingTo = ValueNotifier(null);
-  final ValueNotifier<ChatMessage?> _editing = ValueNotifier(null);
   final ValueNotifier<List<String>> _pinnedIds =
       ValueNotifier<List<String>>(const []);
   final ValueNotifier<Set<String>> _savedIds =
       ValueNotifier<Set<String>>(const {});
   final ValueNotifier<Set<String>> _selectedIds =
       ValueNotifier<Set<String>>(const {});
-  final ValueNotifier<List<ChatAttachment>> _attachments =
-      ValueNotifier<List<ChatAttachment>>(const []);
+  final _Signal _contentChanges = _Signal();
   final StreamController<ChatScrollRequest> _scrollRequests =
       StreamController<ChatScrollRequest>.broadcast();
+
+  /// Notifies when the content of a message changes without a structural
+  /// change: new status, edited or streamed text, reactions...
+  ///
+  /// Listeners registered with [addListener] are not called for these
+  /// changes. Listen to both to react to every change, or use [watch] for
+  /// a single message.
+  Listenable get contentChanges => _contentChanges;
 
   /// All messages, oldest first. The list is a read-only live view.
   List<ChatMessage> get messages => _messagesView;
@@ -88,18 +105,6 @@ class ChatController extends ChangeNotifier {
   /// Users that are currently typing, in the order they started.
   ValueListenable<List<ChatUser>> get typingUsers => _typingUsers;
 
-  /// The message the user is replying to, or `null`.
-  ///
-  /// While set, `ChatView` shows a reply banner above the input and passes the
-  /// message to `onSendMessage`. Set it with [startReply].
-  ValueListenable<ChatMessage?> get replyingTo => _replyingTo;
-
-  /// The message the user is editing, or `null`.
-  ///
-  /// While set, `ChatView` fills the input with the message text and sends
-  /// the result to `onEditMessage`. Set it with [startEditing].
-  ValueListenable<ChatMessage?> get editing => _editing;
-
   /// IDs of pinned messages, oldest pin first. `ChatView` shows a banner for
   /// them at the top of the list.
   ValueListenable<List<String>> get pinnedIds => _pinnedIds;
@@ -109,31 +114,6 @@ class ChatController extends ChangeNotifier {
 
   /// IDs of the messages selected in selection mode.
   ValueListenable<Set<String>> get selectedIds => _selectedIds;
-
-  /// Files waiting in the input. `ChatView` shows them in a tray above the
-  /// text field and sends them with the next message.
-  ValueListenable<List<ChatAttachment>> get attachments => _attachments;
-
-  /// Adds files to the input tray, for example after your file picker
-  /// returns.
-  void addAttachments(Iterable<ChatAttachment> attachments) {
-    if (attachments.isEmpty) return;
-    _attachments.value =
-        List.unmodifiable([..._attachments.value, ...attachments]);
-  }
-
-  /// Removes the attachment with [id] from the input tray.
-  void removeAttachment(String id) {
-    final rest = _attachments.value.where((a) => a.id != id).toList();
-    if (rest.length != _attachments.value.length) {
-      _attachments.value = List.unmodifiable(rest);
-    }
-  }
-
-  /// Empties the input tray.
-  void clearAttachments() {
-    if (_attachments.value.isNotEmpty) _attachments.value = const [];
-  }
 
   /// Messages waiting for the network, oldest first.
   List<ChatMessage> get queuedMessages => [
@@ -147,22 +127,11 @@ class ChatController extends ChangeNotifier {
   /// Requests from [scrollToMessage]. `ChatView` listens to this stream.
   Stream<ChatScrollRequest> get scrollRequests => _scrollRequests.stream;
 
-  /// Unsent text of the input. `ChatView` restores it when it is built
-  /// again with this controller, so keeping the controller alive keeps the
-  /// draft. Listen to it to persist drafts across app restarts.
-  ValueListenable<String> get draft => _draft;
-
-  /// Replaces the draft. `ChatView` calls this as the user types.
-  void setDraft(String text) => _draft.value = text;
-
   /// Returns the message with [id], or `null` if there is none.
-  ChatMessage? messageById(String id) {
-    final index = _indexOf(id);
-    return index == -1 ? null : _messages[index];
-  }
+  ChatMessage? messageById(String id) => _byId[id];
 
   /// Whether a message with [id] exists.
-  bool contains(String id) => _indexOf(id) != -1;
+  bool contains(String id) => _byId.containsKey(id);
 
   /// Adds [message] at the position given by its [ChatMessage.createdAt].
   ///
@@ -170,6 +139,7 @@ class ChatController extends ChangeNotifier {
   /// Use [upsert] when the message may already be present, for example when
   /// your backend echoes back a message you inserted optimistically.
   void insert(ChatMessage message) {
+    if (_disposed) return;
     _ensureNew(message.id);
     _insertSorted(message);
     _scheduleExpiry(message);
@@ -181,6 +151,7 @@ class ChatController extends ChangeNotifier {
   /// Notifies listeners a single time. Throws an [ArgumentError] if any ID is
   /// already present or repeated.
   void insertAll(Iterable<ChatMessage> messages) {
+    if (_disposed) return;
     final list = messages.toList(growable: false);
     if (list.isEmpty) return;
     _addAllSorted(list);
@@ -193,6 +164,7 @@ class ChatController extends ChangeNotifier {
   /// Returns `true` when the message was inserted, `false` when it replaced
   /// an existing one.
   bool upsert(ChatMessage message) {
+    if (_disposed) return false;
     if (update(message)) return false;
     _insertSorted(message);
     _scheduleExpiry(message);
@@ -208,6 +180,7 @@ class ChatController extends ChangeNotifier {
   /// bubble of this message rebuilds. When the author, the type or
   /// [ChatMessage.createdAt] changes, the list is rebuilt and reordered.
   bool update(ChatMessage message) {
+    if (_disposed) return false;
     final index = _indexOf(message.id);
     if (index == -1) return false;
     final old = _messages[index];
@@ -218,15 +191,22 @@ class ChatController extends ChangeNotifier {
         old.createdAt != message.createdAt;
     if (structural) {
       _messages.removeAt(index);
-      _ids.remove(message.id);
       _insertSorted(message);
       _structureRevision++;
     } else {
       _messages[index] = message;
+      _byId[message.id] = message;
     }
     _watchers[message.id]?.value = message;
+    if (composer.replyingTo.value?.id == message.id) {
+      composer._sync(messageById);
+    }
     if (old.expiresAt != message.expiresAt) _scheduleExpiry(message);
-    if (structural) notifyListeners();
+    if (structural) {
+      notifyListeners();
+    } else {
+      _contentChanges.notify();
+    }
     return true;
   }
 
@@ -258,7 +238,11 @@ class ChatController extends ChangeNotifier {
     final message = messageById(id);
     if (message is! TextMessage) return false;
     return update(
-      message.copyWith(isStreaming: false, status: status, text: text),
+      message.copyWith(
+        isStreaming: false,
+        text: text,
+        meta: status == null ? null : message.meta.copyWith(status: status),
+      ),
     );
   }
 
@@ -390,8 +374,8 @@ class ChatController extends ChangeNotifier {
   }
 
   /// Prepares the [TextMessage] with [id] for a new answer: keeps the
-  /// current text in `versions`, clears the text and feedback and marks the
-  /// message as streaming. Then stream the new answer with [appendText].
+  /// current answer, with its reasoning, tools and sources, in `versions`,
+  /// clears them and the feedback and marks the message as streaming. Then stream the new answer with [appendText].
   bool startRegeneration(String id) {
     final message = messageById(id);
     if (message is! TextMessage) return false;
@@ -402,8 +386,9 @@ class ChatController extends ChangeNotifier {
         clearFeedback: true,
         versions: List.unmodifiable([
           ...message.versions,
-          if (message.text.isNotEmpty) message.text,
+          if (message.text.isNotEmpty) ChatAnswerVersion.of(message),
         ]),
+        clearReasoning: true,
         toolCalls: const [],
         sources: const [],
       ),
@@ -420,6 +405,7 @@ class ChatController extends ChangeNotifier {
 
   /// Saves the message with [id], or removes it from the saved messages.
   void toggleSaved(String id) {
+    if (_disposed) return;
     if (!contains(id)) return;
     final saved = {..._savedIds.value};
     if (!saved.remove(id)) saved.add(id);
@@ -431,6 +417,7 @@ class ChatController extends ChangeNotifier {
 
   /// Pins the message with [id]. Returns `false` if it does not exist.
   bool pin(String id) {
+    if (_disposed) return false;
     if (!contains(id)) return false;
     if (!_pinnedIds.value.contains(id)) {
       _pinnedIds.value = List.unmodifiable([..._pinnedIds.value, id]);
@@ -440,6 +427,7 @@ class ChatController extends ChangeNotifier {
 
   /// Unpins the message with [id].
   void unpin(String id) {
+    if (_disposed) return;
     if (!_pinnedIds.value.contains(id)) return;
     _pinnedIds.value = List.unmodifiable([..._pinnedIds.value]..remove(id));
   }
@@ -450,6 +438,7 @@ class ChatController extends ChangeNotifier {
   /// Adds the message with [id] to the selection, or removes it if it is
   /// already selected. Selecting the first message enters selection mode.
   void toggleSelection(String id) {
+    if (_disposed) return;
     if (!contains(id)) return;
     final selected = {..._selectedIds.value};
     if (!selected.remove(id)) selected.add(id);
@@ -458,6 +447,7 @@ class ChatController extends ChangeNotifier {
 
   /// Leaves selection mode.
   void clearSelection() {
+    if (_disposed) return;
     if (_selectedIds.value.isNotEmpty) _selectedIds.value = const {};
   }
 
@@ -472,8 +462,10 @@ class ChatController extends ChangeNotifier {
 
   /// Asks `ChatView` to scroll to the message with [id] and, when
   /// [highlight] is `true`, to flash it.
+  ///
+  /// Does nothing after [dispose], so late backend callbacks are safe.
   void scrollToMessage(String id, {bool highlight = true}) {
-    if (!contains(id)) return;
+    if (_scrollRequests.isClosed || !contains(id)) return;
     _scrollRequests.add(ChatScrollRequest(id, highlight: highlight));
   }
 
@@ -499,9 +491,18 @@ class ChatController extends ChangeNotifier {
     if (needle.isEmpty) return const [];
     return [
       for (var i = _messages.length - 1; i >= 0; i--)
-        if (searchableText(_messages[i]).toLowerCase().contains(needle))
-          _messages[i].id,
+        if (_lowercaseText(_messages[i]).contains(needle)) _messages[i].id,
     ];
+  }
+
+  // Parsing markdown is the expensive part of a search: do it once per
+  // version of each message.
+  String _lowercaseText(ChatMessage message) {
+    final cached = _searchText[message.id];
+    if (cached != null && identical(cached.$1, message)) return cached.$2;
+    final text = searchableText(message).toLowerCase();
+    _searchText[message.id] = (message, text);
+    return text;
   }
 
   /// Plain text of [message] used by [search].
@@ -543,47 +544,40 @@ class ChatController extends ChangeNotifier {
         CallMessage() || CustomMessage() => '',
       };
 
-  /// Starts replying to [message]. Cancels any edit in progress.
-  void startReply(ChatMessage message) {
-    _editing.value = null;
-    _replyingTo.value = message;
-  }
-
-  /// Stops replying without sending.
-  void cancelReply() => _replyingTo.value = null;
-
-  /// Starts editing [message]. Cancels any reply in progress.
-  void startEditing(TextMessage message) {
-    _replyingTo.value = null;
-    _editing.value = message;
-  }
-
-  /// Stops editing without saving.
-  void cancelEditing() => _editing.value = null;
-
   /// Removes the message with [id]. Returns `false` if it did not exist.
   bool remove(String id) {
+    if (_disposed) return false;
     final index = _indexOf(id);
     if (index == -1) return false;
     _messages.removeAt(index);
-    _ids.remove(id);
+    _byId.remove(id);
+    _searchText.remove(id);
     _structureRevision++;
     _watchers.remove(id)?.dispose();
     _expiryTimers.remove(id)?.cancel();
-    if (_replyingTo.value?.id == id) _replyingTo.value = null;
-    if (_editing.value?.id == id) _editing.value = null;
+    composer._sync(messageById);
     _forget({id});
     notifyListeners();
     return true;
   }
 
-  /// Replaces every message, for example when switching conversations.
+  /// Replaces every message, for example after a full resync or when
+  /// switching conversations.
+  ///
+  /// A reply or edit in progress is cancelled when its message is gone.
+  /// Pass [newConversation] when the messages belong to another
+  /// conversation: the reply, edit, typing users, attachments and draft of
+  /// the previous one are cleared too.
   ///
   /// Throws an [ArgumentError] if two messages share an ID.
-  void setMessages(Iterable<ChatMessage> messages) {
+  void setMessages(
+    Iterable<ChatMessage> messages, {
+    bool newConversation = false,
+  }) {
+    if (_disposed) return;
     final previous = List<ChatMessage>.of(_messages);
     _messages.clear();
-    _ids.clear();
+    _byId.clear();
     _structureRevision++;
     try {
       _addAllSorted(messages);
@@ -591,12 +585,13 @@ class ChatController extends ChangeNotifier {
       _messages
         ..clear()
         ..addAll(previous);
-      _ids
+      _byId
         ..clear()
-        ..addAll(previous.map((m) => m.id));
+        ..addEntries(previous.map((m) => MapEntry(m.id, m)));
       rethrow;
     }
-    final ids = {for (final m in _messages) m.id};
+    final ids = _byId.keys.toSet();
+    _searchText.removeWhere((id, _) => !ids.contains(id));
     for (final timer in _expiryTimers.values) {
       timer.cancel();
     }
@@ -615,6 +610,13 @@ class ChatController extends ChangeNotifier {
       ..._selectedIds.value,
       ..._savedIds.value,
     }.where((id) => !ids.contains(id)).toSet());
+    // A reply or edit can only target a message of this conversation.
+    if (newConversation) {
+      composer.reset();
+      _typingUsers.value = const [];
+    } else {
+      composer._sync(messageById);
+    }
     notifyListeners();
   }
 
@@ -623,6 +625,7 @@ class ChatController extends ChangeNotifier {
 
   /// Shows or hides the typing indicator for [user].
   void setTyping(ChatUser user, {required bool isTyping}) {
+    if (_disposed) return;
     final current = _typingUsers.value;
     final index = current.indexWhere((u) => u.id == user.id);
     if (isTyping && index == -1) {
@@ -649,19 +652,18 @@ class ChatController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     for (final watcher in _watchers.values) {
       watcher.dispose();
     }
     _watchers.clear();
     _typingUsers.dispose();
-    _replyingTo.dispose();
-    _editing.dispose();
     _pinnedIds.dispose();
     _selectedIds.dispose();
     _savedIds.dispose();
-    _attachments.dispose();
     _scrollRequests.close();
-    _draft.dispose();
+    _contentChanges.dispose();
+    composer.dispose();
     for (final timer in _expiryTimers.values) {
       timer.cancel();
     }
@@ -704,17 +706,37 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  // Searches from the end: most lookups target recent messages.
+  // Binary search by time, then a walk over the messages sent at the same
+  // moment: O(log n) instead of a scan of the conversation.
   int _indexOf(String id) {
-    if (!_ids.contains(id)) return -1;
-    for (var i = _messages.length - 1; i >= 0; i--) {
-      if (_messages[i].id == id) return i;
+    final message = _byId[id];
+    if (message == null) return -1;
+    final time = message.createdAt;
+    for (var i = _lowerBound(time); i < _messages.length; i++) {
+      if (identical(_messages[i], message)) return i;
+      if (_messages[i].createdAt.isAfter(time)) break;
     }
-    return -1;
+    assert(false, 'chatx: message $id is not where its time says');
+    return _messages.indexWhere((m) => m.id == id);
+  }
+
+  // Index of the first message not sent before [time].
+  int _lowerBound(DateTime time) {
+    var low = 0;
+    var high = _messages.length;
+    while (low < high) {
+      final mid = (low + high) >> 1;
+      if (_messages[mid].createdAt.isBefore(time)) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    return low;
   }
 
   void _ensureNew(String id) {
-    if (_indexOf(id) != -1) {
+    if (_byId.containsKey(id)) {
       throw ArgumentError.value(
         id,
         'message.id',
@@ -724,22 +746,58 @@ class ChatController extends ChangeNotifier {
   }
 
   void _addAllSorted(Iterable<ChatMessage> messages) {
+    final list = messages.toList(growable: false);
     final ids = <String>{};
-    for (final message in messages) {
+    for (final message in list) {
       if (!ids.add(message.id)) {
         throw ArgumentError.value(message.id, 'messages', 'Duplicate ID');
       }
       _ensureNew(message.id);
     }
-    for (final message in messages) {
-      _insertSorted(message);
+    _mergeSorted(list);
+  }
+
+  // Sorts the batch, then merges it with the conversation in one pass:
+  // O(n + m log m) instead of one list insert per message. Both sorts are
+  // stable, and on equal times the messages already present come first.
+  void _mergeSorted(List<ChatMessage> messages) {
+    final batch = [...messages];
+    if (batch.isEmpty) return;
+    mergeSort<ChatMessage>(
+      batch,
+      compare: (a, b) => a.createdAt.compareTo(b.createdAt),
+    );
+    for (final message in batch) {
+      _byId[message.id] = message;
     }
+    if (_messages.isEmpty ||
+        !_messages.last.createdAt.isAfter(batch.first.createdAt)) {
+      _messages.addAll(batch);
+      return;
+    }
+    _structureRevision++;
+    final merged = <ChatMessage>[];
+    var i = 0;
+    var j = 0;
+    while (i < _messages.length && j < batch.length) {
+      if (batch[j].createdAt.isBefore(_messages[i].createdAt)) {
+        merged.add(batch[j++]);
+      } else {
+        merged.add(_messages[i++]);
+      }
+    }
+    merged
+      ..addAll(_messages.skip(i))
+      ..addAll(batch.skip(j));
+    _messages
+      ..clear()
+      ..addAll(merged);
   }
 
   // Binary search for the upper bound keeps equal timestamps in insertion
   // order. The fast path covers the common "new message at the end" case.
   void _insertSorted(ChatMessage message) {
-    _ids.add(message.id);
+    _byId[message.id] = message;
     final time = message.createdAt;
     if (_messages.isEmpty || !_messages.last.createdAt.isAfter(time)) {
       _messages.add(message);
@@ -772,4 +830,8 @@ class ChatScrollRequest {
 
   /// Whether to flash the message after scrolling.
   final bool highlight;
+}
+
+class _Signal extends ChangeNotifier {
+  void notify() => notifyListeners();
 }

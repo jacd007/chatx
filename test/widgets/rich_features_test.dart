@@ -108,14 +108,20 @@ void main() {
           body: ChatView(
             controller: controller,
             currentUser: me,
-            onSendMessage: (_, __) {},
-            imageProviderBuilder: (_) => MemoryImage(_pixel),
-            onPollVote: onPollVote,
-            onFileTap: onFileTap,
-            onVoicePlay: onVoicePlay,
-            voicePlayback: voicePlayback,
-            onVoiceRecordStart: onRecordStart,
-            onVoiceRecordEnd: onRecordEnd,
+            onSend: (_) {},
+            builders: ChatBuilders(
+              imageProviderBuilder: (_) => MemoryImage(_pixel),
+            ),
+            contentCallbacks: ChatContentCallbacks(
+              onPollVote: onPollVote,
+            ),
+            media: ChatMediaOptions(
+              onFileTap: onFileTap,
+              onVoicePlay: onVoicePlay,
+              voicePlayback: voicePlayback,
+              onVoiceRecordStart: onRecordStart,
+              onVoiceRecordEnd: onRecordEnd,
+            ),
             mentionableUsers: const [me, ana, leo],
             onMentionTap: onMentionTap,
             searchController: search,
@@ -424,7 +430,7 @@ void main() {
           body: ChatView(
             controller: controller,
             currentUser: me,
-            onSendMessage: (_, __) {},
+            onSend: (_) {},
             searchController: search,
           ),
         ),

@@ -66,7 +66,11 @@ class _CustomLookPageState extends State<CustomLookPage> {
       body: ChatView(
         controller: _controller,
         currentUser: me,
-        onSendMessage: _send,
+        onSend: (outgoing) {
+          if (outgoing case OutgoingText(:final text, :final replyTo)) {
+            _send(text, replyTo);
+          }
+        },
         onLinkTap: (uri) => showLink(context, uri),
         // 1. Theme overrides. Unset values still follow the app theme.
         theme: ChatTheme(
@@ -79,19 +83,33 @@ class _CustomLookPageState extends State<CustomLookPage> {
         ),
         // 2. Strings: change only what you need.
         localizations: l10n.copyWith(inputHint: 'Write something nice…'),
-        // 3. Render your own message types.
-        customMessageBuilder: (context, message, details) => _LocationCard(
-          place: message.payload! as String,
+        builders: ChatBuilders(
+          // 3. Render your own message types.
+          customMessageBuilder: (context, message, details) => _LocationCard(
+            place: message.payload! as String,
+          ),
+          // 4. Decorate the default bubble.
+          bubbleBuilder: (context, details, bubble) {
+            final message = details.message;
+            if (message is TextMessage && message.text.contains('Wow')) {
+              return Badge(label: const Text('★'), child: bubble);
+            }
+            return bubble;
+          },
+          // 5. Replace the input bar while reusing ChatInput.
+          inputBuilder: (context, send, textController) => ChatInput(
+            onSend: send,
+            controller: textController,
+            leading: IconButton(
+              tooltip: 'Attach',
+              icon: const Icon(Icons.add_circle_outline),
+              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Open your file picker here')),
+              ),
+            ),
+          ),
         ),
-        // 4. Decorate the default bubble.
-        bubbleBuilder: (context, details, bubble) {
-          final message = details.message;
-          if (message is TextMessage && message.text.contains('Wow')) {
-            return Badge(label: const Text('★'), child: bubble);
-          }
-          return bubble;
-        },
-        // 5. Long-press menu: keep the defaults and add your own entry.
+        // 6. Long-press menu: keep the defaults and add your own entry.
         onDeleteMessage: (message) => _controller.remove(message.id),
         messageActionsBuilder: (context, message, defaults) => [
           ...defaults,
@@ -103,18 +121,6 @@ class _CustomLookPageState extends State<CustomLookPage> {
             ),
           ),
         ],
-        // 6. Replace the input bar while reusing ChatInput.
-        inputBuilder: (context, send, textController) => ChatInput(
-          onSend: send,
-          controller: textController,
-          leading: IconButton(
-            tooltip: 'Attach',
-            icon: const Icon(Icons.add_circle_outline),
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Open your file picker here')),
-            ),
-          ),
-        ),
       ),
     );
   }
