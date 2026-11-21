@@ -130,16 +130,18 @@ class _PinnedBannerState extends State<_PinnedBanner> {
 
 /// Date chip that floats at the top of the list while scrolling.
 class _FloatingDate extends StatelessWidget {
-  const _FloatingDate({required this.date});
+  const _FloatingDate({required this.date, this.onTap});
 
   final ValueListenable<DateTime?> date;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: ValueListenableBuilder<DateTime?>(
-        valueListenable: date,
-        builder: (context, day, _) => AnimatedOpacity(
+    return ValueListenableBuilder<DateTime?>(
+      valueListenable: date,
+      builder: (context, day, _) => IgnorePointer(
+        ignoring: day == null,
+        child: AnimatedOpacity(
           opacity: day == null ? 0 : 1,
           duration: const Duration(milliseconds: 250),
           child: Center(
@@ -150,7 +152,7 @@ class _FloatingDate extends StatelessWidget {
                     elevation: 2,
                     color: Colors.transparent,
                     shape: const StadiumBorder(),
-                    child: _DateChip(day: day),
+                    child: _DateChip(day: day, onTap: onTap),
                   ),
           ),
         ),
@@ -165,14 +167,11 @@ extension _FloatingDateLogic on _ChatViewState {
   void _updateFloatingDate(ScrollNotification notification) {
     // Only user scrolling shows the date. Programmatic jumps, such as
     // sticking to the newest message, do not.
-    if (notification is ScrollStartNotification) {
-      _userScrolling = notification.dragDetails != null;
-    }
     if (!_userScrolling) return;
     if (notification is ScrollEndNotification) {
-      _userScrolling = false;
       _floatingDateTimer?.cancel();
-      _floatingDateTimer = Timer(const Duration(milliseconds: 900), () {
+      // Long enough to tap the chip and jump to another date.
+      _floatingDateTimer = Timer(const Duration(milliseconds: 1600), () {
         if (mounted) _floatingDate.value = null;
       });
       return;

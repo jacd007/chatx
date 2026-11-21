@@ -4,6 +4,10 @@
 /// message moves from one state to the next, typically through
 /// `ChatController.updateStatus`.
 enum MessageStatus {
+  /// The device is offline. The message waits and is sent when the
+  /// connection comes back.
+  queued,
+
   /// The message is shown optimistically and is still being sent.
   sending,
 

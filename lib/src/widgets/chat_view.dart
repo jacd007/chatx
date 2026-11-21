@@ -28,6 +28,7 @@ import 'chat_avatar.dart';
 import 'chat_builders.dart';
 import 'chat_header.dart';
 import 'chat_input.dart';
+import 'chat_people.dart';
 import 'message_status_icon.dart';
 import 'typing_indicator.dart';
 
@@ -39,6 +40,7 @@ part 'chat_view/conversation_extras.dart';
 part 'chat_view/decorations.dart';
 part 'chat_view/message_menu.dart';
 part 'chat_view/message_row.dart';
+part 'chat_view/power_content.dart';
 part 'chat_view/rich_content.dart';
 part 'chat_view/survey.dart';
 part 'chat_view/swipe_to_action.dart';
@@ -161,6 +163,20 @@ class ChatView extends StatefulWidget {
     this.onBlockUser,
     this.onSaveMessage,
     this.wordFilter,
+    this.onReasoningTap,
+    this.onSourceTap,
+    this.onVideoTap,
+    this.onTranscribe,
+    this.onChecklistToggle,
+    this.onProductTap,
+    this.onPaymentAction,
+    this.onCallBack,
+    this.onAttach,
+    this.onSendAttachments,
+    this.connectionState = ChatConnectionState.online,
+    this.onSendQueued,
+    this.suggestedPrompts = const [],
+    this.showHoverActions = true,
   });
 
   /// Reactions offered in the message menu by default.
@@ -252,7 +268,8 @@ class ChatView extends StatefulWidget {
   /// Which links are tappable. Defaults to `http`, `https` and `mailto`.
   final ChatLinkPolicy linkPolicy;
 
-  /// Called when the avatar of another user is tapped.
+  /// Called when the avatar of another user is tapped, for example to open
+  /// `ChatUserProfile.show`.
   final ValueChanged<ChatUser>? onAvatarTap;
 
   /// Reports whether the current user is typing. Forward it to your backend
@@ -494,6 +511,61 @@ class ChatView extends StatefulWidget {
   /// Masks offensive words in messages.
   final ChatWordFilter? wordFilter;
 
+  /// Called when the user expands or collapses a reasoning block. Optional;
+  /// the block works without it.
+  final ValueChanged<TextMessage>? onReasoningTap;
+
+  /// Called when the user taps a source chip. Defaults to [onLinkTap] with
+  /// the source URL.
+  final ValueChanged<ChatSource>? onSourceTap;
+
+  /// Called when the user taps a [VideoMessage]. Play the video here.
+  final ValueChanged<VideoMessage>? onVideoTap;
+
+  /// Called when the user asks for the transcript of a voice note. Produce
+  /// it and update the message with `VoiceMessage.transcript`. While the
+  /// future runs, the bubble shows "Transcribing…".
+  final Future<void> Function(VoiceMessage message)? onTranscribe;
+
+  /// Called when the user checks or unchecks an item of a
+  /// [ChecklistMessage]. Record it with `ChatController.toggleChecklistItem`.
+  final void Function(ChecklistMessage message, ChecklistItem item)?
+      onChecklistToggle;
+
+  /// Called when the user taps a product of a [ProductMessage].
+  final void Function(ProductMessage message, ChatProduct product)?
+      onProductTap;
+
+  /// Called when the user pays or declines a [PaymentMessage].
+  final void Function(PaymentMessage message, ChatPaymentAction action)?
+      onPaymentAction;
+
+  /// Called when the user taps "Call back" on a [CallMessage].
+  final ValueChanged<CallMessage>? onCallBack;
+
+  /// When set, the input shows an attach button that calls this. Open your
+  /// file picker and add the files with `ChatController.addAttachments`.
+  final VoidCallback? onAttach;
+
+  /// Called when the user sends the files waiting in the input. Required to
+  /// show the attachment tray.
+  final ChatAttachmentsCallback? onSendAttachments;
+
+  /// Network state. Anything but [ChatConnectionState.online] shows a banner
+  /// at the top of the list.
+  final ChatConnectionState connectionState;
+
+  /// Called with the messages whose status is `MessageStatus.queued` when
+  /// [connectionState] changes back to online. Send them here.
+  final ValueChanged<List<ChatMessage>>? onSendQueued;
+
+  /// Cards shown in the empty conversation. Tapping one sends its text.
+  final List<ChatPrompt> suggestedPrompts;
+
+  /// Whether a mouse hovering a message shows Reply, React and More
+  /// buttons next to it.
+  final bool showHoverActions;
+
   @override
   State<ChatView> createState() => _ChatViewState();
 }
@@ -549,6 +621,8 @@ class _ChatViewState extends State<ChatView> {
       ValueNotifier(const {});
   Duration? _slowRemaining;
   Timer? _slowTimer;
+  final ValueNotifier<Map<String, int>> _versionIndex = ValueNotifier(const {});
+  final ValueNotifier<List<String>> _pendingMentions = ValueNotifier(const []);
 
   ScrollController get _scrollController =>
       widget.scrollController ?? (_ownScrollController ??= ScrollController());
@@ -570,6 +644,14 @@ class _ChatViewState extends State<ChatView> {
     _scheduleLoadMoreCheck();
     final unread = widget.firstUnreadMessageId;
     if (unread != null) {
+      final messages = widget.controller.messages;
+      final start = messages.indexWhere((m) => m.id == unread);
+      if (start != -1) {
+        _pendingMentions.value = [
+          for (final m in messages.skip(start))
+            if (_mentionsMe(m)) m.id,
+        ];
+      }
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _scrollToMessage(unread, highlight: false, alignment: 0.8),
       );
@@ -592,6 +674,11 @@ class _ChatViewState extends State<ChatView> {
           ?.removeListener(_onScroll);
       _scrollController.addListener(_onScroll);
     }
+    if (oldWidget.connectionState != ChatConnectionState.online &&
+        widget.connectionState == ChatConnectionState.online) {
+      final queued = widget.controller.queuedMessages;
+      if (queued.isNotEmpty) widget.onSendQueued?.call(queued);
+    }
     _builtRevision = -1; // Settings may have changed: rebuild everything.
     _rebuildEntries();
   }
@@ -613,6 +700,8 @@ class _ChatViewState extends State<ChatView> {
     _floatingDateTimer?.cancel();
     _mentionQuery.dispose();
     _translations.dispose();
+    _versionIndex.dispose();
+    _pendingMentions.dispose();
     _slowTimer?.cancel();
     super.dispose();
   }
@@ -711,6 +800,13 @@ class _ChatViewState extends State<ChatView> {
         WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
       } else if (_isAwayFromBottom) {
         _unreadCount.value += arrived.where((m) => m is! SystemMessage).length;
+        final mentions = [
+          for (final m in arrived.reversed)
+            if (_mentionsMe(m)) m.id,
+        ];
+        if (mentions.isNotEmpty) {
+          _pendingMentions.value = [..._pendingMentions.value, ...mentions];
+        }
       }
     }
 
@@ -725,6 +821,8 @@ class _ChatViewState extends State<ChatView> {
     final distance = _distanceFromBottom;
     _showScrollButton.value = distance > _scrollButtonOffset;
     if (distance < 40) _unreadCount.value = 0;
+    // Only the user's own scrolling marks mentions as seen, not jumps.
+    if (_userScrolling) _markVisibleMentions();
     _atBottom = distance <= 4;
   }
 
@@ -909,8 +1007,15 @@ class _ChatViewState extends State<ChatView> {
   }
 
   bool _onScrollNotification(ScrollNotification notification) {
-    if (notification.depth == 0 && widget.showFloatingDate) {
-      _updateFloatingDate(notification);
+    if (notification.depth == 0) {
+      if (notification is ScrollStartNotification) {
+        _userScrolling = notification.dragDetails != null;
+      }
+      if (widget.showFloatingDate) _updateFloatingDate(notification);
+      if (notification is ScrollEndNotification) {
+        if (_userScrolling) _markVisibleMentions();
+        _userScrolling = false;
+      }
     }
     if (notification.depth == 0 &&
         notification.metrics.extentAfter < widget.loadMoreThreshold) {
@@ -1031,8 +1136,19 @@ class _ChatViewState extends State<ChatView> {
       controller.cancelEditing();
       return;
     }
+    // Slow mode also applies to quick replies and prompts.
+    if (_slowRemaining != null) return;
     final replyTo = controller.replyingTo.value;
-    widget.onSendMessage(text, replyTo);
+    final attachments = controller.attachments.value;
+    final onSendAttachments = widget.onSendAttachments;
+    if (attachments.isNotEmpty && onSendAttachments != null) {
+      onSendAttachments(attachments, text, replyTo);
+      controller.clearAttachments();
+    } else if (text.isNotEmpty) {
+      widget.onSendMessage(text, replyTo);
+    } else {
+      return;
+    }
     controller.cancelReply();
     _startSlowMode();
     _scrollToBottom();
@@ -1049,6 +1165,118 @@ class _ChatViewState extends State<ChatView> {
       if (left <= Duration.zero) timer.cancel();
       setState(() => _slowRemaining = left <= Duration.zero ? null : left);
     });
+  }
+
+  /// Whether [message] mentions the current user with `@Name`.
+  bool _mentionsMe(ChatMessage message) {
+    final name = widget.currentUser.name;
+    if (name == null ||
+        name.isEmpty ||
+        _isOutgoing(message) ||
+        message is! TextMessage) {
+      return false;
+    }
+    return RegExp(
+      '(^|[^\\w])@${RegExp.escape(name)}(?![\\w])',
+      caseSensitive: false,
+    ).hasMatch(message.text);
+  }
+
+  /// Removes the mentions whose rows are on screen: the user saw them.
+  void _markVisibleMentions() {
+    final pending = _pendingMentions.value;
+    if (pending.isEmpty) return;
+    final list = _listKey.currentContext?.findRenderObject();
+    if (list is! RenderBox || !list.hasSize) return;
+    final viewport = list.localToGlobal(Offset.zero) & list.size;
+    final unseen = [
+      for (final id in pending)
+        if (!_isOnScreen(id, viewport)) id,
+    ];
+    if (unseen.length != pending.length) _pendingMentions.value = unseen;
+  }
+
+  bool _isOnScreen(String id, Rect viewport) {
+    final rowContext = _rowContexts[id];
+    if (rowContext == null || !rowContext.mounted) return false;
+    final box = rowContext.findRenderObject();
+    if (box is! RenderBox || !box.attached || !box.hasSize) return false;
+    final rect = box.localToGlobal(Offset.zero) & box.size;
+    return rect.overlaps(viewport);
+  }
+
+  void _jumpToMention() {
+    final pending = _pendingMentions.value;
+    if (pending.isEmpty) return;
+    HapticFeedback.selectionClick();
+    _scrollToMessage(pending.first);
+    _pendingMentions.value = pending.sublist(1);
+  }
+
+  Future<void> _pickDateAndJump() async {
+    final messages = widget.controller.messages;
+    if (messages.isEmpty) return;
+    final first = DateUtils.dateOnly(messages.first.createdAt.toLocal());
+    final last = DateUtils.dateOnly(messages.last.createdAt.toLocal());
+    final date = await showDatePicker(
+      context: context,
+      firstDate: first,
+      lastDate: last,
+      initialDate: _floatingDate.value ?? last,
+      helpText: _l10n.jumpToDate,
+    );
+    if (date == null || !mounted) return;
+    widget.controller.scrollToDate(date);
+  }
+
+  void _sendPrompt(ChatPrompt prompt) {
+    HapticFeedback.selectionClick();
+    widget.onSendMessage(prompt.message, null);
+    _scrollToBottom();
+  }
+
+  /// Edits the newest text message of the current user (up arrow).
+  void _editLastMessage() {
+    if (widget.onEditMessage == null) return;
+    final messages = widget.controller.messages;
+    for (var i = messages.length - 1; i >= 0; i--) {
+      final message = messages[i];
+      if (_isOutgoing(message) &&
+          message is TextMessage &&
+          message.deletedAt == null) {
+        widget.controller.startEditing(message);
+        return;
+      }
+    }
+  }
+
+  void _onEscape() {
+    final controller = widget.controller;
+    if (controller.editing.value != null) {
+      controller.cancelEditing();
+    } else if (controller.replyingTo.value != null) {
+      controller.cancelReply();
+    } else {
+      controller.clearAttachments();
+    }
+  }
+
+  void _onContentInserted(KeyboardInsertedContent content) {
+    final data = content.data;
+    if (data == null || widget.onSendAttachments == null) return;
+    final name = Uri.tryParse(content.uri)?.pathSegments.lastOrNull ?? 'image';
+    widget.controller.addAttachments([
+      ChatAttachment(
+        id: '${DateTime.now().microsecondsSinceEpoch}',
+        name: name,
+        kind: content.mimeType.startsWith('image/')
+            ? ChatAttachmentKind.image
+            : ChatAttachmentKind.file,
+        bytes: data,
+        sizeBytes: data.length,
+        mimeType: content.mimeType,
+      ),
+    ]);
   }
 
   Future<void> _schedule(String text) async {
@@ -1306,6 +1534,8 @@ class _ChatViewState extends State<ChatView> {
           latest.isStreaming &&
           !_isOutgoing(latest) &&
           widget.onStopGenerating != null;
+      final hasAttachments = widget.onSendAttachments != null &&
+          widget.controller.attachments.value.isNotEmpty;
       return widget.inputBuilder?.call(context, _handleSend, _textController) ??
           ChatInput(
             onSend: _handleSend,
@@ -1316,7 +1546,23 @@ class _ChatViewState extends State<ChatView> {
                 ? l10n.slowModeWait(
                     _formatDuration(slowLeft),
                   )
-                : null,
+                : hasAttachments
+                    ? l10n.addCaption
+                    : null,
+            allowEmptySend: hasAttachments && !editing,
+            leading: widget.onAttach == null || editing
+                ? null
+                : IconButton(
+                    key: const Key('chatx_attach_button'),
+                    tooltip: l10n.attach,
+                    icon: const Icon(Icons.attach_file_rounded),
+                    onPressed:
+                        widget.inputEnabled && !slowed ? widget.onAttach : null,
+                  ),
+            onArrowUp: widget.onEditMessage == null ? null : _editLastMessage,
+            onEscape: _onEscape,
+            onContentInserted:
+                widget.onSendAttachments == null ? null : _onContentInserted,
             onTypingChanged: widget.onTypingChanged,
             sendIcon:
                 editing ? Icons.check_rounded : Icons.arrow_upward_rounded,
@@ -1353,12 +1599,17 @@ class _ChatViewState extends State<ChatView> {
           ],
         ),
       );
-    } else if (newest == null) {
-      input = buildInput(null);
     } else {
-      input = ValueListenableBuilder<ChatMessage>(
-        valueListenable: widget.controller.watch(newest.id),
-        builder: (context, latest, _) => buildInput(latest),
+      // Rebuilt when attachments change, to switch the send button and
+      // the placeholder.
+      input = ValueListenableBuilder<List<ChatAttachment>>(
+        valueListenable: widget.controller.attachments,
+        builder: (context, _, __) => newest == null
+            ? buildInput(null)
+            : ValueListenableBuilder<ChatMessage>(
+                valueListenable: widget.controller.watch(newest.id),
+                builder: (context, latest, _) => buildInput(latest),
+              ),
       );
     }
     final selecting = widget.controller.isSelecting;
@@ -1372,6 +1623,7 @@ class _ChatViewState extends State<ChatView> {
         color: theme.backgroundColor,
         child: Column(
           children: [
+            _ConnectionBanner(connection: widget.connectionState),
             _PinnedBanner(state: this),
             Expanded(
               child: Stack(
@@ -1382,22 +1634,40 @@ class _ChatViewState extends State<ChatView> {
                       top: 8,
                       left: 0,
                       right: 0,
-                      child: _FloatingDate(date: _floatingDate),
+                      child: _FloatingDate(
+                        date: _floatingDate,
+                        onTap: _pickDateAndJump,
+                      ),
                     ),
                   if (widget.controller.isEmpty && !_loadingMore)
                     Positioned.fill(
-                      child: IgnorePointer(
-                        child: Builder(
-                          builder: (context) =>
-                              widget.emptyStateBuilder?.call(context) ??
-                              _EmptyState(text: l10n.emptyState),
-                        ),
-                      ),
+                      child: widget.emptyStateBuilder != null
+                          ? IgnorePointer(
+                              child: Builder(
+                                builder: widget.emptyStateBuilder!,
+                              ),
+                            )
+                          : widget.suggestedPrompts.isNotEmpty &&
+                                  !widget.readOnly
+                              ? _PromptSuggestions(
+                                  state: this,
+                                  title: l10n.emptyState,
+                                )
+                              : IgnorePointer(
+                                  child: _EmptyState(text: l10n.emptyState),
+                                ),
                     ),
                   PositionedDirectional(
                     end: 12,
                     bottom: 12,
-                    child: _buildScrollButton(),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _MentionsButton(state: this),
+                        const SizedBox(height: 8),
+                        _buildScrollButton(),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -1420,6 +1690,7 @@ class _ChatViewState extends State<ChatView> {
                               controller: widget.controller,
                               currentUser: widget.currentUser,
                             ),
+                            _AttachmentTray(state: this),
                             input,
                           ],
                         ),
@@ -1517,7 +1788,7 @@ class _ChatViewState extends State<ChatView> {
           padding: const EdgeInsets.symmetric(vertical: 12),
           child: Center(
             child: widget.dateSeparatorBuilder?.call(context, day) ??
-                _DateChip(day: day),
+                _DateChip(day: day, onTap: _pickDateAndJump),
           ),
         );
       case _UnreadEntry():

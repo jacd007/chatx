@@ -19,6 +19,7 @@ class AiStreamingPage extends StatefulWidget {
 class _AiStreamingPageState extends State<AiStreamingPage> {
   final ChatController _controller = ChatController();
   StreamSubscription<String>? _subscription;
+  final Set<String> _stopped = {};
 
   static const _answer = '''
 Here is how to stream an answer with **chatx**:
@@ -52,6 +53,18 @@ controller.completeStream(id);
     super.dispose();
   }
 
+  static const _sources = [
+    ChatSource(
+      title: 'ChatController API',
+      url: 'https://pub.dev/documentation/chatx/latest/',
+      snippet: 'appendText updates only the streaming bubble.',
+    ),
+    ChatSource(
+      title: 'Streaming in Flutter',
+      url: 'https://docs.flutter.dev/cookbook',
+    ),
+  ];
+
   void _send(String text, ChatMessage? replyTo) {
     _controller.insert(
       TextMessage(
@@ -63,8 +76,6 @@ controller.completeStream(id);
         status: MessageStatus.sent,
       ),
     );
-    unawaited(_subscription?.cancel());
-
     final answerId = newId();
     _controller.insert(
       TextMessage(
@@ -75,34 +86,88 @@ controller.completeStream(id);
         isStreaming: true,
       ),
     );
+    unawaited(_answerWithSteps(answerId));
+  }
 
-    _stream(answerId);
+  /// Simulates a model that thinks, searches the docs, then answers.
+  Future<void> _answerWithSteps(String id) async {
+    unawaited(_subscription?.cancel());
+    TextMessage current() => _controller.messageById(id)! as TextMessage;
+    final started = DateTime.now();
+    const thoughts = 'The user wants a summary. I should show how to '
+        'stream tokens and mention that only one bubble rebuilds.';
+    var reasoning = '';
+    for (final word in thoughts.split(' ')) {
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+      if (!mounted || _stopped.contains(id)) return;
+      reasoning += '$word ';
+      _controller.update(
+        current().copyWith(
+          reasoning: ChatReasoning(text: reasoning.trim(), isActive: true),
+        ),
+      );
+    }
+    _controller.update(
+      current().copyWith(
+        reasoning: ChatReasoning(
+          text: reasoning.trim(),
+          duration:
+              DateTime.now().difference(started) + const Duration(seconds: 3),
+        ),
+        toolCalls: const [
+          ChatToolCall(
+            id: 'docs',
+            name: 'Searching the chatx docs',
+            status: ChatToolStatus.running,
+          ),
+        ],
+      ),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 700));
+    if (!mounted || _stopped.contains(id)) return;
+    _controller.update(
+      current().copyWith(
+        toolCalls: const [
+          ChatToolCall(
+            id: 'docs',
+            name: 'Searched the chatx docs',
+            detail: 'Found **2** relevant pages.',
+          ),
+        ],
+      ),
+    );
+    _stream(id);
   }
 
   void _stream(String id) {
     unawaited(_subscription?.cancel());
     _subscription = _fakeTokens(_answer).listen(
       (token) => _controller.appendText(id, token),
-      onDone: () => _controller.completeStream(id),
+      onDone: () {
+        final message = _controller.messageById(id);
+        if (message is TextMessage) {
+          _controller.update(message.copyWith(sources: _sources));
+        }
+        _controller.completeStream(id);
+      },
     );
   }
 
-  /// Replaces the answer with a fresh, empty stream.
+  /// Keeps the old answer as a version and streams a new one.
   void _regenerate(TextMessage message) {
-    _controller.update(
-      message.copyWith(text: '', isStreaming: true, clearFeedback: true),
-    );
+    _controller.startRegeneration(message.id);
     _stream(message.id);
   }
 
   void _stop(TextMessage message) {
+    _stopped.add(message.id);
     unawaited(_subscription?.cancel());
     _controller.completeStream(message.id);
   }
 
-  /// Emits the text in small chunks after a "thinking" pause.
+  /// Emits the text in small chunks after a short pause.
   Stream<String> _fakeTokens(String text) async* {
-    await Future<void>.delayed(const Duration(milliseconds: 900));
+    await Future<void>.delayed(const Duration(milliseconds: 200));
     final tokens = RegExp(r'\S+\s*|\s+').allMatches(text);
     for (final token in tokens) {
       await Future<void>.delayed(const Duration(milliseconds: 20));
@@ -125,9 +190,23 @@ controller.completeStream(id);
           message.copyWith(feedback: feedback, clearFeedback: feedback == null),
         ),
         onLinkTap: (uri) => showLink(context, uri),
-        emptyStateBuilder: (context) => const Center(
-          child: Text('Ask me anything ✨'),
-        ),
+        suggestedPrompts: const [
+          ChatPrompt(
+            title: 'Summarize chatx',
+            subtitle: 'in a few lines',
+            icon: Icons.auto_awesome_outlined,
+          ),
+          ChatPrompt(
+            title: 'Write Dart code',
+            subtitle: 'to stream an answer',
+            icon: Icons.code_rounded,
+          ),
+          ChatPrompt(
+            title: 'Compare plans',
+            subtitle: 'in a table',
+            icon: Icons.table_chart_outlined,
+          ),
+        ],
       ),
     );
   }

@@ -108,6 +108,17 @@ class _MediaPageState extends State<MediaPage> {
         email: 'leo@example.com',
         status: MessageStatus.read,
       ),
+      VideoMessage(
+        id: 'video',
+        author: me,
+        createdAt: _start.add(const Duration(minutes: 9, seconds: 30)),
+        uri: 'clips/sunset.mp4',
+        thumbnailUri: 'asset:sunset',
+        duration: const Duration(minutes: 1, seconds: 12),
+        width: 1920,
+        height: 1080,
+        status: MessageStatus.read,
+      ),
       StickerMessage(
         id: 'sticker',
         author: ana,
@@ -194,6 +205,79 @@ class _MediaPageState extends State<MediaPage> {
     );
   }
 
+  /// Fake transcription service.
+  Future<void> _transcribe(VoiceMessage message) async {
+    await latency(900);
+    if (!mounted) return;
+    _controller.update(
+      message.copyWith(
+        transcript: 'Hi! Landing at seven, can you pick me up at the '
+            'airport? I will bring the photos.',
+      ),
+    );
+  }
+
+  /// A real app opens a file picker here (for example `file_picker`).
+  void _attach() {
+    _controller.addAttachments(const [
+      ChatAttachment(
+        id: 'dunes',
+        name: 'dunes.png',
+        kind: ChatAttachmentKind.image,
+        uri: 'asset:dunes',
+      ),
+      ChatAttachment(
+        id: 'ocean',
+        name: 'ocean.png',
+        kind: ChatAttachmentKind.image,
+        uri: 'asset:ocean',
+      ),
+      ChatAttachment(
+        id: 'itinerary',
+        name: 'itinerary.pdf',
+        sizeBytes: 482000,
+      ),
+    ]);
+  }
+
+  void _sendAttachments(
+    List<ChatAttachment> attachments,
+    String caption,
+    ChatMessage? replyTo,
+  ) {
+    final images = [
+      for (final a in attachments)
+        if (a.kind == ChatAttachmentKind.image && a.uri != null)
+          ChatImage(uri: a.uri!),
+    ];
+    if (images.isNotEmpty) {
+      _controller.insert(
+        ImageMessage(
+          id: newId(),
+          author: me,
+          createdAt: DateTime.now(),
+          images: images,
+          caption: caption.isEmpty ? null : caption,
+          replyToId: replyTo?.id,
+          status: MessageStatus.sent,
+        ),
+      );
+    }
+    for (final file in attachments) {
+      if (file.kind == ChatAttachmentKind.image) continue;
+      _controller.insert(
+        FileMessage(
+          id: newId(),
+          author: me,
+          createdAt: DateTime.now(),
+          name: file.name,
+          sizeBytes: file.sizeBytes,
+          status: MessageStatus.sent,
+        ),
+      );
+    }
+  }
+
   void _send(String text, ChatMessage? replyTo) {
     _controller.insert(
       TextMessage(
@@ -216,6 +300,12 @@ class _MediaPageState extends State<MediaPage> {
         currentUser: me,
         onSendMessage: _send,
         imageProviderBuilder: demoImage,
+        onAttach: _attach,
+        onSendAttachments: _sendAttachments,
+        onTranscribe: _transcribe,
+        onVideoTap: (video) => ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Play ${video.uri} with video_player')),
+        ),
         stickerPacks: const [demoStickers],
         onSendSticker: (sticker) => _controller.insert(
           StickerMessage(

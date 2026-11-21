@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'pages/ai_streaming_page.dart';
 import 'pages/announcements_page.dart';
+import 'pages/workspace_page.dart';
 import 'pages/basic_chat_page.dart';
 import 'pages/bubble_styles_page.dart';
 import 'pages/community_page.dart';
@@ -53,7 +54,7 @@ class DemoListPage extends StatelessWidget {
       ),
       (
         'Media & files',
-        'Images, files, voice, location, contact, stickers',
+        'Video, transcripts, attachments, location, stickers',
         Icons.perm_media_outlined,
         (_) => const MediaPage(),
       ),
@@ -70,6 +71,12 @@ class DemoListPage extends StatelessWidget {
         (_) => const SupportBotPage(),
       ),
       (
+        'Workspace',
+        'Roles, members, gallery, checklist, calls, offline',
+        Icons.work_outline_rounded,
+        (_) => const WorkspacePage(),
+      ),
+      (
         'Announcements',
         'Read-only channel, saved messages',
         Icons.campaign_outlined,
@@ -77,7 +84,7 @@ class DemoListPage extends StatelessWidget {
       ),
       (
         'AI streaming',
-        'Streaming, stop, regenerate, code and tables',
+        'Reasoning, tools, sources, versions, code',
         Icons.auto_awesome_outlined,
         (_) => const AiStreamingPage(),
       ),

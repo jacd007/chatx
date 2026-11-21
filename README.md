@@ -44,6 +44,26 @@ follows your app's theme.
 | :---: | :---: | :---: |
 | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/34_slow_mode.png" width="240" alt="Input disabled by slow mode with a countdown"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/27_sticker_picker.png" width="240" alt="Emoji picker with a sticker pack tab"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/32_large_text.png" width="240" alt="Conversation with text at 200%"> |
 
+| Suggested prompts | Reasoning while thinking | Versions and sources |
+| :---: | :---: | :---: |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/36_ai_prompts.png" width="240" alt="Empty AI chat with suggested prompt cards"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/35_ai_reasoning.png" width="240" alt="Thinking block streaming the reasoning"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/37_ai_versions_sources.png" width="240" alt="Answer with source chips and a 2/2 version switcher"> |
+
+| Video and attachments | Voice transcript | Unread mentions |
+| :---: | :---: | :---: |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/39_video_attachments.png" width="240" alt="Video message and the attachment tray above the input"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/40_voice_transcript.png" width="240" alt="Voice note with its transcript"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/41_workspace_mentions.png" width="240" alt="Role badges and the unread mentions button"> |
+
+| Checklist and calls | Members | Profile |
+| :---: | :---: | :---: |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/42_checklist_call.png" width="240" alt="Shared checklist with progress and a video call entry"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/43_members.png" width="240" alt="Member list sorted by role with presence"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/44_profile.png" width="240" alt="Profile sheet with actions"> |
+
+| Media gallery | Offline queue | Products |
+| :---: | :---: | :---: |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/45_gallery.png" width="240" alt="Gallery with media, files and links tabs"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/46_offline_queue.png" width="240" alt="Offline banner and a queued message"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/47_products.png" width="240" alt="Product carousel"> |
+
+| Payment request | Hover actions (mouse) | |
+| :---: | :---: | :---: |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/48_payment.png" width="240" alt="Payment request with Pay and Decline"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/49_hover_actions.png" width="240" alt="Reply, react and more buttons shown on hover"> |  |
+
 ## Features
 
 - **Drop-in screen.** `ChatView` gives you a message list and input bar.
@@ -53,6 +73,9 @@ follows your app's theme.
   tables and code blocks with syntax highlighting and a copy button.
 - **AI chats.** Stream answers token by token (only the streaming bubble
   rebuilds), stop them, regenerate them, rate them with 👍/👎 and copy them.
+- **AI transparency.** Collapsible reasoning ("Thought for 12s"), tool
+  cards, numbered sources, versions of regenerated answers ("‹ 2/3 ›") and
+  suggested prompts in the empty state.
 - **Translation.** Translate any message with your own service and switch
   back to the original.
 - **Replies.** Swipe a bubble to reply. Quotes jump to the original message.
@@ -71,6 +94,16 @@ follows your app's theme.
   presence and typing, and drafts that survive leaving the chat.
 - **Location, events, contacts and stickers.** Map cards with live
   location, events with RSVP, contact cards and sticker packs in the picker.
+- **Composer.** Attachment tray with captions, markdown formatting from the
+  selection menu and Ctrl/Cmd+B, I, E, K, images from keyboards like Gboard.
+- **Desktop and web.** Enter sends, ↑ edits your last message, Esc cancels,
+  right-click opens the menu and hovering shows Reply, React and More.
+- **Offline.** Connection banner and a queue that sends when the network
+  comes back.
+- **More content.** Video with thumbnail and duration, voice transcripts,
+  shared checklists, product carousels, payment requests and a call log.
+- **Teams.** Role badges, member list, profile sheet, media gallery
+  (photos, files, links), unread mention jumps and jump to date.
 - **Moderation.** Delete for everyone, edit history, scheduled messages,
   read-only channels, slow mode, report, block, saved messages and a word
   filter.
@@ -104,6 +137,9 @@ follows your app's theme.
   - [Delivery status and retry](#delivery-status-and-retry)
   - [Streaming answers (AI chats)](#streaming-answers-ai-chats)
   - [AI answer controls](#ai-answer-controls)
+  - [Reasoning, tools and sources](#reasoning-tools-and-sources)
+  - [Answer versions](#answer-versions)
+  - [Suggested prompts](#suggested-prompts)
   - [Translation](#translation)
   - [Infinite history](#infinite-history)
   - [Typing indicator](#typing-indicator)
@@ -141,6 +177,17 @@ follows your app's theme.
   - [Channels and slow mode](#channels-and-slow-mode)
   - [Report, block and save](#report-block-and-save)
   - [Word filter](#word-filter)
+  - [Attachments](#attachments)
+  - [Formatting and keyboard](#formatting-and-keyboard)
+  - [Offline queue](#offline-queue)
+  - [Video](#video)
+  - [Voice transcripts](#voice-transcripts)
+  - [Checklists](#checklists)
+  - [Products and payments](#products-and-payments)
+  - [Call log](#call-log)
+  - [Roles, members and profiles](#roles-members-and-profiles)
+  - [Media gallery](#media-gallery)
+  - [Unread mentions and jump to date](#unread-mentions-and-jump-to-date)
   - [Custom message types](#custom-message-types)
   - [Theming](#theming)
   - [Bubble shape](#bubble-shape)
@@ -439,6 +486,64 @@ Code blocks are highlighted for Dart, JavaScript, TypeScript, Python, JSON,
 SQL, Kotlin, Swift, Java, Go, Rust, shell and YAML, and have a "Copy code"
 button. Tables use the GitHub syntax (see the
 [Markdown reference](#markdown-reference)).
+
+### Reasoning, tools and sources
+
+Show what a model does before and while it answers. Update the message as
+your API streams events:
+
+```dart
+// While the model thinks: an open "Thinking…" block.
+controller.update(answer.copyWith(
+  reasoning: ChatReasoning(text: thoughts, isActive: true),
+));
+
+// When it starts answering: the block collapses to "Thought for 12s".
+controller.update(answer.copyWith(
+  reasoning: ChatReasoning(text: thoughts, duration: elapsed),
+  toolCalls: const [
+    ChatToolCall(id: 'web', name: 'Searched the web', detail: '3 results'),
+  ],
+));
+
+// At the end: numbered source chips under the answer.
+controller.update(answer.copyWith(sources: const [
+  ChatSource(title: 'Flutter docs', url: 'https://docs.flutter.dev'),
+]));
+```
+
+A tool call shows a spinner while `status` is `ChatToolStatus.running`.
+Source chips open the link through `onLinkTap`, or call `onSourceTap`.
+
+### Answer versions
+
+`ChatController.startRegeneration` keeps the current answer in
+`TextMessage.versions` and clears the text for a new stream. The actions row
+then shows "‹ 2/2 ›" to browse the versions; Copy copies the one on screen.
+
+```dart
+onRegenerate: (message) {
+  controller.startRegeneration(message.id);
+  streamAnswer(message.id); // appendText + completeStream
+},
+```
+
+### Suggested prompts
+
+Cards in the empty conversation. Tapping one sends its text through
+`onSendMessage`. For follow-up suggestions after an answer, use
+`TextMessage.quickReplies`.
+
+```dart
+ChatView(
+  // ...
+  suggestedPrompts: const [
+    ChatPrompt(title: 'Plan a trip', subtitle: 'to Lisbon in spring',
+        icon: Icons.flight_outlined),
+    ChatPrompt(title: 'Explain', subtitle: 'how streaming works'),
+  ],
+)
+```
 
 ### Translation
 
@@ -1229,6 +1334,223 @@ ChatView(
 Whole words only, case-insensitive. The filter changes what is shown, not
 the message. Filter on the server as well for real moderation.
 
+### Attachments
+
+chatx has no file picker. Open yours from the attach button, add the files
+to the tray, and send them with the caption the user types:
+
+```dart
+ChatView(
+  // ...
+  onAttach: () async {
+    final files = await pickFiles(); // file_picker, image_picker…
+    controller.addAttachments([
+      for (final f in files)
+        ChatAttachment(
+          id: f.path,
+          name: f.name,
+          uri: f.path,
+          kind: f.isImage ? ChatAttachmentKind.image : ChatAttachmentKind.file,
+        ),
+    ]);
+  },
+  onSendAttachments: (attachments, caption, replyTo) {
+    upload(attachments, caption); // then insert ImageMessage / FileMessage
+  },
+)
+```
+
+Images from keyboards such as Gboard arrive in the tray with their `bytes`.
+Esc empties the tray.
+
+### Formatting and keyboard
+
+Select text in the input to get Bold, Italic, Strikethrough, Code and Link
+in the selection menu. On keyboards:
+
+| Keys | Action |
+| --- | --- |
+| Enter | Send (web and desktop; mobile inserts a line) |
+| Shift+Enter | New line |
+| Ctrl/Cmd+B, I, E, K | Bold, italic, code, link |
+| Ctrl/Cmd+Shift+X | Strikethrough |
+| ↑ in an empty field | Edit your last message |
+| Esc | Cancel the edit, the reply or the attachments |
+
+With a mouse, right-click opens the message menu and hovering a message
+shows Reply, React and More (`showHoverActions`).
+
+### Offline queue
+
+Insert messages with `MessageStatus.queued` while offline, show the state
+with `connectionState`, and send the queue when the network is back:
+
+```dart
+ChatView(
+  // ...
+  connectionState: isOnline
+      ? ChatConnectionState.online
+      : ChatConnectionState.offline, // or .connecting
+  onSendQueued: (messages) {
+    for (final m in messages) api.send(m);
+  },
+)
+```
+
+Queued messages show a cloud icon. `controller.queuedMessages` lists them.
+
+### Video
+
+```dart
+VideoMessage(
+  id: 'v1',
+  author: ana,
+  createdAt: DateTime.now(),
+  uri: 'https://…/clip.mp4',
+  thumbnailUri: 'https://…/clip.jpg',
+  duration: const Duration(minutes: 1, seconds: 12),
+  width: 1920,
+  height: 1080,
+)
+```
+
+chatx shows the thumbnail, a play button and the duration. Play the video
+in `onVideoTap`, for example with `video_player`.
+
+### Voice transcripts
+
+Set `VoiceMessage.transcript` to show the text under the waveform. With
+`onTranscribe`, notes without a transcript get a "Transcribe" button:
+
+```dart
+onTranscribe: (voice) async {
+  final text = await speechToText(voice.uri);
+  controller.update(voice.copyWith(transcript: text));
+},
+```
+
+### Checklists
+
+```dart
+ChecklistMessage(
+  id: 'c1',
+  author: bea,
+  createdAt: DateTime.now(),
+  title: 'Launch checklist',
+  items: const [
+    ChecklistItem(id: 'a', text: 'Freeze the API', doneBy: 'kai'),
+    ChecklistItem(id: 'b', text: 'Ship to TestFlight'),
+  ],
+)
+
+ChatView(
+  // ...
+  onChecklistToggle: (list, item) =>
+      controller.toggleChecklistItem(list.id, item.id, me.id),
+)
+```
+
+### Products and payments
+
+`ProductMessage` shows one card, or a carousel for several products.
+`PaymentMessage` shows a request (with Pay and Decline for the other
+people) or a sent payment. chatx never handles money: prices and amounts are
+strings your app formats.
+
+```dart
+ProductMessage(
+  id: 'p1',
+  author: shop,
+  createdAt: DateTime.now(),
+  products: const [
+    ChatProduct(id: 'mug', title: 'Ocean mug', price: '€14.90',
+        imageUri: 'https://…/mug.jpg', actionLabel: 'Add to cart'),
+  ],
+)
+
+PaymentMessage(
+  id: 'pay1',
+  author: shop,
+  createdAt: DateTime.now(),
+  amount: '€38.90',
+  note: 'Order #4821',
+)
+
+ChatView(
+  // ...
+  onProductTap: (message, product) => cart.add(product.id),
+  onPaymentAction: (message, action) => action == ChatPaymentAction.pay
+      ? checkout(message)
+      : controller.update(
+          message.copyWith(paymentStatus: ChatPaymentStatus.declined)),
+)
+```
+
+### Call log
+
+```dart
+CallMessage(
+  id: 'call1',
+  author: bea,
+  createdAt: DateTime.now(),
+  kind: ChatCallKind.video,
+  outcome: ChatCallOutcome.missed, // completed, missed or declined
+)
+```
+
+Completed calls show their `duration`. `onCallBack` adds a call button.
+
+### Roles, members and profiles
+
+Give users a `role` (`ChatRole.owner`, `admin` or `moderator`) to show a
+badge next to their name. Show the members and a profile with ready-made
+sheets:
+
+```dart
+ChatHeader(
+  user: group,
+  memberCount: members.length,
+  onTap: () => ChatMemberList.show(
+    context,
+    members: members, // sorted by role, then name
+    onlineIds: online,
+    onTap: (user) => ChatUserProfile.show(
+      context,
+      user: user,
+      subtitle: 'online',
+      actions: [
+        ChatProfileAction(icon: Icons.call_outlined, label: 'Call',
+            onPressed: () => call(user)),
+      ],
+    ),
+  ),
+)
+```
+
+Open the same profile from `ChatView.onAvatarTap`.
+
+### Media gallery
+
+```dart
+IconButton(
+  icon: const Icon(Icons.perm_media_outlined),
+  onPressed: () => ChatMediaGallery.show(context, controller: controller),
+)
+```
+
+Three tabs: photos and videos, files, and links (only those allowed by the
+link policy). Tapping an item jumps to its message.
+
+### Unread mentions and jump to date
+
+When messages that mention the current user (`@Name`) arrive while the
+user reads older messages, or are after `firstUnreadMessageId`, an "@"
+button with a counter appears above the scroll button. Each tap jumps to
+the next mention.
+
+Tap a date separator or the floating date to pick a day and jump to it.
+From code, call `controller.scrollToDate(date)`.
+
 ### Custom message types
 
 Use `CustomMessage` with a `type` and a `payload`, and render it with
@@ -1463,7 +1785,18 @@ Use `ChatText` to render the same markdown anywhere in your app.
   `chatx_contact_<id>_<call|email|save>`, `chatx_sticker_pack_<id>`,
   `chatx_sticker_<id>`, `chatx_sticker_message_<id>`, `chatx_deleted`,
   `chatx_edited_<id>`, `chatx_edit_history`, `chatx_schedule_sheet`,
-  `chatx_scheduled`, `chatx_read_only` and `chatx_saved_icon`.
+  `chatx_scheduled`, `chatx_read_only`, `chatx_saved_icon`,
+  `chatx_reasoning_<id>`, `chatx_tool_<id>`, `chatx_source_<id>_<index>`,
+  `chatx_versions_<id>`, `chatx_version_previous_<id>`,
+  `chatx_version_next_<id>`, `chatx_prompt_<index>`, `chatx_video_<id>`,
+  `chatx_transcribe_<id>`, `chatx_transcript_<id>`,
+  `chatx_check_<id>_<item>`, `chatx_products_<id>`,
+  `chatx_product_<id>_<product>`, `chatx_pay_<id>`, `chatx_decline_<id>`,
+  `chatx_call_back_<id>`, `chatx_role_<role>`, `chatx_attach_button`,
+  `chatx_attachment_tray`, `chatx_remove_attachment_<id>`,
+  `chatx_connection_banner`, `chatx_mentions_button`, `chatx_hover_<id>`,
+  `chatx_media_gallery`, `chatx_member_list`, `chatx_member_<id>` and
+  `chatx_user_profile`.
 
 ## Security
 
@@ -1500,9 +1833,12 @@ The [`example`](example) folder contains demos for every feature: basic chat
 notes, links, spoilers, location, contact, stickers), community (survey,
 poll, event, thread, read receipts, translation, edit history, scheduled and
 deleted messages, report, block, save, word filter), announcements
-(read-only channel), support bot (buttons, quick replies, slow mode), AI
-streaming (stop, regenerate, rating, code, tables), bubble styles, custom
-look and infinite history. Its
+(read-only channel), workspace (roles, members, profiles, gallery,
+checklist, calls, mentions, offline queue), support bot (buttons, quick
+replies, products, payment, slow mode), AI streaming (prompts, reasoning,
+tools, sources, versions, stop, rating, code, tables), bubble styles, custom
+look and infinite history. Media and files also shows video, transcripts and
+the attachment tray. Its
 [integration test](example/integration_test/screenshots_test.dart) walks
 through the app on a device and produces the screenshots above.
 

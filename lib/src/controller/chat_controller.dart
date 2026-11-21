@@ -71,6 +71,8 @@ class ChatController extends ChangeNotifier {
       ValueNotifier<Set<String>>(const {});
   final ValueNotifier<Set<String>> _selectedIds =
       ValueNotifier<Set<String>>(const {});
+  final ValueNotifier<List<ChatAttachment>> _attachments =
+      ValueNotifier<List<ChatAttachment>>(const []);
   final StreamController<ChatScrollRequest> _scrollRequests =
       StreamController<ChatScrollRequest>.broadcast();
 
@@ -107,6 +109,37 @@ class ChatController extends ChangeNotifier {
 
   /// IDs of the messages selected in selection mode.
   ValueListenable<Set<String>> get selectedIds => _selectedIds;
+
+  /// Files waiting in the input. `ChatView` shows them in a tray above the
+  /// text field and sends them with the next message.
+  ValueListenable<List<ChatAttachment>> get attachments => _attachments;
+
+  /// Adds files to the input tray, for example after your file picker
+  /// returns.
+  void addAttachments(Iterable<ChatAttachment> attachments) {
+    if (attachments.isEmpty) return;
+    _attachments.value =
+        List.unmodifiable([..._attachments.value, ...attachments]);
+  }
+
+  /// Removes the attachment with [id] from the input tray.
+  void removeAttachment(String id) {
+    final rest = _attachments.value.where((a) => a.id != id).toList();
+    if (rest.length != _attachments.value.length) {
+      _attachments.value = List.unmodifiable(rest);
+    }
+  }
+
+  /// Empties the input tray.
+  void clearAttachments() {
+    if (_attachments.value.isNotEmpty) _attachments.value = const [];
+  }
+
+  /// Messages waiting for the network, oldest first.
+  List<ChatMessage> get queuedMessages => [
+        for (final m in _messages)
+          if (m.status == MessageStatus.queued) m,
+      ];
 
   /// Whether selection mode is active (at least one message selected).
   bool get isSelecting => _selectedIds.value.isNotEmpty;
@@ -340,6 +373,43 @@ class ChatController extends ChangeNotifier {
     return update(event.copyWith(rsvps: Map.unmodifiable(rsvps)));
   }
 
+  /// Checks or unchecks the item [itemId] of the [ChecklistMessage] with
+  /// [id] on behalf of [userId]. Returns `false` if there is no such item.
+  bool toggleChecklistItem(String id, String itemId, String userId) {
+    final list = messageById(id);
+    if (list is! ChecklistMessage) return false;
+    final index = list.items.indexWhere((item) => item.id == itemId);
+    if (index == -1) return false;
+    final item = list.items[index];
+    final items = [...list.items]..[index] = ChecklistItem(
+        id: item.id,
+        text: item.text,
+        doneBy: item.isDone ? null : userId,
+      );
+    return update(list.copyWith(items: List.unmodifiable(items)));
+  }
+
+  /// Prepares the [TextMessage] with [id] for a new answer: keeps the
+  /// current text in `versions`, clears the text and feedback and marks the
+  /// message as streaming. Then stream the new answer with [appendText].
+  bool startRegeneration(String id) {
+    final message = messageById(id);
+    if (message is! TextMessage) return false;
+    return update(
+      message.copyWith(
+        text: '',
+        isStreaming: true,
+        clearFeedback: true,
+        versions: List.unmodifiable([
+          ...message.versions,
+          if (message.text.isNotEmpty) message.text,
+        ]),
+        toolCalls: const [],
+        sources: const [],
+      ),
+    );
+  }
+
   /// Marks the message with [id] as deleted for everyone. The view shows a
   /// placeholder; your backend should stop sending its content.
   bool markDeleted(String id, {DateTime? at}) {
@@ -407,6 +477,20 @@ class ChatController extends ChangeNotifier {
     _scrollRequests.add(ChatScrollRequest(id, highlight: highlight));
   }
 
+  /// Scrolls to the first message sent on or after [date] (compared by
+  /// day), or to the newest one when [date] is later than every message.
+  /// Returns `false` when the conversation is empty.
+  bool scrollToDate(DateTime date) {
+    if (_messages.isEmpty) return false;
+    final day = DateTime(date.year, date.month, date.day);
+    final target = _messages.firstWhere(
+      (m) => !m.createdAt.toLocal().isBefore(day),
+      orElse: () => _messages.last,
+    );
+    scrollToMessage(target.id);
+    return true;
+  }
+
   /// IDs of messages whose text contains [query], ignoring case and
   /// markdown, newest first. Looks at text, captions, file names, poll
   /// questions and options, and countdown titles.
@@ -446,7 +530,17 @@ class ChatController extends ChangeNotifier {
         ContactMessage(:final name, :final organization) =>
           '$name ${organization ?? ''}',
         StickerMessage(:final label) => label ?? '',
-        VoiceMessage() || CustomMessage() => '',
+        VoiceMessage(:final transcript) => transcript ?? '',
+        VideoMessage(:final caption) =>
+          caption == null ? '' : MarkdownParser.toPlainText(caption),
+        ChecklistMessage(:final title, :final items) =>
+          [title, ...items.map((i) => i.text)].join(' '),
+        ProductMessage(:final text, :final products) => [
+            if (text != null) MarkdownParser.toPlainText(text),
+            ...products.map((p) => '${p.title} ${p.subtitle ?? ''}'),
+          ].join(' '),
+        PaymentMessage(:final amount, :final note) => '$amount ${note ?? ''}',
+        CallMessage() || CustomMessage() => '',
       };
 
   /// Starts replying to [message]. Cancels any edit in progress.
@@ -565,6 +659,7 @@ class ChatController extends ChangeNotifier {
     _pinnedIds.dispose();
     _selectedIds.dispose();
     _savedIds.dispose();
+    _attachments.dispose();
     _scrollRequests.close();
     _draft.dispose();
     for (final timer in _expiryTimers.values) {

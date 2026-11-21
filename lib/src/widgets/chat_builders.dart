@@ -349,3 +349,56 @@ class ChatWordFilter {
   @override
   int get hashCode => Object.hash(Object.hashAllUnordered(words), mask);
 }
+
+/// What the user did with a [PaymentMessage].
+enum ChatPaymentAction {
+  /// The user wants to pay the request.
+  pay,
+
+  /// The user declined the request.
+  decline,
+}
+
+/// Network state shown by `ChatView.connectionState`.
+enum ChatConnectionState {
+  /// Connected. No banner.
+  online,
+
+  /// Reconnecting. Shows "Connecting…".
+  connecting,
+
+  /// No network. Shows "Waiting for network…".
+  offline,
+}
+
+/// A suggested prompt shown in the empty state of AI chats.
+@immutable
+class ChatPrompt {
+  /// Creates a suggested prompt.
+  const ChatPrompt({required this.title, this.subtitle, this.text, this.icon});
+
+  /// Main line of the card, for example "Plan a trip".
+  final String title;
+
+  /// Second line of the card, for example "to Lisbon in spring".
+  final String? subtitle;
+
+  /// Text sent when the card is tapped. Defaults to [title] and [subtitle]
+  /// joined by a space.
+  final String? text;
+
+  /// Optional icon of the card.
+  final IconData? icon;
+
+  /// The text that is sent.
+  String get message =>
+      text ?? [title, if (subtitle != null) subtitle].join(' ');
+}
+
+/// Called when the user sends the attachments waiting in the input, with
+/// the text of the field as a caption (may be empty).
+typedef ChatAttachmentsCallback = void Function(
+  List<ChatAttachment> attachments,
+  String caption,
+  ChatMessage? replyTo,
+);

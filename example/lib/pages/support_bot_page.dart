@@ -41,6 +41,7 @@ class _SupportBotPageState extends State<SupportBotPage> {
           ChatMessageButton(id: 'return', label: '↩️ Start a return'),
         ],
         quickReplies: const [
+          ChatQuickReply(label: 'Shop'),
           ChatQuickReply(label: 'Billing'),
           ChatQuickReply(label: 'Shipping'),
           ChatQuickReply(label: 'Talk to a human'),
@@ -97,6 +98,62 @@ class _SupportBotPageState extends State<SupportBotPage> {
           text: 'Ana from support joined the conversation',
         ),
       );
+    } else if (text == 'Shop') {
+      _controller.insert(
+        ProductMessage(
+          id: newId(),
+          author: bot,
+          createdAt: DateTime.now(),
+          text: 'Our **best sellers** this week:',
+          products: const [
+            ChatProduct(
+              id: 'mug',
+              title: 'Ocean mug',
+              subtitle: 'Ceramic, 350 ml',
+              price: '€14.90',
+              imageUri: 'asset:ocean',
+              actionLabel: 'Add to cart',
+            ),
+            ChatProduct(
+              id: 'print',
+              title: 'Forest print',
+              subtitle: 'A3, matte paper',
+              price: '€24.00',
+              imageUri: 'asset:forest',
+              actionLabel: 'Add to cart',
+            ),
+            ChatProduct(
+              id: 'card',
+              title: 'Gift card',
+              subtitle: 'Any amount',
+              price: 'from €10',
+              imageUri: 'asset:card',
+            ),
+          ],
+        ),
+      );
+      _controller.insert(
+        TextMessage(
+          id: newId(),
+          author: bot,
+          createdAt: DateTime.now(),
+          text: 'Ready to check out?',
+          quickReplies: const [
+            ChatQuickReply(label: 'Billing'),
+            ChatQuickReply(label: 'Keep browsing'),
+          ],
+        ),
+      );
+    } else if (text == 'Billing') {
+      _controller.insert(
+        PaymentMessage(
+          id: newId(),
+          author: bot,
+          createdAt: DateTime.now(),
+          amount: '€38.90',
+          note: 'Order #4821 · 2 items',
+        ),
+      );
     } else {
       _controller.insert(
         TextMessage(
@@ -127,10 +184,22 @@ class _SupportBotPageState extends State<SupportBotPage> {
         controller: _controller,
         currentUser: me,
         showUserNames: false,
-        // One message every 10 seconds, to show slow mode.
-        slowMode: const Duration(seconds: 10),
+        // One message every 5 seconds, to show slow mode.
+        slowMode: const Duration(seconds: 5),
         onSendMessage: (text, _) => _userSays(text),
         onMessageButton: (message, button) => _userSays(button.label),
+        imageProviderBuilder: demoImage,
+        onProductTap: (message, product) =>
+            ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${product.title} added to cart')),
+        ),
+        onPaymentAction: (message, action) => _controller.update(
+          message.copyWith(
+            paymentStatus: action == ChatPaymentAction.pay
+                ? ChatPaymentStatus.paid
+                : ChatPaymentStatus.declined,
+          ),
+        ),
       ),
     );
   }

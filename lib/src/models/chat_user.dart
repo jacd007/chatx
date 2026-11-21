@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import 'chat_message.dart' show ChatRole;
+
 /// A participant in a conversation.
 ///
 /// Two users are considered the same author when their [id]s match. The
@@ -12,6 +14,7 @@ class ChatUser {
     this.name,
     this.avatarUrl,
     this.isBot = false,
+    this.role,
     this.metadata,
   });
 
@@ -29,6 +32,9 @@ class ChatUser {
   /// Whether the user is a bot or AI assistant. Its answers get the AI
   /// actions (copy, rate, regenerate) when `ChatView` enables them.
   final bool isBot;
+
+  /// Role in a group, shown as a badge next to the name.
+  final ChatRole? role;
 
   /// Arbitrary data you want to carry with the user. Never read by chatx.
   final Map<String, Object?>? metadata;
@@ -51,6 +57,8 @@ class ChatUser {
     String? name,
     String? avatarUrl,
     bool? isBot,
+    ChatRole? role,
+    bool clearRole = false,
     Map<String, Object?>? metadata,
   }) {
     return ChatUser(
@@ -58,6 +66,7 @@ class ChatUser {
       name: name ?? this.name,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       isBot: isBot ?? this.isBot,
+      role: clearRole ? null : role ?? this.role,
       metadata: metadata ?? this.metadata,
     );
   }
@@ -70,10 +79,11 @@ class ChatUser {
           other.name == name &&
           other.avatarUrl == avatarUrl &&
           other.isBot == isBot &&
+          other.role == role &&
           mapEquals(other.metadata, metadata);
 
   @override
-  int get hashCode => Object.hash(id, name, avatarUrl, isBot);
+  int get hashCode => Object.hash(id, name, avatarUrl, isBot, role);
 
   @override
   String toString() => 'ChatUser(id: $id, name: $name)';

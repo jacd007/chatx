@@ -185,6 +185,55 @@ class ChatLocalizations {
     required this.save,
     required this.unsave,
     required this.saved,
+    required this.statusQueued,
+    required this.offline,
+    required this.connecting,
+    required this.attach,
+    required this.removeAttachment,
+    required this.addCaption,
+    required this.bold,
+    required this.italic,
+    required this.strikethrough,
+    required this.code,
+    required this.link,
+    required this.thinking,
+    required this.reasoning,
+    required this.sources,
+    required this.previousVersion,
+    required this.nextVersion,
+    required this.video,
+    required this.playVideo,
+    required this.transcribe,
+    required this.transcribing,
+    required this.checklist,
+    required this.view,
+    required this.paymentRequest,
+    required this.paymentSent,
+    required this.pay,
+    required this.decline,
+    required this.paymentPending,
+    required this.paymentPaid,
+    required this.paymentDeclined,
+    required this.paymentCancelled,
+    required this.voiceCall,
+    required this.videoCall,
+    required this.missedCall,
+    required this.declinedCall,
+    required this.callBack,
+    required this.roleOwner,
+    required this.roleAdmin,
+    required this.roleModerator,
+    required this.sendMessage,
+    required this.membersTitle,
+    required this.media,
+    required this.files,
+    required this.links,
+    required this.galleryEmpty,
+    required this.jumpToDate,
+    required this.moreActions,
+    required this.thoughtFor,
+    required this.checklistProgress,
+    required this.unreadMentions,
   });
 
   /// Placeholder of the message input.
@@ -602,6 +651,153 @@ class ChatLocalizations {
   /// Accessibility label of the saved icon.
   final String saved;
 
+  /// Status label of a message waiting for the network.
+  final String statusQueued;
+
+  /// Banner shown while the device is offline.
+  final String offline;
+
+  /// Banner shown while the connection is coming back.
+  final String connecting;
+
+  /// Tooltip of the attach button.
+  final String attach;
+
+  /// Tooltip of the button that removes an attachment from the tray.
+  final String removeAttachment;
+
+  /// Placeholder of the input while attachments are waiting.
+  final String addCaption;
+
+  /// Formatting action.
+  final String bold;
+
+  /// Formatting action.
+  final String italic;
+
+  /// Formatting action.
+  final String strikethrough;
+
+  /// Formatting action.
+  final String code;
+
+  /// Formatting action.
+  final String link;
+
+  /// Label while an AI model is thinking.
+  final String thinking;
+
+  /// Label of a reasoning block without a duration.
+  final String reasoning;
+
+  /// Title of the sources of an AI answer.
+  final String sources;
+
+  /// Button that shows the previous version of an AI answer.
+  final String previousVersion;
+
+  /// Button that shows the next version of an AI answer.
+  final String nextVersion;
+
+  /// Preview of a video message.
+  final String video;
+
+  /// Accessibility label of the play button of a video.
+  final String playVideo;
+
+  /// Button that asks for the transcript of a voice note.
+  final String transcribe;
+
+  /// Label while a voice note is transcribed.
+  final String transcribing;
+
+  /// Preview of a checklist message.
+  final String checklist;
+
+  /// Default label of product buttons.
+  final String view;
+
+  /// Title of a payment request.
+  final String paymentRequest;
+
+  /// Title of a sent payment.
+  final String paymentSent;
+
+  /// Button that pays a request.
+  final String pay;
+
+  /// Button that declines a payment request.
+  final String decline;
+
+  /// Status of a pending payment.
+  final String paymentPending;
+
+  /// Status of a paid request.
+  final String paymentPaid;
+
+  /// Status of a declined request.
+  final String paymentDeclined;
+
+  /// Status of a cancelled request.
+  final String paymentCancelled;
+
+  /// Title of a voice call entry.
+  final String voiceCall;
+
+  /// Title of a video call entry.
+  final String videoCall;
+
+  /// Label of a missed call.
+  final String missedCall;
+
+  /// Label of a declined call.
+  final String declinedCall;
+
+  /// Button that calls back.
+  final String callBack;
+
+  /// Badge of the group owner.
+  final String roleOwner;
+
+  /// Badge of an administrator.
+  final String roleAdmin;
+
+  /// Badge of a moderator.
+  final String roleModerator;
+
+  /// Action of the profile sheet.
+  final String sendMessage;
+
+  /// Title of the member list.
+  final String membersTitle;
+
+  /// Tab of the media gallery.
+  final String media;
+
+  /// Tab of the media gallery.
+  final String files;
+
+  /// Tab of the media gallery.
+  final String links;
+
+  /// Empty state of a gallery tab.
+  final String galleryEmpty;
+
+  /// Action that opens a date picker to jump in the history.
+  final String jumpToDate;
+
+  /// Tooltip of the button that opens the message menu.
+  final String moreActions;
+
+  /// Label of a finished reasoning block. The count is in seconds.
+  final ChatCountLabel thoughtFor;
+
+  /// Progress of a checklist.
+  final ChatStepLabel checklistProgress;
+
+  /// Accessibility label of the button that jumps to unread mentions.
+  final ChatCountLabel unreadMentions;
+
   /// English strings.
   static const ChatLocalizations en = ChatLocalizations(
     inputHint: 'Message',
@@ -742,6 +938,55 @@ class ChatLocalizations {
     save: 'Save',
     unsave: 'Remove from saved',
     saved: 'Saved',
+    statusQueued: 'Waiting for network',
+    offline: 'Waiting for network…',
+    connecting: 'Connecting…',
+    attach: 'Attach',
+    removeAttachment: 'Remove',
+    addCaption: 'Add a caption…',
+    bold: 'Bold',
+    italic: 'Italic',
+    strikethrough: 'Strikethrough',
+    code: 'Code',
+    link: 'Link',
+    thinking: 'Thinking…',
+    reasoning: 'Reasoning',
+    sources: 'Sources',
+    previousVersion: 'Previous version',
+    nextVersion: 'Next version',
+    video: 'Video',
+    playVideo: 'Play video',
+    transcribe: 'Transcribe',
+    transcribing: 'Transcribing…',
+    checklist: 'Checklist',
+    view: 'View',
+    paymentRequest: 'Payment request',
+    paymentSent: 'Payment sent',
+    pay: 'Pay',
+    decline: 'Decline',
+    paymentPending: 'Pending',
+    paymentPaid: 'Paid',
+    paymentDeclined: 'Declined',
+    paymentCancelled: 'Cancelled',
+    voiceCall: 'Voice call',
+    videoCall: 'Video call',
+    missedCall: 'Missed',
+    declinedCall: 'Declined',
+    callBack: 'Call back',
+    roleOwner: 'Owner',
+    roleAdmin: 'Admin',
+    roleModerator: 'Mod',
+    sendMessage: 'Message',
+    membersTitle: 'Members',
+    media: 'Media',
+    files: 'Files',
+    links: 'Links',
+    galleryEmpty: 'Nothing here yet',
+    jumpToDate: 'Jump to date',
+    moreActions: 'More actions',
+    thoughtFor: _thoughtForEn,
+    checklistProgress: _checklistProgressEn,
+    unreadMentions: _unreadMentionsEn,
   );
 
   /// Spanish strings.
@@ -884,6 +1129,55 @@ class ChatLocalizations {
     save: 'Guardar',
     unsave: 'Quitar de guardados',
     saved: 'Guardado',
+    statusQueued: 'Esperando conexión',
+    offline: 'Esperando conexión…',
+    connecting: 'Conectando…',
+    attach: 'Adjuntar',
+    removeAttachment: 'Quitar',
+    addCaption: 'Añade un comentario…',
+    bold: 'Negrita',
+    italic: 'Cursiva',
+    strikethrough: 'Tachado',
+    code: 'Código',
+    link: 'Enlace',
+    thinking: 'Pensando…',
+    reasoning: 'Razonamiento',
+    sources: 'Fuentes',
+    previousVersion: 'Versión anterior',
+    nextVersion: 'Versión siguiente',
+    video: 'Video',
+    playVideo: 'Reproducir video',
+    transcribe: 'Transcribir',
+    transcribing: 'Transcribiendo…',
+    checklist: 'Lista de tareas',
+    view: 'Ver',
+    paymentRequest: 'Solicitud de pago',
+    paymentSent: 'Pago enviado',
+    pay: 'Pagar',
+    decline: 'Rechazar',
+    paymentPending: 'Pendiente',
+    paymentPaid: 'Pagado',
+    paymentDeclined: 'Rechazado',
+    paymentCancelled: 'Cancelado',
+    voiceCall: 'Llamada de voz',
+    videoCall: 'Videollamada',
+    missedCall: 'Perdida',
+    declinedCall: 'Rechazada',
+    callBack: 'Devolver llamada',
+    roleOwner: 'Propietario',
+    roleAdmin: 'Admin',
+    roleModerator: 'Mod',
+    sendMessage: 'Mensaje',
+    membersTitle: 'Miembros',
+    media: 'Multimedia',
+    files: 'Archivos',
+    links: 'Enlaces',
+    galleryEmpty: 'Aún no hay nada',
+    jumpToDate: 'Ir a una fecha',
+    moreActions: 'Más acciones',
+    thoughtFor: _thoughtForEs,
+    checklistProgress: _checklistProgressEs,
+    unreadMentions: _unreadMentionsEs,
   );
 
   /// Portuguese strings.
@@ -1026,6 +1320,55 @@ class ChatLocalizations {
     save: 'Salvar',
     unsave: 'Remover dos salvos',
     saved: 'Salva',
+    statusQueued: 'Aguardando conexão',
+    offline: 'Aguardando conexão…',
+    connecting: 'Conectando…',
+    attach: 'Anexar',
+    removeAttachment: 'Remover',
+    addCaption: 'Adicione uma legenda…',
+    bold: 'Negrito',
+    italic: 'Itálico',
+    strikethrough: 'Tachado',
+    code: 'Código',
+    link: 'Link',
+    thinking: 'Pensando…',
+    reasoning: 'Raciocínio',
+    sources: 'Fontes',
+    previousVersion: 'Versão anterior',
+    nextVersion: 'Próxima versão',
+    video: 'Vídeo',
+    playVideo: 'Reproduzir vídeo',
+    transcribe: 'Transcrever',
+    transcribing: 'Transcrevendo…',
+    checklist: 'Lista de tarefas',
+    view: 'Ver',
+    paymentRequest: 'Pedido de pagamento',
+    paymentSent: 'Pagamento enviado',
+    pay: 'Pagar',
+    decline: 'Recusar',
+    paymentPending: 'Pendente',
+    paymentPaid: 'Pago',
+    paymentDeclined: 'Recusado',
+    paymentCancelled: 'Cancelado',
+    voiceCall: 'Chamada de voz',
+    videoCall: 'Chamada de vídeo',
+    missedCall: 'Perdida',
+    declinedCall: 'Recusada',
+    callBack: 'Retornar',
+    roleOwner: 'Proprietário',
+    roleAdmin: 'Admin',
+    roleModerator: 'Mod',
+    sendMessage: 'Mensagem',
+    membersTitle: 'Membros',
+    media: 'Mídia',
+    files: 'Arquivos',
+    links: 'Links',
+    galleryEmpty: 'Nada aqui ainda',
+    jumpToDate: 'Ir para data',
+    moreActions: 'Mais ações',
+    thoughtFor: _thoughtForPt,
+    checklistProgress: _checklistProgressPt,
+    unreadMentions: _unreadMentionsPt,
   );
 
   /// French strings.
@@ -1168,6 +1511,55 @@ class ChatLocalizations {
     save: 'Enregistrer',
     unsave: 'Retirer des enregistrés',
     saved: 'Enregistré',
+    statusQueued: 'En attente de réseau',
+    offline: 'En attente de réseau…',
+    connecting: 'Connexion…',
+    attach: 'Joindre',
+    removeAttachment: 'Retirer',
+    addCaption: 'Ajouter une légende…',
+    bold: 'Gras',
+    italic: 'Italique',
+    strikethrough: 'Barré',
+    code: 'Code',
+    link: 'Lien',
+    thinking: 'Réflexion…',
+    reasoning: 'Raisonnement',
+    sources: 'Sources',
+    previousVersion: 'Version précédente',
+    nextVersion: 'Version suivante',
+    video: 'Vidéo',
+    playVideo: 'Lire la vidéo',
+    transcribe: 'Transcrire',
+    transcribing: 'Transcription…',
+    checklist: 'Liste de tâches',
+    view: 'Voir',
+    paymentRequest: 'Demande de paiement',
+    paymentSent: 'Paiement envoyé',
+    pay: 'Payer',
+    decline: 'Refuser',
+    paymentPending: 'En attente',
+    paymentPaid: 'Payé',
+    paymentDeclined: 'Refusé',
+    paymentCancelled: 'Annulé',
+    voiceCall: 'Appel vocal',
+    videoCall: 'Appel vidéo',
+    missedCall: 'Manqué',
+    declinedCall: 'Refusé',
+    callBack: 'Rappeler',
+    roleOwner: 'Propriétaire',
+    roleAdmin: 'Admin',
+    roleModerator: 'Modo',
+    sendMessage: 'Message',
+    membersTitle: 'Membres',
+    media: 'Médias',
+    files: 'Fichiers',
+    links: 'Liens',
+    galleryEmpty: 'Rien pour l’instant',
+    jumpToDate: 'Aller à une date',
+    moreActions: 'Plus d’actions',
+    thoughtFor: _thoughtForFr,
+    checklistProgress: _checklistProgressFr,
+    unreadMentions: _unreadMentionsFr,
   );
 
   /// German strings.
@@ -1310,6 +1702,55 @@ class ChatLocalizations {
     save: 'Speichern',
     unsave: 'Aus Gespeichert entfernen',
     saved: 'Gespeichert',
+    statusQueued: 'Wartet auf Netzwerk',
+    offline: 'Warte auf Netzwerk…',
+    connecting: 'Verbinde…',
+    attach: 'Anhängen',
+    removeAttachment: 'Entfernen',
+    addCaption: 'Bildunterschrift hinzufügen…',
+    bold: 'Fett',
+    italic: 'Kursiv',
+    strikethrough: 'Durchgestrichen',
+    code: 'Code',
+    link: 'Link',
+    thinking: 'Denkt nach…',
+    reasoning: 'Überlegungen',
+    sources: 'Quellen',
+    previousVersion: 'Vorherige Version',
+    nextVersion: 'Nächste Version',
+    video: 'Video',
+    playVideo: 'Video abspielen',
+    transcribe: 'Transkribieren',
+    transcribing: 'Wird transkribiert…',
+    checklist: 'Checkliste',
+    view: 'Ansehen',
+    paymentRequest: 'Zahlungsanforderung',
+    paymentSent: 'Zahlung gesendet',
+    pay: 'Bezahlen',
+    decline: 'Ablehnen',
+    paymentPending: 'Ausstehend',
+    paymentPaid: 'Bezahlt',
+    paymentDeclined: 'Abgelehnt',
+    paymentCancelled: 'Storniert',
+    voiceCall: 'Sprachanruf',
+    videoCall: 'Videoanruf',
+    missedCall: 'Verpasst',
+    declinedCall: 'Abgelehnt',
+    callBack: 'Zurückrufen',
+    roleOwner: 'Inhaber',
+    roleAdmin: 'Admin',
+    roleModerator: 'Mod',
+    sendMessage: 'Nachricht',
+    membersTitle: 'Mitglieder',
+    media: 'Medien',
+    files: 'Dateien',
+    links: 'Links',
+    galleryEmpty: 'Noch nichts hier',
+    jumpToDate: 'Zu Datum springen',
+    moreActions: 'Weitere Aktionen',
+    thoughtFor: _thoughtForDe,
+    checklistProgress: _checklistProgressDe,
+    unreadMentions: _unreadMentionsDe,
   );
 
   /// Built-in strings by language code.
@@ -1550,6 +1991,46 @@ class ChatLocalizations {
     'Symbole',
     'Flaggen',
   ];
+
+  static String _thoughtForEn(int count) => 'Thought for ${count}s';
+
+  static String _thoughtForEs(int count) => 'Pensó durante $count s';
+
+  static String _thoughtForPt(int count) => 'Pensou por $count s';
+
+  static String _thoughtForFr(int count) => 'Réflexion : $count s';
+
+  static String _thoughtForDe(int count) => '$count s nachgedacht';
+
+  static String _checklistProgressEn(int current, int total) =>
+      '$current of $total done';
+
+  static String _checklistProgressEs(int current, int total) =>
+      '$current de $total hechas';
+
+  static String _checklistProgressPt(int current, int total) =>
+      '$current de $total feitas';
+
+  static String _checklistProgressFr(int current, int total) =>
+      '$current sur $total faites';
+
+  static String _checklistProgressDe(int current, int total) =>
+      '$current von $total erledigt';
+
+  static String _unreadMentionsEn(int count) =>
+      count == 1 ? '1 unread mention' : '$count unread mentions';
+
+  static String _unreadMentionsEs(int count) =>
+      count == 1 ? '1 mención sin leer' : '$count menciones sin leer';
+
+  static String _unreadMentionsPt(int count) =>
+      count == 1 ? '1 menção não lida' : '$count menções não lidas';
+
+  static String _unreadMentionsFr(int count) =>
+      count == 1 ? '1 mention non lue' : '$count mentions non lues';
+
+  static String _unreadMentionsDe(int count) =>
+      count == 1 ? '1 ungelesene Erwähnung' : '$count ungelesene Erwähnungen';
 
   /// Returns the built-in strings for [locale], or [en] if the language is
   /// not bundled.
@@ -1821,6 +2302,55 @@ class ChatLocalizations {
     String? save,
     String? unsave,
     String? saved,
+    String? statusQueued,
+    String? offline,
+    String? connecting,
+    String? attach,
+    String? removeAttachment,
+    String? addCaption,
+    String? bold,
+    String? italic,
+    String? strikethrough,
+    String? code,
+    String? link,
+    String? thinking,
+    String? reasoning,
+    String? sources,
+    String? previousVersion,
+    String? nextVersion,
+    String? video,
+    String? playVideo,
+    String? transcribe,
+    String? transcribing,
+    String? checklist,
+    String? view,
+    String? paymentRequest,
+    String? paymentSent,
+    String? pay,
+    String? decline,
+    String? paymentPending,
+    String? paymentPaid,
+    String? paymentDeclined,
+    String? paymentCancelled,
+    String? voiceCall,
+    String? videoCall,
+    String? missedCall,
+    String? declinedCall,
+    String? callBack,
+    String? roleOwner,
+    String? roleAdmin,
+    String? roleModerator,
+    String? sendMessage,
+    String? membersTitle,
+    String? media,
+    String? files,
+    String? links,
+    String? galleryEmpty,
+    String? jumpToDate,
+    String? moreActions,
+    ChatCountLabel? thoughtFor,
+    ChatStepLabel? checklistProgress,
+    ChatCountLabel? unreadMentions,
   }) {
     return ChatLocalizations(
       inputHint: inputHint ?? this.inputHint,
@@ -1961,6 +2491,55 @@ class ChatLocalizations {
       save: save ?? this.save,
       unsave: unsave ?? this.unsave,
       saved: saved ?? this.saved,
+      statusQueued: statusQueued ?? this.statusQueued,
+      offline: offline ?? this.offline,
+      connecting: connecting ?? this.connecting,
+      attach: attach ?? this.attach,
+      removeAttachment: removeAttachment ?? this.removeAttachment,
+      addCaption: addCaption ?? this.addCaption,
+      bold: bold ?? this.bold,
+      italic: italic ?? this.italic,
+      strikethrough: strikethrough ?? this.strikethrough,
+      code: code ?? this.code,
+      link: link ?? this.link,
+      thinking: thinking ?? this.thinking,
+      reasoning: reasoning ?? this.reasoning,
+      sources: sources ?? this.sources,
+      previousVersion: previousVersion ?? this.previousVersion,
+      nextVersion: nextVersion ?? this.nextVersion,
+      video: video ?? this.video,
+      playVideo: playVideo ?? this.playVideo,
+      transcribe: transcribe ?? this.transcribe,
+      transcribing: transcribing ?? this.transcribing,
+      checklist: checklist ?? this.checklist,
+      view: view ?? this.view,
+      paymentRequest: paymentRequest ?? this.paymentRequest,
+      paymentSent: paymentSent ?? this.paymentSent,
+      pay: pay ?? this.pay,
+      decline: decline ?? this.decline,
+      paymentPending: paymentPending ?? this.paymentPending,
+      paymentPaid: paymentPaid ?? this.paymentPaid,
+      paymentDeclined: paymentDeclined ?? this.paymentDeclined,
+      paymentCancelled: paymentCancelled ?? this.paymentCancelled,
+      voiceCall: voiceCall ?? this.voiceCall,
+      videoCall: videoCall ?? this.videoCall,
+      missedCall: missedCall ?? this.missedCall,
+      declinedCall: declinedCall ?? this.declinedCall,
+      callBack: callBack ?? this.callBack,
+      roleOwner: roleOwner ?? this.roleOwner,
+      roleAdmin: roleAdmin ?? this.roleAdmin,
+      roleModerator: roleModerator ?? this.roleModerator,
+      sendMessage: sendMessage ?? this.sendMessage,
+      membersTitle: membersTitle ?? this.membersTitle,
+      media: media ?? this.media,
+      files: files ?? this.files,
+      links: links ?? this.links,
+      galleryEmpty: galleryEmpty ?? this.galleryEmpty,
+      jumpToDate: jumpToDate ?? this.jumpToDate,
+      moreActions: moreActions ?? this.moreActions,
+      thoughtFor: thoughtFor ?? this.thoughtFor,
+      checklistProgress: checklistProgress ?? this.checklistProgress,
+      unreadMentions: unreadMentions ?? this.unreadMentions,
     );
   }
 }

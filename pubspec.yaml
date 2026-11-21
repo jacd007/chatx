@@ -11,20 +11,20 @@ screenshots:
     path: doc/screenshots/01_conversation.png
   - description: Popup menu with quick reactions.
     path: doc/screenshots/02_popup_menu.png
-  - description: Image grid, voice note and files.
-    path: doc/screenshots/08_images_voice.png
+  - description: AI answer reasoning while it thinks.
+    path: doc/screenshots/35_ai_reasoning.png
   - description: Survey card, read receipts and forwarded message.
     path: doc/screenshots/16_survey_seen_forward.png
   - description: AI answer with highlighted code, a table and rating.
     path: doc/screenshots/23_ai_code_table.png
   - description: Poll, countdown announcement and pinned message.
     path: doc/screenshots/11_poll_countdown_pinned.png
-  - description: Message menu with translate, save, report and block.
-    path: doc/screenshots/29_moderation_menu.png
+  - description: Team chat with roles and unread mentions.
+    path: doc/screenshots/41_workspace_mentions.png
   - description: Location, contact card and sticker.
     path: doc/screenshots/26_location_contact_sticker.png
-  - description: Built-in emoji picker.
-    path: doc/screenshots/21_emoji_picker.png
+  - description: Product carousel in a shop bot.
+    path: doc/screenshots/47_products.png
   - description: Dark mode with a custom theme.
     path: doc/screenshots/06_dark_custom_look.png
 topics:

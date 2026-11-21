@@ -72,6 +72,19 @@ Initial release.
   (`toggleSaved`) and `ChatWordFilter`.
 - Strings in English, Spanish, Portuguese, French and German, overridable
   through `ChatLocalizations`. Emoji search in English and Spanish.
+- AI transparency: `ChatReasoning`, `ChatToolCall`, `ChatSource`, answer
+  versions (`ChatController.startRegeneration`) and `suggestedPrompts`.
+- Attachment tray (`onAttach`, `onSendAttachments`,
+  `ChatController.addAttachments`), keyboard images, markdown formatting
+  from the selection menu and shortcuts, ↑ to edit, Esc to cancel.
+- Hover actions and right-click menu for mouse users.
+- Offline support: `connectionState`, `MessageStatus.queued` and
+  `onSendQueued`.
+- `VideoMessage`, voice transcripts (`onTranscribe`), `ChecklistMessage`,
+  `ProductMessage`, `PaymentMessage` and `CallMessage`.
+- `ChatUser.role` badges, `ChatMemberList`, `ChatUserProfile` and
+  `ChatMediaGallery`.
+- Unread mention jumps and jump to date (`ChatController.scrollToDate`).
 - Accessibility guideline tests at 1x and 2x text size.
 - Works in apps built on `material_ui` through `MaterialUiCompatibilityBridge`.
 - Zero dependencies besides the Flutter SDK. Supports Android, iOS, web,

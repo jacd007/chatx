@@ -169,6 +169,10 @@ final class TextMessage extends ChatMessage {
     this.quickReplies = const [],
     this.feedback,
     this.editHistory = const [],
+    this.reasoning,
+    this.toolCalls = const [],
+    this.sources = const [],
+    this.versions = const [],
   });
 
   /// Message body. Supports **bold**, _italic_, ~~strike~~, `code`, fenced
@@ -198,6 +202,22 @@ final class TextMessage extends ChatMessage {
   /// `ChatController.editText` records them for you.
   final List<ChatEdit> editHistory;
 
+  /// What an AI model thought before answering. Shown as a collapsible
+  /// "Thought for 12s" block above the text.
+  final ChatReasoning? reasoning;
+
+  /// Tools an AI model used, such as a web search. Shown as cards above
+  /// the text.
+  final List<ChatToolCall> toolCalls;
+
+  /// Sources the answer cites, shown as numbered chips under the text.
+  final List<ChatSource> sources;
+
+  /// Earlier answers, oldest first, kept when the answer was regenerated.
+  /// The bubble shows "‹ 2/3 ›" to browse them.
+  /// `ChatController.startRegeneration` records them for you.
+  final List<String> versions;
+
   /// Returns a copy of this message with the given fields replaced.
   TextMessage copyWith({
     String? id,
@@ -221,6 +241,10 @@ final class TextMessage extends ChatMessage {
     List<ChatQuickReply>? quickReplies,
     ChatFeedback? feedback,
     List<ChatEdit>? editHistory,
+    ChatReasoning? reasoning,
+    List<ChatToolCall>? toolCalls,
+    List<ChatSource>? sources,
+    List<String>? versions,
     bool clearStatus = false,
     bool clearThread = false,
     bool clearExpiresAt = false,
@@ -253,6 +277,10 @@ final class TextMessage extends ChatMessage {
       quickReplies: quickReplies ?? this.quickReplies,
       feedback: clearFeedback ? null : feedback ?? this.feedback,
       editHistory: editHistory ?? this.editHistory,
+      reasoning: reasoning ?? this.reasoning,
+      toolCalls: toolCalls ?? this.toolCalls,
+      sources: sources ?? this.sources,
+      versions: versions ?? this.versions,
     );
   }
 
@@ -305,7 +333,11 @@ final class TextMessage extends ChatMessage {
           listEquals(other.buttons, buttons) &&
           listEquals(other.quickReplies, quickReplies) &&
           other.feedback == feedback &&
-          listEquals(other.editHistory, editHistory);
+          listEquals(other.editHistory, editHistory) &&
+          other.reasoning == reasoning &&
+          listEquals(other.toolCalls, toolCalls) &&
+          listEquals(other.sources, sources) &&
+          listEquals(other.versions, versions);
 
   @override
   int get hashCode => Object.hashAll([
@@ -318,6 +350,10 @@ final class TextMessage extends ChatMessage {
         Object.hashAll(quickReplies),
         feedback,
         Object.hashAll(editHistory),
+        reasoning,
+        Object.hashAll(toolCalls),
+        Object.hashAll(sources),
+        Object.hashAll(versions),
       ]);
 
   @override
@@ -915,6 +951,7 @@ final class VoiceMessage extends ChatMessage {
     required this.uri,
     required this.duration,
     this.waveform = const [],
+    this.transcript,
   });
 
   /// Where the audio lives. Passed back to your playback callbacks.
@@ -926,6 +963,10 @@ final class VoiceMessage extends ChatMessage {
   /// Amplitude samples between 0 and 1. chatx resamples them to fit the
   /// bubble. When empty, a flat waveform is shown.
   final List<double> waveform;
+
+  /// Text of the recording, produced by your app. Shown under the
+  /// waveform.
+  final String? transcript;
 
   /// Returns a copy of this message with the given fields replaced.
   VoiceMessage copyWith({
@@ -945,6 +986,7 @@ final class VoiceMessage extends ChatMessage {
     String? uri,
     Duration? duration,
     List<double>? waveform,
+    String? transcript,
     bool clearStatus = false,
     bool clearThread = false,
     bool clearExpiresAt = false,
@@ -969,6 +1011,7 @@ final class VoiceMessage extends ChatMessage {
       uri: uri ?? this.uri,
       duration: duration ?? this.duration,
       waveform: waveform ?? this.waveform,
+      transcript: transcript ?? this.transcript,
     );
   }
 
@@ -1016,7 +1059,8 @@ final class VoiceMessage extends ChatMessage {
           _baseEquals(other) &&
           other.uri == uri &&
           other.duration == duration &&
-          listEquals(other.waveform, waveform);
+          listEquals(other.waveform, waveform) &&
+          other.transcript == transcript;
 
   @override
   int get hashCode => Object.hashAll([
@@ -1024,10 +1068,182 @@ final class VoiceMessage extends ChatMessage {
         uri,
         duration,
         Object.hashAll(waveform),
+        transcript,
       ]);
 
   @override
   String toString() => 'VoiceMessage(id: $id, author: ${author.id})';
+}
+
+/// A video with a thumbnail, duration and play button.
+///
+/// chatx does not play videos. Handle taps with `ChatView.onVideoTap`, for
+/// example with the `video_player` package.
+final class VideoMessage extends ChatMessage {
+  /// Creates a video message.
+  const VideoMessage({
+    required super.id,
+    required super.author,
+    required super.createdAt,
+    super.status,
+    super.replyToId,
+    super.reactions,
+    super.thread,
+    super.receipts,
+    super.forwardedFrom,
+    super.expiresAt,
+    super.deletedAt,
+    super.scheduledFor,
+    super.metadata,
+    required this.uri,
+    this.thumbnailUri,
+    this.duration,
+    this.width,
+    this.height,
+    this.caption,
+    this.uploadProgress,
+  });
+
+  /// Where the video lives. Passed back to your tap handler.
+  final String uri;
+
+  /// Preview image, loaded like `ChatImage.uri`.
+  final String? thumbnailUri;
+
+  /// Length of the video.
+  final Duration? duration;
+
+  /// Width in pixels, used for the aspect ratio.
+  final double? width;
+
+  /// Height in pixels, used for the aspect ratio.
+  final double? height;
+
+  /// Optional text under the video. Supports markdown.
+  final String? caption;
+
+  /// Upload progress from 0 to 1, or `null` when there is no upload.
+  final double? uploadProgress;
+
+  /// Returns a copy of this message with the given fields replaced.
+  VideoMessage copyWith({
+    String? id,
+    ChatUser? author,
+    DateTime? createdAt,
+    MessageStatus? status,
+    String? replyToId,
+    List<ChatReaction>? reactions,
+    ChatThreadSummary? thread,
+    List<ChatReadReceipt>? receipts,
+    String? forwardedFrom,
+    DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
+    Map<String, Object?>? metadata,
+    String? uri,
+    String? thumbnailUri,
+    Duration? duration,
+    double? width,
+    double? height,
+    String? caption,
+    double? uploadProgress,
+    bool clearStatus = false,
+    bool clearThread = false,
+    bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
+    bool clearUploadProgress = false,
+  }) {
+    return VideoMessage(
+      id: id ?? this.id,
+      author: author ?? this.author,
+      createdAt: createdAt ?? this.createdAt,
+      status: clearStatus ? null : status ?? this.status,
+      replyToId: replyToId ?? this.replyToId,
+      reactions: reactions ?? this.reactions,
+      thread: clearThread ? null : thread ?? this.thread,
+      receipts: receipts ?? this.receipts,
+      forwardedFrom: forwardedFrom ?? this.forwardedFrom,
+      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
+      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
+      scheduledFor:
+          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
+      metadata: metadata ?? this.metadata,
+      uri: uri ?? this.uri,
+      thumbnailUri: thumbnailUri ?? this.thumbnailUri,
+      duration: duration ?? this.duration,
+      width: width ?? this.width,
+      height: height ?? this.height,
+      caption: caption ?? this.caption,
+      uploadProgress:
+          clearUploadProgress ? null : uploadProgress ?? this.uploadProgress,
+    );
+  }
+
+  @override
+  VideoMessage copyWithMeta({
+    MessageStatus? status,
+    String? replyToId,
+    List<ChatReaction>? reactions,
+    ChatThreadSummary? thread,
+    List<ChatReadReceipt>? receipts,
+    String? forwardedFrom,
+    DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
+    Map<String, Object?>? metadata,
+    bool clearStatus = false,
+    bool clearThread = false,
+    bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
+  }) {
+    return copyWith(
+      status: status,
+      replyToId: replyToId,
+      reactions: reactions,
+      thread: thread,
+      receipts: receipts,
+      forwardedFrom: forwardedFrom,
+      expiresAt: expiresAt,
+      deletedAt: deletedAt,
+      scheduledFor: scheduledFor,
+      metadata: metadata,
+      clearStatus: clearStatus,
+      clearThread: clearThread,
+      clearExpiresAt: clearExpiresAt,
+      clearDeletedAt: clearDeletedAt,
+      clearScheduledFor: clearScheduledFor,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is VideoMessage &&
+          _baseEquals(other) &&
+          other.uri == uri &&
+          other.thumbnailUri == thumbnailUri &&
+          other.duration == duration &&
+          other.width == width &&
+          other.height == height &&
+          other.caption == caption &&
+          other.uploadProgress == uploadProgress;
+
+  @override
+  int get hashCode => Object.hashAll([
+        _baseHash,
+        uri,
+        thumbnailUri,
+        duration,
+        width,
+        height,
+        caption,
+        uploadProgress,
+      ]);
+
+  @override
+  String toString() => 'VideoMessage(id: $id, author: ${author.id})';
 }
 
 /// A quick vote: one question with closed options to decide something now.
@@ -1968,6 +2184,544 @@ final class ContactMessage extends ChatMessage {
 
   @override
   String toString() => 'ContactMessage(id: $id, author: ${author.id})';
+}
+
+/// A shared to-do list that everyone in the chat can check.
+///
+/// Taps go to `ChatView.onChecklistToggle`; record them with
+/// `ChatController.toggleChecklistItem`.
+final class ChecklistMessage extends ChatMessage {
+  /// Creates a checklist.
+  const ChecklistMessage({
+    required super.id,
+    required super.author,
+    required super.createdAt,
+    super.status,
+    super.replyToId,
+    super.reactions,
+    super.thread,
+    super.receipts,
+    super.forwardedFrom,
+    super.expiresAt,
+    super.deletedAt,
+    super.scheduledFor,
+    super.metadata,
+    required this.title,
+    required this.items,
+  });
+
+  /// Title of the list.
+  final String title;
+
+  /// The items, in display order.
+  final List<ChecklistItem> items;
+
+  /// Number of checked items.
+  int get doneCount => items.where((i) => i.isDone).length;
+
+  /// Returns a copy of this message with the given fields replaced.
+  ChecklistMessage copyWith({
+    String? id,
+    ChatUser? author,
+    DateTime? createdAt,
+    MessageStatus? status,
+    String? replyToId,
+    List<ChatReaction>? reactions,
+    ChatThreadSummary? thread,
+    List<ChatReadReceipt>? receipts,
+    String? forwardedFrom,
+    DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
+    Map<String, Object?>? metadata,
+    String? title,
+    List<ChecklistItem>? items,
+    bool clearStatus = false,
+    bool clearThread = false,
+    bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
+  }) {
+    return ChecklistMessage(
+      id: id ?? this.id,
+      author: author ?? this.author,
+      createdAt: createdAt ?? this.createdAt,
+      status: clearStatus ? null : status ?? this.status,
+      replyToId: replyToId ?? this.replyToId,
+      reactions: reactions ?? this.reactions,
+      thread: clearThread ? null : thread ?? this.thread,
+      receipts: receipts ?? this.receipts,
+      forwardedFrom: forwardedFrom ?? this.forwardedFrom,
+      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
+      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
+      scheduledFor:
+          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
+      metadata: metadata ?? this.metadata,
+      title: title ?? this.title,
+      items: items ?? this.items,
+    );
+  }
+
+  @override
+  ChecklistMessage copyWithMeta({
+    MessageStatus? status,
+    String? replyToId,
+    List<ChatReaction>? reactions,
+    ChatThreadSummary? thread,
+    List<ChatReadReceipt>? receipts,
+    String? forwardedFrom,
+    DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
+    Map<String, Object?>? metadata,
+    bool clearStatus = false,
+    bool clearThread = false,
+    bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
+  }) {
+    return copyWith(
+      status: status,
+      replyToId: replyToId,
+      reactions: reactions,
+      thread: thread,
+      receipts: receipts,
+      forwardedFrom: forwardedFrom,
+      expiresAt: expiresAt,
+      deletedAt: deletedAt,
+      scheduledFor: scheduledFor,
+      metadata: metadata,
+      clearStatus: clearStatus,
+      clearThread: clearThread,
+      clearExpiresAt: clearExpiresAt,
+      clearDeletedAt: clearDeletedAt,
+      clearScheduledFor: clearScheduledFor,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChecklistMessage &&
+          _baseEquals(other) &&
+          other.title == title &&
+          listEquals(other.items, items);
+
+  @override
+  int get hashCode => Object.hashAll([
+        _baseHash,
+        title,
+        Object.hashAll(items),
+      ]);
+
+  @override
+  String toString() => 'ChecklistMessage(id: $id, author: ${author.id})';
+}
+
+/// One product card, or a carousel when there are several products.
+final class ProductMessage extends ChatMessage {
+  /// Creates a product message.
+  const ProductMessage({
+    required super.id,
+    required super.author,
+    required super.createdAt,
+    super.status,
+    super.replyToId,
+    super.reactions,
+    super.thread,
+    super.receipts,
+    super.forwardedFrom,
+    super.expiresAt,
+    super.deletedAt,
+    super.scheduledFor,
+    super.metadata,
+    required this.products,
+    this.text,
+  }) : assert(
+            products.length > 0, 'A ProductMessage needs at least one product');
+
+  /// The products. More than one shows a horizontal carousel.
+  final List<ChatProduct> products;
+
+  /// Optional text above the products. Supports markdown.
+  final String? text;
+
+  /// Returns a copy of this message with the given fields replaced.
+  ProductMessage copyWith({
+    String? id,
+    ChatUser? author,
+    DateTime? createdAt,
+    MessageStatus? status,
+    String? replyToId,
+    List<ChatReaction>? reactions,
+    ChatThreadSummary? thread,
+    List<ChatReadReceipt>? receipts,
+    String? forwardedFrom,
+    DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
+    Map<String, Object?>? metadata,
+    List<ChatProduct>? products,
+    String? text,
+    bool clearStatus = false,
+    bool clearThread = false,
+    bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
+  }) {
+    return ProductMessage(
+      id: id ?? this.id,
+      author: author ?? this.author,
+      createdAt: createdAt ?? this.createdAt,
+      status: clearStatus ? null : status ?? this.status,
+      replyToId: replyToId ?? this.replyToId,
+      reactions: reactions ?? this.reactions,
+      thread: clearThread ? null : thread ?? this.thread,
+      receipts: receipts ?? this.receipts,
+      forwardedFrom: forwardedFrom ?? this.forwardedFrom,
+      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
+      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
+      scheduledFor:
+          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
+      metadata: metadata ?? this.metadata,
+      products: products ?? this.products,
+      text: text ?? this.text,
+    );
+  }
+
+  @override
+  ProductMessage copyWithMeta({
+    MessageStatus? status,
+    String? replyToId,
+    List<ChatReaction>? reactions,
+    ChatThreadSummary? thread,
+    List<ChatReadReceipt>? receipts,
+    String? forwardedFrom,
+    DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
+    Map<String, Object?>? metadata,
+    bool clearStatus = false,
+    bool clearThread = false,
+    bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
+  }) {
+    return copyWith(
+      status: status,
+      replyToId: replyToId,
+      reactions: reactions,
+      thread: thread,
+      receipts: receipts,
+      forwardedFrom: forwardedFrom,
+      expiresAt: expiresAt,
+      deletedAt: deletedAt,
+      scheduledFor: scheduledFor,
+      metadata: metadata,
+      clearStatus: clearStatus,
+      clearThread: clearThread,
+      clearExpiresAt: clearExpiresAt,
+      clearDeletedAt: clearDeletedAt,
+      clearScheduledFor: clearScheduledFor,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ProductMessage &&
+          _baseEquals(other) &&
+          listEquals(other.products, products) &&
+          other.text == text;
+
+  @override
+  int get hashCode => Object.hashAll([
+        _baseHash,
+        Object.hashAll(products),
+        text,
+      ]);
+
+  @override
+  String toString() => 'ProductMessage(id: $id, author: ${author.id})';
+}
+
+/// A request for money, or a payment the author sent.
+///
+/// While [status] is pending, the other people see Pay and Decline buttons
+/// that call `ChatView.onPaymentAction`. chatx never handles money.
+final class PaymentMessage extends ChatMessage {
+  /// Creates a payment message.
+  const PaymentMessage({
+    required super.id,
+    required super.author,
+    required super.createdAt,
+    super.status,
+    super.replyToId,
+    super.reactions,
+    super.thread,
+    super.receipts,
+    super.forwardedFrom,
+    super.expiresAt,
+    super.deletedAt,
+    super.scheduledFor,
+    super.metadata,
+    required this.amount,
+    this.isRequest = true,
+    this.note,
+    this.paymentStatus = ChatPaymentStatus.pending,
+  });
+
+  /// Amount, already formatted by your app, for example "\$25.00".
+  final String amount;
+
+  /// Whether the author asks for money (`true`) or sent it (`false`).
+  final bool isRequest;
+
+  /// What the payment is for.
+  final String? note;
+
+  /// Whether the payment is pending, paid, declined or cancelled.
+  final ChatPaymentStatus paymentStatus;
+
+  /// Returns a copy of this message with the given fields replaced.
+  PaymentMessage copyWith({
+    String? id,
+    ChatUser? author,
+    DateTime? createdAt,
+    MessageStatus? status,
+    String? replyToId,
+    List<ChatReaction>? reactions,
+    ChatThreadSummary? thread,
+    List<ChatReadReceipt>? receipts,
+    String? forwardedFrom,
+    DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
+    Map<String, Object?>? metadata,
+    String? amount,
+    bool? isRequest,
+    String? note,
+    ChatPaymentStatus? paymentStatus,
+    bool clearStatus = false,
+    bool clearThread = false,
+    bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
+  }) {
+    return PaymentMessage(
+      id: id ?? this.id,
+      author: author ?? this.author,
+      createdAt: createdAt ?? this.createdAt,
+      status: clearStatus ? null : status ?? this.status,
+      replyToId: replyToId ?? this.replyToId,
+      reactions: reactions ?? this.reactions,
+      thread: clearThread ? null : thread ?? this.thread,
+      receipts: receipts ?? this.receipts,
+      forwardedFrom: forwardedFrom ?? this.forwardedFrom,
+      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
+      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
+      scheduledFor:
+          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
+      metadata: metadata ?? this.metadata,
+      amount: amount ?? this.amount,
+      isRequest: isRequest ?? this.isRequest,
+      note: note ?? this.note,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+    );
+  }
+
+  @override
+  PaymentMessage copyWithMeta({
+    MessageStatus? status,
+    String? replyToId,
+    List<ChatReaction>? reactions,
+    ChatThreadSummary? thread,
+    List<ChatReadReceipt>? receipts,
+    String? forwardedFrom,
+    DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
+    Map<String, Object?>? metadata,
+    bool clearStatus = false,
+    bool clearThread = false,
+    bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
+  }) {
+    return copyWith(
+      status: status,
+      replyToId: replyToId,
+      reactions: reactions,
+      thread: thread,
+      receipts: receipts,
+      forwardedFrom: forwardedFrom,
+      expiresAt: expiresAt,
+      deletedAt: deletedAt,
+      scheduledFor: scheduledFor,
+      metadata: metadata,
+      clearStatus: clearStatus,
+      clearThread: clearThread,
+      clearExpiresAt: clearExpiresAt,
+      clearDeletedAt: clearDeletedAt,
+      clearScheduledFor: clearScheduledFor,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PaymentMessage &&
+          _baseEquals(other) &&
+          other.amount == amount &&
+          other.isRequest == isRequest &&
+          other.note == note &&
+          other.paymentStatus == paymentStatus;
+
+  @override
+  int get hashCode => Object.hashAll([
+        _baseHash,
+        amount,
+        isRequest,
+        note,
+        paymentStatus,
+      ]);
+
+  @override
+  String toString() => 'PaymentMessage(id: $id, author: ${author.id})';
+}
+
+/// An entry of the call log: a voice or video call and how it ended.
+final class CallMessage extends ChatMessage {
+  /// Creates a call log entry.
+  const CallMessage({
+    required super.id,
+    required super.author,
+    required super.createdAt,
+    super.status,
+    super.replyToId,
+    super.reactions,
+    super.thread,
+    super.receipts,
+    super.forwardedFrom,
+    super.expiresAt,
+    super.deletedAt,
+    super.scheduledFor,
+    super.metadata,
+    this.kind = ChatCallKind.voice,
+    this.outcome = ChatCallOutcome.completed,
+    this.duration,
+  });
+
+  /// Voice or video call.
+  final ChatCallKind kind;
+
+  /// Whether the call happened, was missed or was declined.
+  final ChatCallOutcome outcome;
+
+  /// Length of a completed call.
+  final Duration? duration;
+
+  /// Returns a copy of this message with the given fields replaced.
+  CallMessage copyWith({
+    String? id,
+    ChatUser? author,
+    DateTime? createdAt,
+    MessageStatus? status,
+    String? replyToId,
+    List<ChatReaction>? reactions,
+    ChatThreadSummary? thread,
+    List<ChatReadReceipt>? receipts,
+    String? forwardedFrom,
+    DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
+    Map<String, Object?>? metadata,
+    ChatCallKind? kind,
+    ChatCallOutcome? outcome,
+    Duration? duration,
+    bool clearStatus = false,
+    bool clearThread = false,
+    bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
+  }) {
+    return CallMessage(
+      id: id ?? this.id,
+      author: author ?? this.author,
+      createdAt: createdAt ?? this.createdAt,
+      status: clearStatus ? null : status ?? this.status,
+      replyToId: replyToId ?? this.replyToId,
+      reactions: reactions ?? this.reactions,
+      thread: clearThread ? null : thread ?? this.thread,
+      receipts: receipts ?? this.receipts,
+      forwardedFrom: forwardedFrom ?? this.forwardedFrom,
+      expiresAt: clearExpiresAt ? null : expiresAt ?? this.expiresAt,
+      deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
+      scheduledFor:
+          clearScheduledFor ? null : scheduledFor ?? this.scheduledFor,
+      metadata: metadata ?? this.metadata,
+      kind: kind ?? this.kind,
+      outcome: outcome ?? this.outcome,
+      duration: duration ?? this.duration,
+    );
+  }
+
+  @override
+  CallMessage copyWithMeta({
+    MessageStatus? status,
+    String? replyToId,
+    List<ChatReaction>? reactions,
+    ChatThreadSummary? thread,
+    List<ChatReadReceipt>? receipts,
+    String? forwardedFrom,
+    DateTime? expiresAt,
+    DateTime? deletedAt,
+    DateTime? scheduledFor,
+    Map<String, Object?>? metadata,
+    bool clearStatus = false,
+    bool clearThread = false,
+    bool clearExpiresAt = false,
+    bool clearDeletedAt = false,
+    bool clearScheduledFor = false,
+  }) {
+    return copyWith(
+      status: status,
+      replyToId: replyToId,
+      reactions: reactions,
+      thread: thread,
+      receipts: receipts,
+      forwardedFrom: forwardedFrom,
+      expiresAt: expiresAt,
+      deletedAt: deletedAt,
+      scheduledFor: scheduledFor,
+      metadata: metadata,
+      clearStatus: clearStatus,
+      clearThread: clearThread,
+      clearExpiresAt: clearExpiresAt,
+      clearDeletedAt: clearDeletedAt,
+      clearScheduledFor: clearScheduledFor,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CallMessage &&
+          _baseEquals(other) &&
+          other.kind == kind &&
+          other.outcome == outcome &&
+          other.duration == duration;
+
+  @override
+  int get hashCode => Object.hashAll([
+        _baseHash,
+        kind,
+        outcome,
+        duration,
+      ]);
+
+  @override
+  String toString() => 'CallMessage(id: $id, author: ${author.id})';
 }
 
 /// A sticker or GIF, shown large and without a bubble.

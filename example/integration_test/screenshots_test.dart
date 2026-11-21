@@ -7,6 +7,7 @@
 //     -d <iPhone simulator>
 
 import 'package:chatx_example/main.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -22,6 +23,27 @@ void main() {
   Future<void> settle(WidgetTester tester, [int ms = 600]) async {
     await tester.pump(Duration(milliseconds: ms));
     await tester.pump(const Duration(milliseconds: 300));
+  }
+
+  /// Waits in real time while frames keep rendering.
+  Future<void> wait(WidgetTester tester, int ms) async {
+    final end = DateTime.now().add(Duration(milliseconds: ms));
+    while (DateTime.now().isBefore(end)) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await tester.pump();
+    }
+  }
+
+  Future<void> waitFor(WidgetTester tester, Finder finder) async {
+    for (var i = 0; i < 100 && finder.evaluate().isEmpty; i++) {
+      await wait(tester, 100);
+    }
+  }
+
+  Future<void> waitUntilGone(WidgetTester tester, Finder finder) async {
+    for (var i = 0; i < 150 && finder.evaluate().isNotEmpty; i++) {
+      await wait(tester, 100);
+    }
   }
 
   Future<void> open(WidgetTester tester, String demo) async {
@@ -77,32 +99,33 @@ void main() {
 
   testWidgets('AI streaming', (tester) async {
     await open(tester, 'AI streaming');
-    await tester.enterText(
-      find.byKey(const Key('chatx_input_field')),
-      'Summarize chatx for me',
-    );
-    await tester.pump();
-    await tester.tap(find.byKey(const Key('chatx_send_button')));
-    // Let the "thinking" pause pass and part of the answer stream in.
-    FocusManager.instance.primaryFocus?.unfocus();
-    for (var i = 0; i < 14; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-    }
+    await shoot('36_ai_prompts');
+    await tester.tap(find.byKey(const Key('chatx_prompt_0')));
+    await wait(tester, 700);
+    expect(find.text('Thinking…'), findsOneWidget);
+    await shoot('35_ai_reasoning');
+    await waitFor(tester, find.byIcon(Icons.check_circle_rounded));
+    await wait(tester, 900);
     expect(find.byKey(const Key('chatx_stop_button')), findsOneWidget);
     await shoot('24_ai_stop');
-    // Let the answer finish: code block, table and AI actions appear.
-    for (var i = 0; i < 80; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-      if (find.byKey(const Key('chatx_stop_button')).evaluate().isEmpty) {
-        break;
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    }
+    await waitUntilGone(tester, find.byKey(const Key('chatx_stop_button')));
     await settle(tester, 600);
-    final good = find.byIcon(Icons.thumb_up_outlined);
-    await tester.tap(good.first);
+    await tester.tap(find.byIcon(Icons.thumb_up_outlined).first);
     await settle(tester);
     await shoot('23_ai_code_table');
+
+    await tester.tap(find.byIcon(Icons.refresh_rounded).first);
+    await wait(tester, 300);
+    await waitUntilGone(tester, find.byKey(const Key('chatx_stop_button')));
+    await settle(tester, 600);
+    expect(find.text('2/2'), findsOneWidget);
+    await tester.drag(
+      find.byType(CustomScrollView).first,
+      const Offset(0, -2000),
+    );
+    // Let the floating date fade out.
+    await wait(tester, 2200);
+    await shoot('37_ai_versions_sources');
   });
 
   testWidgets('bubble styles', (tester) async {
@@ -169,6 +192,33 @@ void main() {
     await tester.tap(find.byKey(const Key('chatx_sticker_pack_faces')));
     await settle(tester, 900);
     await shoot('27_sticker_picker');
+    await tester.tap(find.byKey(const Key('chatx_emoji_button')));
+    await settle(tester, 600);
+    FocusManager.instance.primaryFocus?.unfocus();
+    await settle(tester, 600);
+
+    await tester.tap(find.byKey(const Key('chatx_attach_button')));
+    await settle(tester, 600);
+    final media = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('chatx_video_video')),
+      200,
+      scrollable: media,
+    );
+    await settle(tester, 600);
+    await shoot('39_video_attachments');
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('chatx_transcribe_voice1')),
+      250,
+      scrollable: media,
+    );
+    await tester.drag(media, const Offset(0, -150));
+    await settle(tester, 400);
+    await tester.tap(find.byKey(const Key('chatx_transcribe_voice1')));
+    await wait(tester, 1500);
+    await settle(tester, 400);
+    await shoot('40_voice_transcript');
   });
 
   testWidgets('community: survey, poll, mentions, search, selection, thread',
@@ -367,5 +417,91 @@ void main() {
     await tester.tap(find.text('Community'));
     await settle(tester, 900);
     await shoot('33_german');
+  });
+
+  testWidgets('workspace: mentions, roles, members, gallery, offline',
+      (tester) async {
+    await open(tester, 'Workspace');
+    await settle(tester, 900);
+    await shoot('41_workspace_mentions');
+
+    await tester.tap(find.byKey(const Key('chatx_mentions_button')));
+    await settle(tester, 900);
+    final list = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('chatx_check_check_c')),
+      200,
+      scrollable: list,
+    );
+    await settle(tester, 400);
+    await tester.tap(find.byKey(const Key('chatx_check_check_c')));
+    await settle(tester, 600);
+    await shoot('42_checklist_call');
+
+    await tester.tap(find.byKey(const Key('chatx_header')));
+    await settle(tester, 900);
+    await shoot('43_members');
+    await tester.tap(find.byKey(const Key('chatx_member_bea')));
+    await settle(tester, 900);
+    await shoot('44_profile');
+    await tester.tapAt(const Offset(20, 120));
+    await settle(tester, 700);
+
+    await tester.tap(find.byKey(const Key('demo_gallery')));
+    await settle(tester, 900);
+    await shoot('45_gallery');
+    await tester.tapAt(const Offset(20, 60));
+    await settle(tester, 700);
+
+    await tester.tap(find.byKey(const Key('demo_network')));
+    await settle(tester, 500);
+    await tester.enterText(
+      find.byKey(const Key('chatx_input_field')),
+      'Reviewing it on the train 🚆',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('chatx_send_button')));
+    FocusManager.instance.primaryFocus?.unfocus();
+    await settle(tester, 800);
+    final bottom = find.byKey(const Key('chatx_scroll_to_bottom'));
+    if (bottom.hitTestable().evaluate().isNotEmpty) {
+      await tester.tap(bottom);
+      await settle(tester, 900);
+    }
+    await shoot('46_offline_queue');
+  });
+
+  testWidgets('support bot: products and payment', (tester) async {
+    await open(tester, 'Support bot');
+    await tester.tap(find.text('Shop'));
+    await wait(tester, 1500);
+    await settle(tester, 500);
+    await shoot('47_products');
+    // Slow mode allows one message every 5 seconds.
+    await wait(tester, 4000);
+    await tester.tap(find.text('Billing'));
+    await wait(tester, 1500);
+    await settle(tester, 500);
+    await shoot('48_payment');
+  });
+
+  testWidgets('desktop: hover actions', (tester) async {
+    await open(tester, 'Basic chat');
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: const Offset(1, 1));
+    final bubble = find
+        .byWidgetPredicate(
+          (w) =>
+              w.key is ValueKey<String> &&
+              (w.key! as ValueKey<String>).value.startsWith('chatx_bubble_'),
+        )
+        .hitTestable()
+        .first;
+    await mouse.moveTo(tester.getCenter(bubble));
+    await settle(tester, 400);
+    await shoot('49_hover_actions');
+    await mouse.moveTo(const Offset(1, 1));
+    await mouse.removePointer();
+    await settle(tester, 300);
   });
 }

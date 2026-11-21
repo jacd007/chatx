@@ -32,6 +32,11 @@ class MessageStatusIcon extends StatelessWidget {
     final l10n = ChatLocalizations.of(context);
     final base = color ?? IconTheme.of(context).color;
     final (icon, iconColor, label) = switch (status) {
+      MessageStatus.queued => (
+          Icons.cloud_off_rounded,
+          base,
+          l10n.statusQueued
+        ),
       MessageStatus.sending => (
           Icons.schedule_rounded,
           base,

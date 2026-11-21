@@ -28,6 +28,9 @@ import 'chat_builders.dart';
 /// ```
 ///
 /// On desktop and web, Enter sends and Shift+Enter inserts a new line.
+/// Selected text can be formatted from the context menu or with
+/// Ctrl/Cmd+B (bold), I (italic), Shift+X (strikethrough), E (code) and K
+/// (link).
 class ChatInput extends StatefulWidget {
   /// Creates a message composer.
   const ChatInput({
@@ -55,6 +58,11 @@ class ChatInput extends StatefulWidget {
     this.stickerPacks = const [],
     this.onSticker,
     this.imageProviderBuilder,
+    this.allowEmptySend = false,
+    this.onArrowUp,
+    this.onEscape,
+    this.onContentInserted,
+    this.enableFormatting = true,
   });
 
   /// Called with the trimmed text when the user sends a non-empty message.
@@ -137,6 +145,25 @@ class ChatInput extends StatefulWidget {
   /// Loads sticker images. Defaults to [NetworkImage].
   final ImageProvider Function(String uri)? imageProviderBuilder;
 
+  /// Whether the send button works with an empty field, for example while
+  /// attachments wait to be sent. [onSend] then receives an empty string.
+  final bool allowEmptySend;
+
+  /// Called when the user presses the up arrow in an empty field. `ChatView`
+  /// uses it to edit the last message.
+  final VoidCallback? onArrowUp;
+
+  /// Called when the user presses Escape, for example to cancel a reply.
+  final VoidCallback? onEscape;
+
+  /// Called when the keyboard inserts an image or GIF, for example from
+  /// Gboard. When `null`, such keyboards do not offer images.
+  final ValueChanged<KeyboardInsertedContent>? onContentInserted;
+
+  /// Whether selected text can be formatted with markdown from the context
+  /// menu and keyboard shortcuts.
+  final bool enableFormatting;
+
   @override
   State<ChatInput> createState() => _ChatInputState();
 }
@@ -178,7 +205,8 @@ class _ChatInputState extends State<ChatInput> {
     super.initState();
     _focusNode.addListener(_onFocusChanged);
     _controller.addListener(_onTextChanged);
-    _canSend.value = _controller.text.trim().isNotEmpty;
+    _canSend.value =
+        _controller.text.trim().isNotEmpty || widget.allowEmptySend;
   }
 
   @override
@@ -187,6 +215,10 @@ class _ChatInputState extends State<ChatInput> {
     if (oldWidget.focusNode != widget.focusNode) {
       (oldWidget.focusNode ?? _ownFocusNode)?.removeListener(_onFocusChanged);
       _focusNode.addListener(_onFocusChanged);
+    }
+    if (oldWidget.allowEmptySend != widget.allowEmptySend) {
+      _canSend.value =
+          _controller.text.trim().isNotEmpty || widget.allowEmptySend;
     }
     if (oldWidget.controller != widget.controller) {
       (oldWidget.controller ?? _ownController)?.removeListener(_onTextChanged);
@@ -213,7 +245,7 @@ class _ChatInputState extends State<ChatInput> {
 
   void _onTextChanged() {
     final hasText = _controller.text.trim().isNotEmpty;
-    _canSend.value = hasText;
+    _canSend.value = hasText || widget.allowEmptySend;
     if (widget.onTypingChanged == null) return;
     if (!hasText) {
       _setTyping(false);
@@ -295,7 +327,7 @@ class _ChatInputState extends State<ChatInput> {
   void _send() {
     if (!widget.enabled) return;
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty && !widget.allowEmptySend) return;
     HapticFeedback.lightImpact();
     widget.onSend(text);
     _controller.clear();
@@ -303,8 +335,120 @@ class _ChatInputState extends State<ChatInput> {
     _focusNode.requestFocus();
   }
 
+  /// Wraps the selection in [before] and [after], or inserts both around
+  /// the cursor. With [placeholder], selects it afterwards (for links).
+  void _wrapSelection(String before, String after, {String? placeholder}) {
+    final value = _controller.value;
+    var selection = value.selection;
+    if (!selection.isValid) {
+      selection = TextSelection.collapsed(offset: value.text.length);
+    }
+    final selected = selection.textInside(value.text);
+    final replacement = placeholder == null
+        ? '$before$selected$after'
+        : '[$selected]($placeholder)';
+    final text = value.text.replaceRange(
+      selection.start,
+      selection.end,
+      replacement,
+    );
+    final TextSelection next;
+    if (placeholder != null) {
+      final start = selection.start + selected.length + 3;
+      next = TextSelection(
+        baseOffset: start,
+        extentOffset: start + placeholder.length,
+      );
+    } else if (selected.isEmpty) {
+      next = TextSelection.collapsed(offset: selection.start + before.length);
+    } else {
+      next = TextSelection(
+        baseOffset: selection.start,
+        extentOffset: selection.start + replacement.length,
+      );
+    }
+    _controller.value = TextEditingValue(text: text, selection: next);
+  }
+
+  void _format(_Format format) => switch (format) {
+        _Format.bold => _wrapSelection('**', '**'),
+        _Format.italic => _wrapSelection('_', '_'),
+        _Format.strike => _wrapSelection('~~', '~~'),
+        _Format.code => _wrapSelection('`', '`'),
+        _Format.link => _wrapSelection('', '', placeholder: 'https://'),
+      };
+
+  _Format? _formatFor(KeyEvent event) {
+    final keyboard = HardwareKeyboard.instance;
+    final mac = defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+    if (!(mac ? keyboard.isMetaPressed : keyboard.isControlPressed)) {
+      return null;
+    }
+    final key = event.logicalKey;
+    if (keyboard.isShiftPressed) {
+      return key == LogicalKeyboardKey.keyX ? _Format.strike : null;
+    }
+    return switch (key) {
+      LogicalKeyboardKey.keyB => _Format.bold,
+      LogicalKeyboardKey.keyI => _Format.italic,
+      LogicalKeyboardKey.keyE => _Format.code,
+      LogicalKeyboardKey.keyK => _Format.link,
+      _ => null,
+    };
+  }
+
+  Widget _contextMenu(BuildContext context, EditableTextState editable) {
+    final l10n = ChatLocalizations.of(context);
+    final items = editable.contextMenuButtonItems;
+    final hasSelection = !editable.textEditingValue.selection.isCollapsed;
+    if (widget.enableFormatting && hasSelection) {
+      ContextMenuButtonItem item(String label, _Format format) =>
+          ContextMenuButtonItem(
+            label: label,
+            onPressed: () {
+              ContextMenuController.removeAny();
+              _format(format);
+            },
+          );
+      // After Cut, Copy and Paste, so they stay on the first page of the
+      // iOS menu.
+      final at = items.length < 3 ? items.length : 3;
+      items.insertAll(at, [
+        item(l10n.bold, _Format.bold),
+        item(l10n.italic, _Format.italic),
+        item(l10n.strikethrough, _Format.strike),
+        item(l10n.code, _Format.code),
+        item(l10n.link, _Format.link),
+      ]);
+    }
+    return AdaptiveTextSelectionToolbar.buttonItems(
+      anchors: editable.contextMenuAnchors,
+      buttonItems: items,
+    );
+  }
+
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
-    if (!_sendOnEnter || event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    if (widget.enableFormatting) {
+      final format = _formatFor(event);
+      if (format != null) {
+        _format(format);
+        return KeyEventResult.handled;
+      }
+    }
+    if (key == LogicalKeyboardKey.escape && widget.onEscape != null) {
+      widget.onEscape!();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowUp &&
+        widget.onArrowUp != null &&
+        _controller.text.isEmpty) {
+      widget.onArrowUp!();
+      return KeyEventResult.handled;
+    }
+    if (!_sendOnEnter) return KeyEventResult.ignored;
     final isEnter = event.logicalKey == LogicalKeyboardKey.enter ||
         event.logicalKey == LogicalKeyboardKey.numpadEnter;
     if (!isEnter || HardwareKeyboard.instance.isShiftPressed) {
@@ -369,6 +513,14 @@ class _ChatInputState extends State<ChatInput> {
                             textInputAction: TextInputAction.newline,
                             textCapitalization: widget.textCapitalization,
                             style: theme.inputTextStyle,
+                            contextMenuBuilder: _contextMenu,
+                            contentInsertionConfiguration:
+                                widget.onContentInserted == null
+                                    ? null
+                                    : ContentInsertionConfiguration(
+                                        onContentInserted:
+                                            widget.onContentInserted!,
+                                      ),
                             decoration: InputDecoration(
                               prefixIcon: widget.showEmojiButton
                                   ? IconButton(
@@ -690,3 +842,5 @@ class _RecordingIndicatorState extends State<_RecordingIndicator>
     );
   }
 }
+
+enum _Format { bold, italic, strike, code, link }

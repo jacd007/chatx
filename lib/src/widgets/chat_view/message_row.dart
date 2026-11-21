@@ -23,6 +23,7 @@ class _MessageRow extends StatefulWidget {
 }
 
 class _MessageRowState extends State<_MessageRow> {
+  final ValueNotifier<bool> _hovered = ValueNotifier(false);
   String? _registeredId;
 
   @override
@@ -43,6 +44,7 @@ class _MessageRowState extends State<_MessageRow> {
     if (identical(contexts[_registeredId], context)) {
       contexts.remove(_registeredId);
     }
+    _hovered.dispose();
     super.dispose();
   }
 
@@ -115,6 +117,35 @@ class _MessageRowState extends State<_MessageRow> {
     );
   }
 
+  /// Adds Reply, React and More buttons beside the bubble while a mouse
+  /// hovers the row. Touch devices never trigger it.
+  Widget _withHoverActions(Widget bubble, ChatMessage message, bool outgoing) {
+    final view = widget.state.widget;
+    if (!view.showHoverActions ||
+        message.deletedAt != null ||
+        view.controller.isSelecting) {
+      return bubble;
+    }
+    return MouseRegion(
+      onEnter: (_) => _hovered.value = true,
+      onExit: (_) => _hovered.value = false,
+      child: ValueListenableBuilder<bool>(
+        valueListenable: _hovered,
+        builder: (context, hovered, child) {
+          if (!hovered) return child!;
+          final actions = _HoverActions(state: widget.state, message: message);
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: outgoing
+                ? [actions, Flexible(child: child!)]
+                : [Flexible(child: child!), actions],
+          );
+        },
+        child: bubble,
+      ),
+    );
+  }
+
   Widget _buildRow(BuildContext context, ChatMessageDetails details) {
     final view = widget.state.widget;
     final message = details.message;
@@ -159,10 +190,23 @@ class _MessageRowState extends State<_MessageRow> {
             padding:
                 EdgeInsetsDirectional.only(start: 12 + tailInset, bottom: 3),
             child: ExcludeSemantics(
-              child: Text(name, style: theme.userNameTextStyle),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(child: Text(name, style: theme.userNameTextStyle)),
+                  if (message.author.role case final role?) ...[
+                    const SizedBox(width: 6),
+                    ChatRoleBadge(role: role),
+                  ],
+                ],
+              ),
             ),
           ),
-        view.bubbleBuilder?.call(context, details, bubble) ?? bubble,
+        _withHoverActions(
+          view.bubbleBuilder?.call(context, details, bubble) ?? bubble,
+          message,
+          outgoing,
+        ),
       ],
     );
 
@@ -204,7 +248,9 @@ class _MessageRowState extends State<_MessageRow> {
         message is TextMessage &&
         message.author.isBot &&
         !message.isStreaming &&
-        (view.onFeedback != null || view.onRegenerate != null);
+        (view.onFeedback != null ||
+            view.onRegenerate != null ||
+            message.versions.isNotEmpty);
     final failed = outgoing && message.status == MessageStatus.failed;
     // The root of an open thread does not link to itself.
     final thread = message.id == view.threadRoot?.id ? null : message.thread;
@@ -404,8 +450,28 @@ class _Bubble extends StatelessWidget {
     } else {
       switch (message) {
         case TextMessage(:final linkPreview):
-          body = IntrinsicWidth(
+          final reasoning = message.reasoning;
+          final hasAiExtras = reasoning != null ||
+              message.toolCalls.isNotEmpty ||
+              message.sources.isNotEmpty;
+          Widget subtleText(String text, TextStyle style) =>
+              _richText(text, textStyle.merge(style), theme);
+          final content = IntrinsicWidth(
             child: withQuote(stretch: true, [
+              if (reasoning != null)
+                _ReasoningBlock(
+                  state: state,
+                  message: message,
+                  reasoning: reasoning,
+                  textColor: textColor,
+                  richText: subtleText,
+                ),
+              if (message.toolCalls.isNotEmpty)
+                _ToolCalls(
+                  calls: message.toolCalls,
+                  textColor: textColor,
+                  richText: subtleText,
+                ),
               if (jumbo)
                 Text(
                   message.text.trim(),
@@ -417,6 +483,12 @@ class _Bubble extends StatelessWidget {
                 )
               else
                 _textContent(message, theme, textStyle, textColor),
+              if (message.sources.isNotEmpty && !message.isStreaming)
+                _SourceChips(
+                  state: state,
+                  message: message,
+                  textColor: textColor,
+                ),
               if (message.buttons.isNotEmpty)
                 _MessageButtons(
                   state: state,
@@ -438,6 +510,11 @@ class _Bubble extends StatelessWidget {
               Align(alignment: AlignmentDirectional.centerEnd, child: footer),
             ]),
           );
+          // AI answers with reasoning or tools use the full width, so the
+          // collapsible blocks do not resize the bubble.
+          body = hasAiExtras
+              ? SizedBox(width: innerWidth, child: content)
+              : content;
         case ImageMessage(:final caption):
           // Images go almost edge to edge; the caption keeps normal padding.
           const inset = 3.0;
@@ -518,6 +595,12 @@ class _Bubble extends StatelessWidget {
             width: math.min(innerWidth, 280),
             child: withQuote([
               _VoiceContent(
+                state: state,
+                message: message,
+                textColor: textColor,
+                accent: accent,
+              ),
+              _VoiceTranscript(
                 state: state,
                 message: message,
                 textColor: textColor,
@@ -649,6 +732,127 @@ class _Bubble extends StatelessWidget {
               footer,
             ],
           );
+        case VideoMessage(:final caption):
+          const inset = 3.0;
+          padding = const EdgeInsets.all(inset).add(tailPadding);
+          final videoWidth = math.min(
+            maxWidth - inset * 2 - tailPadding.horizontal,
+            320.0,
+          );
+          final video = _VideoContent(
+            state: state,
+            message: message,
+            width: videoWidth,
+            radius: math.max(0.0, theme.bubbleRadius - inset),
+          );
+          body = SizedBox(
+            width: videoWidth,
+            child: withQuote(stretch: true, [
+              if (caption == null)
+                Stack(
+                  children: [
+                    video,
+                    PositionedDirectional(
+                      end: 8,
+                      bottom: 6,
+                      child: _Footer(
+                        message: message,
+                        showStatus: outgoing,
+                        color: Colors.white,
+                        style: theme.timestampTextStyle,
+                      ),
+                    ),
+                  ],
+                )
+              else ...[
+                video,
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    math.max(0, basePadding.left - inset),
+                    6,
+                    math.max(0, basePadding.right - inset),
+                    math.max(0, basePadding.bottom - inset),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _richText(caption, textStyle, theme),
+                      const SizedBox(height: 3),
+                      Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: footer,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ]),
+          );
+        case ChecklistMessage():
+          body = SizedBox(
+            width: math.min(innerWidth, 320),
+            child: withQuote([
+              _ChecklistContent(
+                state: state,
+                message: message,
+                textColor: textColor,
+                accent: accent,
+              ),
+              const SizedBox(height: 3),
+              footer,
+            ]),
+          );
+        case ProductMessage(:final text):
+          body = SizedBox(
+            width: message.products.length > 1
+                ? innerWidth
+                : math.min(innerWidth, 260),
+            child: withQuote(stretch: true, [
+              if (text != null) ...[
+                _richText(text, textStyle, theme),
+                const SizedBox(height: 8),
+              ],
+              _ProductContent(
+                state: state,
+                message: message,
+                textColor: textColor,
+                accent: accent,
+                width: message.products.length > 1
+                    ? innerWidth
+                    : math.min(innerWidth, 260),
+              ),
+              const SizedBox(height: 3),
+              Align(alignment: AlignmentDirectional.centerEnd, child: footer),
+            ]),
+          );
+        case PaymentMessage():
+          body = SizedBox(
+            width: math.min(innerWidth, 280),
+            child: withQuote([
+              _PaymentContent(
+                state: state,
+                message: message,
+                outgoing: outgoing,
+                textColor: textColor,
+                accent: accent,
+              ),
+              const SizedBox(height: 3),
+              footer,
+            ]),
+          );
+        case CallMessage():
+          body = SizedBox(
+            width: math.min(innerWidth, 260),
+            child: withQuote([
+              _CallContent(
+                state: state,
+                message: message,
+                outgoing: outgoing,
+                textColor: textColor,
+              ),
+              footer,
+            ]),
+          );
         case SystemMessage():
           return const SizedBox.shrink();
       }
@@ -675,6 +879,7 @@ class _Bubble extends StatelessWidget {
               customBorder: shape,
               onTap: () => state._handleTap(message, anchor),
               onLongPress: () => state._handleLongPress(message, anchor),
+              onSecondaryTap: () => state._handleLongPress(message, anchor),
               child: Padding(
                 padding: padding,
                 child: DefaultTextStyle.merge(style: textStyle, child: body),
@@ -687,6 +892,28 @@ class _Bubble extends StatelessWidget {
   }
 
   Widget _textContent(
+    TextMessage message,
+    ChatThemeData theme,
+    TextStyle textStyle,
+    Color textColor,
+  ) {
+    // A regenerated answer shows the version picked with "‹ 2/3 ›".
+    if (message.versions.isNotEmpty && !message.isStreaming) {
+      return ValueListenableBuilder<Map<String, int>>(
+        valueListenable: state._versionIndex,
+        builder: (context, indexes, _) {
+          final index = indexes[message.id];
+          if (index == null || index >= message.versions.length) {
+            return _currentText(message, theme, textStyle, textColor);
+          }
+          return _richText(message.versions[index], textStyle, theme);
+        },
+      );
+    }
+    return _currentText(message, theme, textStyle, textColor);
+  }
+
+  Widget _currentText(
     TextMessage message,
     ChatThemeData theme,
     TextStyle textStyle,
@@ -891,6 +1118,18 @@ String _messagePreview(ChatMessage message, ChatLocalizations l10n) =>
       EventMessage(:final title) => '📅 $title',
       ContactMessage(:final name) => '👤 $name',
       StickerMessage(:final label) => label ?? l10n.sticker,
+      VideoMessage(:final caption, :final duration) => caption != null
+          ? '🎬 ${MarkdownParser.toPlainText(caption)}'
+          : duration != null
+              ? '🎬 ${l10n.video} (${_formatDuration(duration)})'
+              : '🎬 ${l10n.video}',
+      ChecklistMessage(:final title) => '☑️ $title',
+      ProductMessage(:final products) => '🛍️ ${products.first.title}',
+      PaymentMessage(:final amount, :final isRequest) =>
+        '💸 ${isRequest ? l10n.paymentRequest : l10n.paymentSent}: $amount',
+      CallMessage(:final kind) => kind == ChatCallKind.video
+          ? '📹 ${l10n.videoCall}'
+          : '📞 ${l10n.voiceCall}',
       CustomMessage(:final type) => '📎 $type',
     };
 
@@ -995,8 +1234,8 @@ class _ReactionChip extends StatelessWidget {
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         // The chip looks small, but the touch target is 48 dp tall.
-        child: SizedBox(
-          height: 48,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
           child: Center(widthFactor: 1, child: chip),
         ),
       ),

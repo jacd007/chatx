@@ -542,3 +542,307 @@ class ChatStickerPack {
   @override
   int get hashCode => Object.hash(id, name, Object.hashAll(stickers));
 }
+
+/// The reasoning an AI model showed before its answer.
+@immutable
+class ChatReasoning {
+  /// Creates a reasoning block.
+  const ChatReasoning({
+    required this.text,
+    this.duration,
+    this.isActive = false,
+  });
+
+  /// The reasoning text. Supports markdown.
+  final String text;
+
+  /// How long the model thought. Shown as "Thought for 12s".
+  final Duration? duration;
+
+  /// Whether the model is still thinking. Shows "Thinking…" with a shimmer.
+  final bool isActive;
+
+  /// Returns a copy with the given fields replaced.
+  ChatReasoning copyWith({String? text, Duration? duration, bool? isActive}) =>
+      ChatReasoning(
+        text: text ?? this.text,
+        duration: duration ?? this.duration,
+        isActive: isActive ?? this.isActive,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is ChatReasoning &&
+      other.text == text &&
+      other.duration == duration &&
+      other.isActive == isActive;
+
+  @override
+  int get hashCode => Object.hash(text, duration, isActive);
+}
+
+/// State of a [ChatToolCall].
+enum ChatToolStatus {
+  /// The tool is running.
+  running,
+
+  /// The tool finished.
+  done,
+
+  /// The tool failed.
+  failed,
+}
+
+/// A tool an AI model used while answering, such as a web search.
+@immutable
+class ChatToolCall {
+  /// Creates a tool call.
+  const ChatToolCall({
+    required this.id,
+    required this.name,
+    this.status = ChatToolStatus.done,
+    this.detail,
+  });
+
+  /// Identifier of the call.
+  final String id;
+
+  /// What the tool did, for example "Searched the web".
+  final String name;
+
+  /// Whether the tool is running, done or failed.
+  final ChatToolStatus status;
+
+  /// Input or result shown when the card is expanded. Supports markdown.
+  final String? detail;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ChatToolCall &&
+      other.id == id &&
+      other.name == name &&
+      other.status == status &&
+      other.detail == detail;
+
+  @override
+  int get hashCode => Object.hash(id, name, status, detail);
+}
+
+/// A source an AI answer cites. Shown as a numbered chip under the answer.
+@immutable
+class ChatSource {
+  /// Creates a source.
+  const ChatSource({required this.title, required this.url, this.snippet});
+
+  /// Title of the page or document.
+  final String title;
+
+  /// Link to the source. Opened through `ChatView.onLinkTap`.
+  final String url;
+
+  /// Short excerpt shown in the source sheet.
+  final String? snippet;
+
+  /// Host name of [url], without `www.`.
+  String get host {
+    final host = Uri.tryParse(url)?.host ?? '';
+    return host.startsWith('www.') ? host.substring(4) : host;
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is ChatSource &&
+      other.title == title &&
+      other.url == url &&
+      other.snippet == snippet;
+
+  @override
+  int get hashCode => Object.hash(title, url, snippet);
+}
+
+/// An item of a [ChecklistMessage].
+@immutable
+class ChecklistItem {
+  /// Creates a checklist item.
+  const ChecklistItem({required this.id, required this.text, this.doneBy});
+
+  /// Identifier of the item.
+  final String id;
+
+  /// What needs to be done.
+  final String text;
+
+  /// ID of the user who checked the item, or `null` when it is open.
+  final String? doneBy;
+
+  /// Whether the item is checked.
+  bool get isDone => doneBy != null;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ChecklistItem &&
+      other.id == id &&
+      other.text == text &&
+      other.doneBy == doneBy;
+
+  @override
+  int get hashCode => Object.hash(id, text, doneBy);
+}
+
+/// A product shown in a [ProductMessage].
+@immutable
+class ChatProduct {
+  /// Creates a product.
+  const ChatProduct({
+    required this.id,
+    required this.title,
+    required this.price,
+    this.subtitle,
+    this.imageUri,
+    this.actionLabel,
+  });
+
+  /// Identifier of the product.
+  final String id;
+
+  /// Name of the product.
+  final String title;
+
+  /// Price, already formatted by your app, for example "€24.90".
+  final String price;
+
+  /// Short description.
+  final String? subtitle;
+
+  /// Product photo, loaded like `ChatImage.uri`.
+  final String? imageUri;
+
+  /// Label of the button. Defaults to the localized "View".
+  final String? actionLabel;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ChatProduct &&
+      other.id == id &&
+      other.title == title &&
+      other.price == price &&
+      other.subtitle == subtitle &&
+      other.imageUri == imageUri &&
+      other.actionLabel == actionLabel;
+
+  @override
+  int get hashCode =>
+      Object.hash(id, title, price, subtitle, imageUri, actionLabel);
+}
+
+/// State of a [PaymentMessage].
+enum ChatPaymentStatus {
+  /// Waiting for the other person.
+  pending,
+
+  /// Paid.
+  paid,
+
+  /// Declined by the other person.
+  declined,
+
+  /// Cancelled by the author.
+  cancelled,
+}
+
+/// Kind of call in a [CallMessage].
+enum ChatCallKind {
+  /// Voice call.
+  voice,
+
+  /// Video call.
+  video,
+}
+
+/// How a call ended.
+enum ChatCallOutcome {
+  /// The call happened. `CallMessage.duration` says how long.
+  completed,
+
+  /// Nobody answered.
+  missed,
+
+  /// The other person declined.
+  declined,
+}
+
+/// Role of a user in a group, shown as a badge next to the name.
+enum ChatRole {
+  /// Owner of the group.
+  owner,
+
+  /// Administrator.
+  admin,
+
+  /// Moderator.
+  moderator,
+}
+
+/// Kind of a [ChatAttachment].
+enum ChatAttachmentKind {
+  /// A photo.
+  image,
+
+  /// A video.
+  video,
+
+  /// Any other file.
+  file,
+}
+
+/// A file the user picked, waiting in the input until it is sent.
+@immutable
+class ChatAttachment {
+  /// Creates an attachment.
+  const ChatAttachment({
+    required this.id,
+    required this.name,
+    this.kind = ChatAttachmentKind.file,
+    this.uri,
+    this.bytes,
+    this.sizeBytes,
+    this.mimeType,
+  });
+
+  /// Identifier of the attachment.
+  final String id;
+
+  /// File name, including the extension.
+  final String name;
+
+  /// Whether this is an image, a video or another file.
+  final ChatAttachmentKind kind;
+
+  /// Where the file lives, for example a local path. Images are loaded with
+  /// `ChatView.imageProviderBuilder`.
+  final String? uri;
+
+  /// File content, for example from a keyboard that inserts an image.
+  /// Images with bytes are shown with `MemoryImage`.
+  final Uint8List? bytes;
+
+  /// Size in bytes.
+  final int? sizeBytes;
+
+  /// MIME type.
+  final String? mimeType;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ChatAttachment &&
+      other.id == id &&
+      other.name == name &&
+      other.kind == kind &&
+      other.uri == uri &&
+      identical(other.bytes, bytes) &&
+      other.sizeBytes == sizeBytes &&
+      other.mimeType == mimeType;
+
+  @override
+  int get hashCode => Object.hash(id, name, kind, uri, sizeBytes, mimeType);
+}

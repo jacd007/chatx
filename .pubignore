@@ -29,11 +29,11 @@ test_apps/
 doc/screenshots/*
 !doc/screenshots/01_conversation.png
 !doc/screenshots/02_popup_menu.png
-!doc/screenshots/08_images_voice.png
+!doc/screenshots/35_ai_reasoning.png
 !doc/screenshots/16_survey_seen_forward.png
 !doc/screenshots/23_ai_code_table.png
 !doc/screenshots/11_poll_countdown_pinned.png
-!doc/screenshots/29_moderation_menu.png
+!doc/screenshots/41_workspace_mentions.png
 !doc/screenshots/26_location_contact_sticker.png
-!doc/screenshots/21_emoji_picker.png
+!doc/screenshots/47_products.png
 !doc/screenshots/06_dark_custom_look.png

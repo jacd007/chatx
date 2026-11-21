@@ -44,9 +44,12 @@ class _TypingSlot extends StatelessWidget {
 }
 
 class _DateChip extends StatelessWidget {
-  const _DateChip({required this.day});
+  const _DateChip({required this.day, this.onTap});
 
   final DateTime day;
+
+  /// Opens the "jump to date" picker.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -65,18 +68,33 @@ class _DateChip extends StatelessWidget {
     } else {
       label = localizations.formatFullDate(day);
     }
+    final chip = DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.dateSeparatorColor,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        child: Text(label, style: theme.dateSeparatorTextStyle),
+      ),
+    );
     return Semantics(
       header: true,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: theme.dateSeparatorColor,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-          child: Text(label, style: theme.dateSeparatorTextStyle),
-        ),
-      ),
+      onTapHint: onTap == null ? null : l10n.jumpToDate,
+      child: onTap == null
+          ? chip
+          : GestureDetector(
+              onTap: onTap,
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                // Taller touch target around the small chip.
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: chip,
+                ),
+              ),
+            ),
     );
   }
 }

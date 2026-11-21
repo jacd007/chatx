@@ -32,6 +32,8 @@ export 'src/widgets/chat_avatar.dart';
 export 'src/widgets/chat_builders.dart';
 export 'src/widgets/chat_header.dart';
 export 'src/widgets/chat_input.dart';
+export 'src/widgets/chat_media_gallery.dart';
+export 'src/widgets/chat_people.dart';
 export 'src/widgets/chat_search_bar.dart';
 export 'src/widgets/chat_view.dart';
 export 'src/widgets/message_status_icon.dart';

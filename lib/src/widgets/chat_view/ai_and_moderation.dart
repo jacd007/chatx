@@ -170,11 +170,20 @@ class _AiActions extends StatelessWidget {
       key: Key('chatx_ai_actions_${message.id}'),
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (message.versions.isNotEmpty)
+          _VersionSwitcher(state: state, message: message, color: color),
         button(
           key: Key('chatx_ai_copy_${message.id}'),
           icon: Icons.copy_rounded,
           tooltip: l10n.copy,
-          onPressed: () => Clipboard.setData(ClipboardData(text: message.text)),
+          onPressed: () {
+            // Copies the version on screen.
+            final index = state._versionIndex.value[message.id];
+            final text = index != null && index < message.versions.length
+                ? message.versions[index]
+                : message.text;
+            Clipboard.setData(ClipboardData(text: text));
+          },
         ),
         if (onFeedback != null) ...[
           button(
