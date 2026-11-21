@@ -4,6 +4,8 @@ import 'chat_reaction.dart';
 import 'chat_user.dart';
 import 'message_status.dart';
 
+part 'rich_messages.dart';
+
 /// Base type of every item shown in a conversation.
 ///
 /// The hierarchy is sealed, so a `switch` over a [ChatMessage] is exhaustive:
@@ -13,6 +15,7 @@ import 'message_status.dart';
 ///   TextMessage(:final text) => text,
 ///   SystemMessage(:final text) => text,
 ///   CustomMessage(:final type) => '[$type]',
+///   _ => '…', // ImageMessage, FileMessage, VoiceMessage, PollMessage, ...
 /// };
 /// ```
 ///
@@ -90,6 +93,7 @@ final class TextMessage extends ChatMessage {
     required this.text,
     this.isStreaming = false,
     this.editedAt,
+    this.linkPreview,
     super.status,
     super.replyToId,
     super.reactions,
@@ -106,6 +110,9 @@ final class TextMessage extends ChatMessage {
   /// When the message was last edited. Shows an "edited" label when set.
   final DateTime? editedAt;
 
+  /// Card shown under the text with a preview of a link.
+  final ChatLinkPreview? linkPreview;
+
   /// Returns a copy of this message with the given fields replaced.
   TextMessage copyWith({
     String? id,
@@ -114,6 +121,7 @@ final class TextMessage extends ChatMessage {
     String? text,
     bool? isStreaming,
     DateTime? editedAt,
+    ChatLinkPreview? linkPreview,
     MessageStatus? status,
     String? replyToId,
     List<ChatReaction>? reactions,
@@ -126,6 +134,7 @@ final class TextMessage extends ChatMessage {
       text: text ?? this.text,
       isStreaming: isStreaming ?? this.isStreaming,
       editedAt: editedAt ?? this.editedAt,
+      linkPreview: linkPreview ?? this.linkPreview,
       status: status ?? this.status,
       replyToId: replyToId ?? this.replyToId,
       reactions: reactions ?? this.reactions,
@@ -141,6 +150,7 @@ final class TextMessage extends ChatMessage {
         text: text,
         isStreaming: isStreaming,
         editedAt: editedAt,
+        linkPreview: linkPreview,
         status: status,
         replyToId: replyToId,
         reactions: reactions,
@@ -158,10 +168,12 @@ final class TextMessage extends ChatMessage {
           _baseEquals(other) &&
           other.text == text &&
           other.isStreaming == isStreaming &&
-          other.editedAt == editedAt;
+          other.editedAt == editedAt &&
+          other.linkPreview == linkPreview;
 
   @override
-  int get hashCode => Object.hash(_baseHash, text, isStreaming, editedAt);
+  int get hashCode =>
+      Object.hash(_baseHash, text, isStreaming, editedAt, linkPreview);
 
   @override
   String toString() => 'TextMessage(id: $id, author: ${author.id}, '

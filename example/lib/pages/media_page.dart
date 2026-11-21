@@ -1,0 +1,227 @@
+import 'dart:async';
+import 'dart:math';
+
+import 'package:chatx/chatx.dart';
+import 'package:flutter/material.dart';
+
+import '../fake_backend.dart';
+
+/// Images, files, voice notes, link previews and spoilers.
+///
+/// Images use `asset:` URIs resolved by `imageProviderBuilder`, so the demo
+/// works offline. In a real app they would be network URLs.
+class MediaPage extends StatefulWidget {
+  const MediaPage({super.key});
+
+  @override
+  State<MediaPage> createState() => _MediaPageState();
+}
+
+class _MediaPageState extends State<MediaPage> {
+  static final DateTime _start =
+      DateTime.now().subtract(const Duration(minutes: 20));
+  static final _random = Random(7);
+
+  static List<double> _wave(int n) =>
+      [for (var i = 0; i < n; i++) 0.2 + _random.nextDouble() * 0.8];
+
+  late final ChatController _controller = ChatController(
+    messages: [
+      ImageMessage(
+        id: 'trip',
+        author: ana,
+        createdAt: _start,
+        images: const [
+          ChatImage(uri: 'asset:sunset', width: 640, height: 480),
+          ChatImage(uri: 'asset:ocean', width: 640, height: 480),
+          ChatImage(uri: 'asset:forest', width: 640, height: 480),
+          ChatImage(uri: 'asset:dunes', width: 640, height: 480),
+          ChatImage(uri: 'asset:card', width: 640, height: 480),
+        ],
+        caption: 'Best **trip** ever 🌅',
+        reactions: const [
+          ChatReaction(emoji: '😍', userIds: ['me']),
+        ],
+      ),
+      VoiceMessage(
+        id: 'voice1',
+        author: ana,
+        createdAt: _start.add(const Duration(minutes: 1)),
+        uri: 'demo.m4a',
+        duration: const Duration(seconds: 23),
+        waveform: _wave(48),
+      ),
+      FileMessage(
+        id: 'pdf',
+        author: me,
+        createdAt: _start.add(const Duration(minutes: 3)),
+        name: 'Itinerary.pdf',
+        sizeBytes: 1843200,
+        status: MessageStatus.read,
+      ),
+      FileMessage(
+        id: 'xlsx',
+        author: me,
+        createdAt: _start.add(const Duration(minutes: 4)),
+        name: 'Budget 2026.xlsx',
+        sizeBytes: 524288,
+        uploadProgress: 0.35,
+        status: MessageStatus.sending,
+      ),
+      TextMessage(
+        id: 'link',
+        author: ana,
+        createdAt: _start.add(const Duration(minutes: 6)),
+        text: 'This is the package we use: https://pub.dev/packages/chatx',
+        linkPreview: const ChatLinkPreview(
+          url: 'https://pub.dev/packages/chatx',
+          siteName: 'pub.dev',
+          title: 'chatx | Flutter package',
+          description: 'Backend-agnostic, zero-dependency chat UI for '
+              'Flutter.',
+          imageUri: 'asset:card',
+        ),
+      ),
+      TextMessage(
+        id: 'spoiler',
+        author: ana,
+        createdAt: _start.add(const Duration(minutes: 8)),
+        text: 'Finished the series! The killer was ||the gardener|| 😱',
+      ),
+      ImageMessage(
+        id: 'spoilerImg',
+        author: ana,
+        createdAt: _start.add(const Duration(minutes: 9)),
+        images: const [ChatImage(uri: 'asset:forest', width: 640, height: 480)],
+        isSpoiler: true,
+      ),
+    ],
+  );
+
+  final ValueNotifier<ChatVoicePlayback?> _playback = ValueNotifier(null);
+  Timer? _player;
+  Timer? _upload;
+
+  @override
+  void initState() {
+    super.initState();
+    _simulateUpload();
+  }
+
+  @override
+  void dispose() {
+    _player?.cancel();
+    _upload?.cancel();
+    _playback.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// Advances the upload of the spreadsheet until it completes.
+  void _simulateUpload() {
+    _upload = Timer.periodic(const Duration(milliseconds: 400), (timer) {
+      final file = _controller.messageById('xlsx');
+      if (file is! FileMessage) return timer.cancel();
+      final progress = (file.uploadProgress ?? 1) + 0.05;
+      if (progress >= 1) {
+        timer.cancel();
+        _controller.update(
+          file.copyWith(
+            clearUploadProgress: true,
+            status: MessageStatus.delivered,
+          ),
+        );
+      } else {
+        _controller.update(file.copyWith(uploadProgress: progress));
+      }
+    });
+  }
+
+  /// Pretends to play audio by advancing the position every 100 ms.
+  void _play(VoiceMessage message) {
+    _player?.cancel();
+    final current = _playback.value;
+    var position =
+        current?.messageId == message.id ? current!.position : Duration.zero;
+    if (position >= message.duration) position = Duration.zero;
+    _player = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      position += const Duration(milliseconds: 100);
+      final done = position >= message.duration;
+      _playback.value = ChatVoicePlayback(
+        messageId: message.id,
+        position: done ? message.duration : position,
+        isPlaying: !done,
+      );
+      if (done) timer.cancel();
+    });
+  }
+
+  void _pause(VoiceMessage message) {
+    _player?.cancel();
+    final current = _playback.value;
+    if (current == null) return;
+    _playback.value = ChatVoicePlayback(
+      messageId: current.messageId,
+      position: current.position,
+      isPlaying: false,
+    );
+  }
+
+  void _send(String text, ChatMessage? replyTo) {
+    _controller.insert(
+      TextMessage(
+        id: newId(),
+        author: me,
+        createdAt: DateTime.now(),
+        text: text,
+        replyToId: replyTo?.id,
+        status: MessageStatus.sent,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Media & files')),
+      body: ChatView(
+        controller: _controller,
+        currentUser: me,
+        onSendMessage: _send,
+        imageProviderBuilder: (uri) => uri.startsWith('asset:')
+            ? AssetImage('assets/images/${uri.substring(6)}.png')
+            : NetworkImage(uri),
+        onLinkTap: (uri) => showLink(context, uri),
+        onFileTap: (file) => ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Open ${file.name} with your viewer')),
+        ),
+        voicePlayback: _playback,
+        onVoicePlay: _play,
+        onVoicePause: _pause,
+        onVoiceSeek: (message, position) => _playback.value = ChatVoicePlayback(
+          messageId: message.id,
+          position: position,
+          isPlaying: false,
+        ),
+        // Hold the mic to "record"; releasing sends a fake voice note.
+        onVoiceRecordStart: () {},
+        onVoiceRecordEnd: (duration, {required cancelled}) {
+          if (cancelled || duration < const Duration(milliseconds: 500)) return;
+          _controller.insert(
+            VoiceMessage(
+              id: newId(),
+              author: me,
+              createdAt: DateTime.now(),
+              uri: 'recording.m4a',
+              duration: duration,
+              waveform: _wave(40),
+              status: MessageStatus.sent,
+            ),
+          );
+        },
+        onReactionSelected: (m, emoji) =>
+            _controller.toggleReaction(m.id, emoji, me.id),
+      ),
+    );
+  }
+}

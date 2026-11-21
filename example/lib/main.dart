@@ -4,7 +4,9 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'pages/ai_streaming_page.dart';
 import 'pages/basic_chat_page.dart';
 import 'pages/bubble_styles_page.dart';
+import 'pages/community_page.dart';
 import 'pages/custom_look_page.dart';
+import 'pages/media_page.dart';
 import 'pages/pagination_page.dart';
 
 void main() => runApp(const ChatxExampleApp());
@@ -40,6 +42,18 @@ class DemoListPage extends StatelessWidget {
         'Swipe to reply, reactions, popup menu, edit',
         Icons.forum_outlined,
         (_) => const BasicChatPage(),
+      ),
+      (
+        'Media & files',
+        'Images, files, voice notes, links, spoilers',
+        Icons.perm_media_outlined,
+        (_) => const MediaPage(),
+      ),
+      (
+        'Community',
+        'Polls, countdown, pins, mentions, search, selection',
+        Icons.groups_outlined,
+        (_) => const CommunityPage(),
       ),
       (
         'AI streaming',

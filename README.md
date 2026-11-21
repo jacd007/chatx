@@ -15,6 +15,12 @@ follows your app's theme.
 | Conversation | Popup menu | Swipe to reply |
 | :---: | :---: | :---: |
 | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/01_conversation.png" width="240" alt="Conversation with replies, reactions and a new messages separator"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/02_popup_menu.png" width="240" alt="Popup menu with quick reactions"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/03_reply.png" width="240" alt="Reply banner after swiping a message"> |
+| **Images, voice, files** | **Image viewer** | **Recording** |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/08_images_voice.png" width="240" alt="Image grid, playing voice note and files"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/09_image_viewer.png" width="240" alt="Full-screen image viewer"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/10_voice_recording.png" width="240" alt="Recording a voice note with slide to cancel"> |
+| **Links & spoilers** | **Poll & countdown** | **Mentions** |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/07_files_links_spoilers.png" width="240" alt="Link preview card, hidden spoiler text and blurred spoiler image"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/11_poll_countdown_pinned.png" width="240" alt="Poll results, countdown announcement and pinned banner"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/12_mentions.png" width="240" alt="Mention suggestions above the input"> |
+| **Search** | **Selection** | **Floating date** |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/13_search.png" width="240" alt="Search bar with highlighted matches"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/14_selection.png" width="240" alt="Multi-selection with the selection bar"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/15_floating_date.png" width="240" alt="Date chip floating while scrolling"> |
 | **AI answers** | **Bubble styles** | **Dark mode** |
 | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/04_ai_markdown.png" width="240" alt="Assistant answer with markdown"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/05_bubble_styles.png" width="240" alt="Bubbles with a top nip and shadow"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/06_dark_custom_look.png" width="240" alt="Dark theme with custom colors"> |
 
@@ -31,6 +37,13 @@ follows your app's theme.
 - **Reactions, editing and deleting** from a menu that opens as a bottom
   sheet or as a popup, on long press or on tap.
 - **Delivery status.** Sending, sent, delivered, read and failed, with retry.
+- **Rich content.** Image grids with a zoomable viewer, files, voice notes
+  with waveform and press-and-hold recording, polls, countdown
+  announcements and link previews. Upload progress on images and files.
+- **Spoilers.** `||hidden text||` and blurred images, revealed on tap.
+- **Group features.** `@mentions` with suggestions, pinned messages, search
+  with highlighted results, multi-selection and a floating date while
+  scrolling.
 - **Bubbles with character.** Tail at the bottom (iMessage style), nip at the
   top (WhatsApp style) or none, plus radius, shadow and outline.
 - **Conversation UX.** Typing indicator, day separators, author grouping,
@@ -63,6 +76,16 @@ follows your app's theme.
   - [Reactions](#reactions)
   - [Editing and deleting](#editing-and-deleting)
   - [Unread messages](#unread-messages)
+  - [Images and files](#images-and-files)
+  - [Voice notes](#voice-notes)
+  - [Polls](#polls)
+  - [Countdowns](#countdowns)
+  - [Link previews](#link-previews)
+  - [Spoilers](#spoilers)
+  - [Mentions](#mentions)
+  - [Search](#search)
+  - [Selection](#selection)
+  - [Pinned messages](#pinned-messages)
   - [Custom message types](#custom-message-types)
   - [Theming](#theming)
   - [Bubble shape](#bubble-shape)
@@ -186,6 +209,11 @@ const ana = ChatUser(
 | --- | --- |
 | `TextMessage` | Text with markdown. Supports streaming and an "edited" label. |
 | `SystemMessage` | Centered notices like "Ana joined the chat". |
+| `ImageMessage` | One or more images with an optional caption. |
+| `FileMessage` | A file with icon, name, size and upload progress. |
+| `VoiceMessage` | A voice note with waveform and playback. |
+| `PollMessage` | A question with options to vote on. |
+| `CountdownMessage` | An announcement with a live countdown. |
 | `CustomMessage` | Anything else: images, polls, locations… Rendered by your builder. |
 
 Every message has an `id`, an `author`, a `createdAt` date, and optionally a
@@ -212,6 +240,11 @@ the view updates.
 | `setTyping(user, isTyping: true)` | Shows or hides the typing indicator. |
 | `startReply(message)` / `cancelReply()` | Shows or hides the reply banner. |
 | `startEditing(message)` / `cancelEditing()` | Starts or stops editing in the input bar. |
+| `votePoll(id, optionId, userId)` | Records or removes a vote. |
+| `pin(id)` / `unpin(id)` | Pins or unpins a message. |
+| `toggleSelection(id)` / `clearSelection()` | Controls selection mode. |
+| `search(query)` | Returns matching message IDs, newest first. |
+| `scrollToMessage(id)` | Scrolls the view to a message and highlights it. |
 
 Always call `controller.dispose()` when the screen goes away.
 
@@ -513,6 +546,223 @@ ChatView(
 Messages with only one to three emoji are shown large and without a bubble.
 Turn this off with `enableJumboEmoji: false`.
 
+### Images and files
+
+```dart
+controller.insert(ImageMessage(
+  id: uuid(),
+  author: ana,
+  createdAt: DateTime.now(),
+  images: const [
+    ChatImage(uri: 'https://example.com/1.jpg', width: 1200, height: 800),
+    ChatImage(uri: 'https://example.com/2.jpg'),
+  ],
+  caption: 'Our **trip**',
+));
+
+controller.insert(FileMessage(
+  id: uuid(),
+  author: me,
+  createdAt: DateTime.now(),
+  name: 'Report.pdf',
+  sizeBytes: 1843200,
+  uploadProgress: 0, // update while uploading, then copyWith(clearUploadProgress: true)
+));
+```
+
+The grid shows up to four images and a "+N" counter. Give `width` and
+`height` when you know them so the list does not jump while images load.
+Tapping an image opens a full-screen viewer with zoom and swipe-down to
+close; replace it with `onImageTap`. Images are decoded at the size they are
+displayed to save memory.
+
+Images load with `Image.network` by default. Use `imageProviderBuilder` for
+assets, files, caching or authenticated URLs:
+
+```dart
+ChatView(
+  imageProviderBuilder: (uri) => NetworkImage(uri, headers: authHeaders),
+  onFileTap: (file) => openFile(file.uri),
+  // ...
+)
+```
+
+### Voice notes
+
+chatx draws voice notes and the recording UI, and never touches audio. Your
+app plays and records with the plugin of its choice.
+
+```dart
+final playback = ValueNotifier<ChatVoicePlayback?>(null);
+
+ChatView(
+  voicePlayback: playback, // update from your player
+  onVoicePlay: (message) => player.play(message.uri),
+  onVoicePause: (message) => player.pause(),
+  onVoiceSeek: (message, position) => player.seek(position),
+  // Show the microphone button and record while it is held.
+  onVoiceRecordStart: recorder.start,
+  onVoiceRecordEnd: (duration, {required cancelled}) async {
+    final file = await recorder.stop();
+    if (!cancelled) sendVoiceNote(file, duration);
+  },
+  // ...
+)
+```
+
+`VoiceMessage.waveform` takes amplitude samples between 0 and 1; chatx
+resamples them to fit the bubble. While recording, sliding left cancels.
+Screen reader users tap once to start and again to send.
+
+### Polls
+
+```dart
+controller.insert(PollMessage(
+  id: uuid(),
+  author: leo,
+  createdAt: DateTime.now(),
+  question: 'What should we eat?',
+  options: const [
+    PollOption(id: 'pizza', text: 'Pizza'),
+    PollOption(id: 'tacos', text: 'Tacos'),
+  ],
+  allowsMultipleAnswers: false,
+));
+
+ChatView(
+  onPollVote: (poll, optionId) {
+    controller.votePoll(poll.id, optionId, me.id);
+    api.vote(poll.id, optionId);
+  },
+  // ...
+)
+```
+
+Results appear with animated bars after the user votes, or for everyone
+once `isClosed` is `true`.
+
+### Countdowns
+
+Announce something that is coming. The countdown updates every second and
+shows a celebration label when it reaches zero:
+
+```dart
+controller.insert(CountdownMessage(
+  id: uuid(),
+  author: ana,
+  createdAt: DateTime.now(),
+  title: 'Community meetup',
+  endsAt: DateTime(2026, 12, 24, 18),
+  description: 'Rooftop at **Calle Mayor 12**',
+));
+```
+
+### Link previews
+
+chatx makes no network requests, so your backend (or app) provides the
+preview data, for example from Open Graph tags:
+
+```dart
+TextMessage(
+  // ...
+  text: 'Look at this: https://pub.dev/packages/chatx',
+  linkPreview: const ChatLinkPreview(
+    url: 'https://pub.dev/packages/chatx',
+    title: 'chatx | Flutter package',
+    description: 'Zero-dependency chat UI for Flutter.',
+    imageUri: 'https://example.com/card.png',
+  ),
+)
+```
+
+Tapping the card calls `onLinkTap`, subject to the same `linkPolicy` as
+links in text.
+
+### Spoilers
+
+Wrap text in double pipes to hide it until the reader taps:
+
+```dart
+TextMessage(text: 'The killer was ||the gardener||', /* ... */)
+```
+
+Set `isSpoiler: true` on an `ImageMessage` to blur its images. Spoilers stay
+hidden in reply quotes, banners and search previews.
+
+### Mentions
+
+```dart
+ChatView(
+  mentionableUsers: const [ana, leo, sam],
+  onMentionTap: (user) => openProfile(user),
+  // ...
+)
+```
+
+Typing `@` suggests matching users above the input; picking one inserts
+`@Name`. In messages, `@Name` of a known user is shown in bold and is
+tappable, and mentions of the current user are highlighted.
+
+### Search
+
+```dart
+final search = ChatSearchController(chatController: controller);
+
+Scaffold(
+  appBar: AppBar(
+    title: searching
+        ? ChatSearchBar(controller: search, onClose: stopSearching)
+        : const Text('Chat'),
+  ),
+  body: ChatView(controller: controller, searchController: search, ...),
+)
+```
+
+Matches are highlighted in every message, the bar shows "2/7", and the
+arrows jump between results. Search looks at text, captions, file names,
+polls and countdowns, ignoring case and markdown.
+
+### Selection
+
+"Select" in the message menu starts selection mode: rows show check marks
+and the input is replaced by a bar with the count and actions. Built-in
+actions copy the selected texts and, when `onDeleteMessage` is set and all
+selected messages are yours, delete them. Add your own:
+
+```dart
+ChatView(
+  selectionActionsBuilder: (context, selected, defaults) => [
+    ...defaults,
+    ChatSelectionAction(
+      label: 'Forward',
+      icon: Icons.forward,
+      onSelected: (messages) => forward(messages),
+    ),
+  ],
+  // ...
+)
+```
+
+Set `enableSelection: false` to hide "Select".
+
+### Pinned messages
+
+```dart
+ChatView(
+  onPinMessage: (message, pinned) {
+    pinned ? controller.pin(message.id) : controller.unpin(message.id);
+    api.setPinned(message.id, pinned);
+  },
+  // ...
+)
+```
+
+Pinned messages appear in a banner above the list. Tapping it jumps to the
+message and, when there are several pins, cycles through them.
+
+While scrolling, a date chip floats at the top of the list. Turn it off with
+`showFloatingDate: false`.
+
 ### Custom message types
 
 Use `CustomMessage` with a `type` and a `payload`, and render it with
@@ -708,6 +958,8 @@ Use `ChatText` to render the same markdown anywhere in your app.
 - Interactive elements are at least 48×48 dp, except the small reaction chips
   (the same reactions are available in the message menu).
 - Swipe actions are also available as screen reader custom actions.
+- Spoiler text is announced as a spoiler, never read aloud until revealed.
+- Voice recording works with a screen reader: tap to start, tap to send.
 - Layouts adapt to large text sizes.
 - Animations stop when the system asks to reduce motion.
 - Layouts mirror correctly in right-to-left languages.
@@ -715,8 +967,13 @@ Use `ChatText` to render the same markdown anywhere in your app.
   `chatx_send_button`, `chatx_scroll_to_bottom`, `chatx_bubble_<id>`,
   `chatx_quote_<id>`, `chatx_reaction_<id>_<emoji>`, `chatx_react_<emoji>`,
   `chatx_reply_banner`, `chatx_cancel_reply`, `chatx_edit_banner`,
-  `chatx_cancel_edit`, `chatx_unread_separator`, `chatx_retry_<id>` and
-  `chatx_load_more_retry`.
+  `chatx_cancel_edit`, `chatx_unread_separator`, `chatx_retry_<id>`,
+  `chatx_load_more_retry`, `chatx_image_<id>_<index>`, `chatx_viewer_close`,
+  `chatx_voice_play_<id>`, `chatx_record_button`, `chatx_poll_<id>_<option>`,
+  `chatx_link_preview`, `chatx_spoiler_<id>`, `chatx_mention_<userId>`,
+  `chatx_pinned_banner`, `chatx_selection_bar`, `chatx_selection_close`,
+  `chatx_selection_action_<index>`, `chatx_search_field`,
+  `chatx_search_older`, `chatx_search_newer` and `chatx_floating_date`.
 
 ## Security
 
@@ -735,8 +992,10 @@ See [SECURITY.md](SECURITY.md) to report a vulnerability.
 **Does chatx send or store messages?** No. It only renders the state in your
 `ChatController`. Persistence and networking stay in your code.
 
-**How do I show images, voice notes or files?** Use `CustomMessage` and
-`customMessageBuilder`. Your app chooses the picker, player and storage.
+**How do I show images, voice notes or files?** Use `ImageMessage`,
+`VoiceMessage` and `FileMessage`. Your app chooses the picker, recorder,
+player and storage; chatx draws everything else. For other content, use
+`CustomMessage` and `customMessageBuilder`.
 
 **Why are links not opening?** Provide `onLinkTap`. See
 [Opening links](#opening-links).
@@ -747,8 +1006,10 @@ wherever you keep state and feed it from your providers or blocs.
 ## Example app
 
 The [`example`](example) folder contains demos for every feature: basic chat
-(replies, reactions, popup menu, editing), AI streaming, bubble styles,
-custom look and infinite history. Its
+(replies, reactions, popup menu, editing), media and files (images, voice
+notes, links, spoilers), community (polls, countdown, pins, mentions,
+search, selection), AI streaming, bubble styles, custom look and infinite
+history. Its
 [integration test](example/integration_test/screenshots_test.dart) walks
 through the app on a device and produces the screenshots above.
 

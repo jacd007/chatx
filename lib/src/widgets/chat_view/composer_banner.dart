@@ -90,7 +90,7 @@ class _ComposerBanner extends StatelessWidget {
                     style: theme.userNameTextStyle.copyWith(color: accent),
                   ),
                   Text(
-                    _messagePreview(message),
+                    _messagePreview(message, l10n),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.systemMessageTextStyle,

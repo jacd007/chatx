@@ -79,17 +79,30 @@ class _MessageRowState extends State<_MessageRow> {
             final row = _buildRow(context, details);
             final swipe = view.swipeAction;
             final streaming = message is TextMessage && message.isStreaming;
+            final controller = view.controller;
+            final selecting = controller.isSelecting;
+            Widget content = swipe == null ||
+                    message is SystemMessage ||
+                    streaming ||
+                    selecting
+                ? row
+                : _SwipeToAction(
+                    icon: swipe.icon,
+                    label: swipe.label ?? ChatLocalizations.of(context).reply,
+                    onTriggered: () => widget.state._onSwipe(message),
+                    child: row,
+                  );
+            if (selecting && message is! SystemMessage) {
+              content = _SelectionFrame(
+                selected: controller.selectedIds.value.contains(message.id),
+                onTap: () => widget.state._toggleSelection(message),
+                child: content,
+              );
+            }
             return _Highlight(
               id: message.id,
               highlighted: widget.state._highlightedId,
-              child: swipe == null || message is SystemMessage || streaming
-                  ? row
-                  : _SwipeToAction(
-                      icon: swipe.icon,
-                      label: swipe.label ?? ChatLocalizations.of(context).reply,
-                      onTriggered: () => widget.state._onSwipe(message),
-                      child: row,
-                    ),
+              child: content,
             );
           },
         ),
@@ -308,54 +321,191 @@ class _Bubble extends StatelessWidget {
             onTap: () => state._scrollToMessage(replyToId),
           );
 
+    final accent =
+        outgoing ? textColor : theme.userNameTextStyle.color ?? textColor;
+    final direction = Directionality.of(context);
+    final basePadding = jumbo
+        ? const EdgeInsets.symmetric(horizontal: 4, vertical: 2)
+        : theme.bubblePadding.resolve(direction);
+    final tailPadding = shape.contentInsets.resolve(direction);
+    // Width available to the content of fixed-width messages.
+    final innerWidth =
+        maxWidth - basePadding.horizontal - tailPadding.horizontal;
+
+    Widget withQuote(List<Widget> children, {bool stretch = false}) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment:
+            stretch ? CrossAxisAlignment.stretch : CrossAxisAlignment.end,
+        children: [
+          if (quote != null) ...[quote, const SizedBox(height: 6)],
+          ...children,
+        ],
+      );
+    }
+
+    EdgeInsetsGeometry padding = basePadding.add(tailPadding);
     final Widget body;
     switch (message) {
-      case TextMessage():
+      case TextMessage(:final linkPreview):
         body = IntrinsicWidth(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (quote != null) ...[quote, const SizedBox(height: 6)],
-              if (jumbo)
-                Text(
-                  message.text.trim(),
-                  textAlign: TextAlign.center,
-                  style: textStyle.copyWith(
-                    fontSize: (textStyle.fontSize ?? 16) * 2.6,
-                    height: 1.15,
-                  ),
-                )
-              else
-                _textContent(message, theme, textStyle, textColor),
-              const SizedBox(height: 3),
-              Align(alignment: AlignmentDirectional.centerEnd, child: footer),
-            ],
-          ),
-        );
-      case CustomMessage():
-        body = Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            if (quote != null) ...[quote, const SizedBox(height: 6)],
-            view.customMessageBuilder?.call(context, message, details) ??
-                Text(
-                  l10n.unsupportedMessage,
-                  style: textStyle.copyWith(fontStyle: FontStyle.italic),
+          child: withQuote(stretch: true, [
+            if (jumbo)
+              Text(
+                message.text.trim(),
+                textAlign: TextAlign.center,
+                style: textStyle.copyWith(
+                  fontSize: (textStyle.fontSize ?? 16) * 2.6,
+                  height: 1.15,
                 ),
+              )
+            else
+              _textContent(message, theme, textStyle, textColor),
+            if (linkPreview != null) ...[
+              const SizedBox(height: 8),
+              _LinkPreviewCard(
+                state: state,
+                preview: linkPreview,
+                textColor: textColor,
+                accent: accent,
+                maxWidth: innerWidth,
+              ),
+            ],
+            const SizedBox(height: 3),
+            Align(alignment: AlignmentDirectional.centerEnd, child: footer),
+          ]),
+        );
+      case ImageMessage(:final caption):
+        // Images go almost edge to edge; the caption keeps normal padding.
+        const inset = 3.0;
+        padding = const EdgeInsets.all(inset).add(tailPadding);
+        final gridWidth = maxWidth - inset * 2 - tailPadding.horizontal;
+        final grid = _ImageGrid(
+          state: state,
+          message: message,
+          width: gridWidth,
+          radius: math.max(0.0, theme.bubbleRadius - inset),
+        );
+        body = SizedBox(
+          width: gridWidth,
+          child: withQuote(stretch: true, [
+            if (caption == null)
+              Stack(
+                children: [
+                  grid,
+                  PositionedDirectional(
+                    end: 8,
+                    bottom: 6,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.black45,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        child: _Footer(
+                          message: message,
+                          showStatus: outgoing,
+                          color: Colors.white,
+                          style: theme.timestampTextStyle,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            else ...[
+              grid,
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  math.max(0, basePadding.left - inset),
+                  6,
+                  math.max(0, basePadding.right - inset),
+                  math.max(0, basePadding.bottom - inset),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _richText(caption, textStyle, theme),
+                    const SizedBox(height: 3),
+                    Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: footer,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ]),
+        );
+      case FileMessage():
+        body = withQuote([
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: innerWidth),
+            child: _FileContent(message: message, textColor: textColor),
+          ),
+          const SizedBox(height: 3),
+          footer,
+        ]);
+      case VoiceMessage():
+        body = SizedBox(
+          width: math.min(innerWidth, 280),
+          child: withQuote([
+            _VoiceContent(
+              state: state,
+              message: message,
+              textColor: textColor,
+              accent: accent,
+            ),
+            footer,
+          ]),
+        );
+      case PollMessage():
+        body = SizedBox(
+          width: math.min(innerWidth, 320),
+          child: withQuote([
+            _PollContent(
+              state: state,
+              message: message,
+              textColor: textColor,
+              accent: accent,
+            ),
+            footer,
+          ]),
+        );
+      case CountdownMessage():
+        body = SizedBox(
+          width: math.min(innerWidth, 320),
+          child: withQuote([
+            _CountdownContent(
+              message: message,
+              textColor: textColor,
+              accent: accent,
+              textStyle: textStyle,
+              richText: (text) => _richText(text, textStyle, theme),
+            ),
             const SizedBox(height: 3),
             footer,
-          ],
+          ]),
         );
+      case CustomMessage():
+        body = withQuote([
+          view.customMessageBuilder?.call(context, message, details) ??
+              Text(
+                l10n.unsupportedMessage,
+                style: textStyle.copyWith(fontStyle: FontStyle.italic),
+              ),
+          const SizedBox(height: 3),
+          footer,
+        ]);
       case SystemMessage():
         return const SizedBox.shrink();
     }
 
     final author = outgoing ? l10n.you : (message.author.name ?? l10n.someone);
-    final padding = jumbo
-        ? const EdgeInsets.symmetric(horizontal: 4, vertical: 2)
-        : theme.bubblePadding.add(shape.contentInsets);
 
     return Semantics(
       container: true,
@@ -402,20 +552,45 @@ class _Bubble extends StatelessWidget {
         ),
       );
     }
-    return ChatText(
+    return _richText(
       message.text,
-      style: textStyle,
-      linkStyle: theme.linkStyle,
-      codeStyle: theme.codeTextStyle,
-      onLinkTap: view.onLinkTap,
-      linkPolicy: view.linkPolicy,
-      enableMarkdown: view.enableMarkdown,
+      textStyle,
+      theme,
       trailing: message.isStreaming
           ? WidgetSpan(
               alignment: PlaceholderAlignment.middle,
               child: _StreamingCaret(color: textColor),
             )
           : null,
+    );
+  }
+
+  /// Markdown text with links, mentions and search highlights.
+  Widget _richText(
+    String text,
+    TextStyle textStyle,
+    ChatThemeData theme, {
+    InlineSpan? trailing,
+  }) {
+    Widget build(String? query) => ChatText(
+          text,
+          style: textStyle,
+          linkStyle: theme.linkStyle,
+          codeStyle: theme.codeTextStyle,
+          onLinkTap: view.onLinkTap,
+          linkPolicy: view.linkPolicy,
+          enableMarkdown: view.enableMarkdown,
+          trailing: trailing,
+          mentionableUsers: view.mentionableUsers,
+          onMentionTap: view.onMentionTap,
+          currentUserId: view.currentUser.id,
+          highlight: query,
+        );
+    final search = view.searchController;
+    if (search == null) return build(null);
+    return ListenableBuilder(
+      listenable: search,
+      builder: (context, _) => build(search.isActive ? search.query : null),
     );
   }
 }
@@ -450,8 +625,9 @@ class _ReplyQuote extends StatelessWidget {
         : original.author.id == currentUserId
             ? l10n.you
             : original.author.name ?? l10n.someone;
-    final preview =
-        original == null ? l10n.quoteUnavailable : _messagePreview(original);
+    final preview = original == null
+        ? l10n.quoteUnavailable
+        : _messagePreview(original, l10n);
 
     return Semantics(
       button: original != null,
@@ -507,9 +683,20 @@ class _ReplyQuote extends StatelessWidget {
 }
 
 /// One-line, markdown-free summary of [message].
-String _messagePreview(ChatMessage message) => switch (message) {
+String _messagePreview(ChatMessage message, ChatLocalizations l10n) =>
+    switch (message) {
       TextMessage(:final text) => MarkdownParser.toPlainText(text),
       SystemMessage(:final text) => text,
+      ImageMessage(:final caption, :final images) => caption != null
+          ? '📷 ${MarkdownParser.toPlainText(caption)}'
+          : images.length > 1
+              ? '📷 ${l10n.photo} ×${images.length}'
+              : '📷 ${l10n.photo}',
+      FileMessage(:final name) => '📄 $name',
+      VoiceMessage(:final duration) =>
+        '🎤 ${l10n.voiceMessage} (${_formatDuration(duration)})',
+      PollMessage(:final question) => '📊 $question',
+      CountdownMessage(:final title) => '⏳ $title',
       CustomMessage(:final type) => '📎 $type',
     };
 
@@ -721,6 +908,70 @@ class _Highlight extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
         ),
         child: child,
+      ),
+    );
+  }
+}
+
+/// Check circle and tint shown on every row in selection mode.
+class _SelectionFrame extends StatelessWidget {
+  const _SelectionFrame({
+    required this.selected,
+    required this.onTap,
+    required this.child,
+  });
+
+  final bool selected;
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = ChatThemeData.of(context);
+    final accent = theme.outgoingBubbleColor;
+    return Semantics(
+      selected: selected,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          decoration: BoxDecoration(
+            color: selected ? theme.highlightColor : null,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Padding(
+                padding: const EdgeInsetsDirectional.only(start: 4, end: 8),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutBack,
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: selected ? accent : null,
+                    border: Border.all(
+                      color: selected
+                          ? accent
+                          : theme.typingIndicatorColor.withValues(alpha: 0.6),
+                      width: 2,
+                    ),
+                  ),
+                  child: selected
+                      ? Icon(
+                          Icons.check_rounded,
+                          size: 16,
+                          color: theme.outgoingTextStyle.color,
+                        )
+                      : null,
+                ),
+              ),
+              Expanded(child: child),
+            ],
+          ),
+        ),
       ),
     );
   }

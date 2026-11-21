@@ -13,6 +13,9 @@ enum MdStyle {
 
   /// `~~text~~`.
   strike,
+
+  /// `||text||`: hidden until the reader taps it.
+  spoiler,
 }
 
 /// A node inside a line of text.
@@ -211,6 +214,8 @@ abstract final class MarkdownParser {
           out.write(text);
         case MdCode(:final code):
           out.write(code);
+        case MdStyled(style: MdStyle.spoiler):
+          out.write('•••');
         case MdStyled(:final children):
           for (final child in children) {
             inline(child, out);
@@ -353,6 +358,7 @@ const int _closeParen = 0x29;
 const int _star = 0x2A;
 const int _underscore = 0x5F;
 const int _tilde = 0x7E;
+const int _pipe = 0x7C;
 
 bool _isWhitespace(int c) => c == 0x20 || c == 0x09 || c == 0x0A || c == 0x0D;
 
@@ -424,7 +430,7 @@ class _InlineParser {
         }
       }
 
-      if (c == _star || c == _underscore || c == _tilde) {
+      if (c == _star || c == _underscore || c == _tilde || c == _pipe) {
         final styled = _tryEmphasis(i, end);
         if (styled != null) {
           flushText(i);
@@ -455,7 +461,7 @@ class _InlineParser {
   (MdInline, int)? _tryEmphasis(int i, int end) {
     final c = source.codeUnitAt(i);
     final isDouble = i + 1 < end && source.codeUnitAt(i + 1) == c;
-    if (c == _tilde && !isDouble) return null;
+    if ((c == _tilde || c == _pipe) && !isDouble) return null;
 
     // `_` and `__` only work at word boundaries, so snake_case stays intact.
     if (c == _underscore &&
@@ -467,7 +473,7 @@ class _InlineParser {
     if (isDouble) {
       final result = _tryDelimited(i, end, 2, c);
       if (result != null) return result;
-      if (c == _tilde) return null;
+      if (c == _tilde || c == _pipe) return null;
     }
     return _tryDelimited(i, end, 1, c);
   }
@@ -481,6 +487,7 @@ class _InlineParser {
     if (close == -1) return null;
     final style = switch ((char, length)) {
       (_tilde, _) => MdStyle.strike,
+      (_pipe, _) => MdStyle.spoiler,
       (_, 2) => MdStyle.bold,
       _ => MdStyle.italic,
     };

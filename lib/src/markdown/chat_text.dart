@@ -1,6 +1,8 @@
 import 'package:flutter/gestures.dart';
 
+import '../l10n/chat_localizations.dart';
 import '../material.dart';
+import '../models/chat_user.dart';
 import 'chat_link_policy.dart';
 import 'markdown_parser.dart';
 
@@ -19,6 +21,7 @@ import 'markdown_parser.dart';
 /// | `- item`, `1. item`          | lists               |
 /// | `# Heading`                  | heading             |
 /// | `[label](https://...)`       | link                |
+/// | `\|\|spoiler\|\|`              | hidden until tapped |
 /// | `https://...`, `www....`     | automatic link      |
 ///
 /// HTML is never interpreted. Links are filtered by [linkPolicy]; only
@@ -39,6 +42,12 @@ class ChatText extends StatefulWidget {
     this.linkPolicy = const ChatLinkPolicy(),
     this.trailing,
     this.enableMarkdown = true,
+    this.mentionableUsers = const [],
+    this.onMentionTap,
+    this.mentionStyle,
+    this.currentUserId,
+    this.highlight,
+    this.highlightColor,
   });
 
   /// Raw markdown source.
@@ -72,6 +81,25 @@ class ChatText extends StatefulWidget {
   /// When `false`, [text] is shown verbatim (links are still detected).
   final bool enableMarkdown;
 
+  /// Users that can be mentioned. `@Name` (case-insensitive) is styled as a
+  /// mention when it matches one of their names.
+  final List<ChatUser> mentionableUsers;
+
+  /// Called when the user taps a mention.
+  final ValueChanged<ChatUser>? onMentionTap;
+
+  /// Style merged on top of the text style for mentions. Defaults to bold.
+  final TextStyle? mentionStyle;
+
+  /// Mentions of this user are emphasized with a background.
+  final String? currentUserId;
+
+  /// Text to highlight, for example the current search query.
+  final String? highlight;
+
+  /// Background of [highlight] matches.
+  final Color? highlightColor;
+
   @override
   State<ChatText> createState() => _ChatTextState();
 }
@@ -79,6 +107,8 @@ class ChatText extends StatefulWidget {
 class _ChatTextState extends State<ChatText> {
   final List<TapGestureRecognizer> _recognizers = [];
   List<MdBlock>? _blocks;
+  bool _spoilersRevealed = false;
+  List<ChatUser> _mentionUsers = const [];
 
   @override
   void didUpdateWidget(ChatText oldWidget) {
@@ -86,6 +116,7 @@ class _ChatTextState extends State<ChatText> {
     if (oldWidget.text != widget.text ||
         oldWidget.enableMarkdown != widget.enableMarkdown) {
       _blocks = null;
+      if (oldWidget.text != widget.text) _spoilersRevealed = false;
     }
   }
 
@@ -148,6 +179,11 @@ class _ChatTextState extends State<ChatText> {
     // Recognizers are rebuilt with the spans; the previous ones are released.
     _disposeRecognizers();
     final blocks = _blocks ??= _parse();
+    // Longest names first, so "@Ana María" wins over "@Ana".
+    _mentionUsers = [
+      for (final user in widget.mentionableUsers)
+        if ((user.name ?? '').trim().isNotEmpty) user,
+    ]..sort((a, b) => b.name!.length.compareTo(a.name!.length));
     final base = DefaultTextStyle.of(context).style.merge(widget.style);
     final color = base.color ?? Theme.of(context).colorScheme.onSurface;
     final codeBackground =
@@ -170,6 +206,18 @@ class _ChatTextState extends State<ChatText> {
           .merge(widget.codeStyle),
       codeBackground: codeBackground,
       quoteBar: color.withValues(alpha: 0.4),
+      mention: base
+          .merge(const TextStyle(fontWeight: FontWeight.w700))
+          .merge(widget.mentionStyle),
+      selfMentionBackground: color.withValues(alpha: 0.16),
+      spoiler: TextStyle(
+        color: const Color(0x00000000),
+        backgroundColor: color.withValues(alpha: 0.3),
+        decoration: TextDecoration.none,
+      ),
+      highlightBackground: widget.highlightColor ??
+          Theme.of(context).colorScheme.tertiaryContainer,
+      spoilerLabel: ChatLocalizations.of(context).spoiler,
     );
 
     if (blocks.isEmpty) {
@@ -311,7 +359,19 @@ class _ChatTextState extends State<ChatText> {
   InlineSpan _inline(MdInline node, _Styles style) {
     switch (node) {
       case MdText(:final text):
-        return TextSpan(text: text);
+        return TextSpan(children: _decorate(text, style));
+      case MdStyled(style: MdStyle.spoiler, :final children)
+          when !_spoilersRevealed:
+        final recognizer = TapGestureRecognizer()
+          ..onTap = () => setState(() => _spoilersRevealed = true);
+        _recognizers.add(recognizer);
+        return TextSpan(
+          text: children.map(_plain).join(),
+          style: style.spoiler,
+          recognizer: recognizer,
+          semanticsLabel: style.spoilerLabel,
+          mouseCursor: SystemMouseCursors.click,
+        );
       case MdStyled(style: final kind, :final children):
         return TextSpan(
           style: switch (kind) {
@@ -319,6 +379,7 @@ class _ChatTextState extends State<ChatText> {
             MdStyle.italic => const TextStyle(fontStyle: FontStyle.italic),
             MdStyle.strike =>
               const TextStyle(decoration: TextDecoration.lineThrough),
+            MdStyle.spoiler => null,
           },
           children: [
             for (final child in children) _inline(child, style),
@@ -356,6 +417,94 @@ class _ChatTextState extends State<ChatText> {
   }
 }
 
+extension on _ChatTextState {
+  /// Splits plain text into spans for mentions and highlighted matches.
+  List<InlineSpan> _decorate(String text, _Styles style) {
+    final spans = <InlineSpan>[];
+    var plainStart = 0;
+    var i = 0;
+    while (i < text.length) {
+      final mention = _mentionAt(text, i);
+      if (mention == null) {
+        i++;
+        continue;
+      }
+      spans.addAll(_highlighted(text.substring(plainStart, i), style));
+      final (user, length) = mention;
+      final onTap = widget.onMentionTap;
+      TapGestureRecognizer? recognizer;
+      if (onTap != null) {
+        recognizer = TapGestureRecognizer()..onTap = () => onTap(user);
+        _recognizers.add(recognizer);
+      }
+      final isSelf = user.id == widget.currentUserId;
+      spans.add(
+        TextSpan(
+          text: text.substring(i, i + length),
+          style: isSelf
+              ? style.mention
+                  .copyWith(backgroundColor: style.selfMentionBackground)
+              : style.mention,
+          recognizer: recognizer,
+          mouseCursor:
+              recognizer == null ? MouseCursor.defer : SystemMouseCursors.click,
+        ),
+      );
+      i += length;
+      plainStart = i;
+    }
+    spans.addAll(_highlighted(text.substring(plainStart), style));
+    return spans;
+  }
+
+  /// Returns the mentioned user and the length of `@Name` at [index].
+  (ChatUser, int)? _mentionAt(String text, int index) {
+    if (_mentionUsers.isEmpty || text.codeUnitAt(index) != 0x40) return null;
+    if (index > 0 && _isWordChar(text.codeUnitAt(index - 1))) return null;
+    final rest = text.substring(index + 1).toLowerCase();
+    for (final user in _mentionUsers) {
+      final name = user.name!.toLowerCase();
+      if (!rest.startsWith(name)) continue;
+      final end = index + 1 + name.length;
+      if (end < text.length && _isWordChar(text.codeUnitAt(end))) continue;
+      return (user, name.length + 1);
+    }
+    return null;
+  }
+
+  static bool _isWordChar(int c) =>
+      (c >= 0x30 && c <= 0x39) ||
+      (c >= 0x41 && c <= 0x5A) ||
+      (c >= 0x61 && c <= 0x7A) ||
+      c == 0x5F ||
+      c > 0x7F;
+
+  List<InlineSpan> _highlighted(String text, _Styles style) {
+    if (text.isEmpty) return const [];
+    final query = widget.highlight?.trim().toLowerCase() ?? '';
+    if (query.isEmpty) return [TextSpan(text: text)];
+    final lower = text.toLowerCase();
+    final spans = <InlineSpan>[];
+    var start = 0;
+    while (true) {
+      final match = lower.indexOf(query, start);
+      if (match == -1) break;
+      if (match > start) {
+        spans.add(TextSpan(text: text.substring(start, match)));
+      }
+      spans.add(
+        TextSpan(
+          text: text.substring(match, match + query.length),
+          style: TextStyle(backgroundColor: style.highlightBackground),
+        ),
+      );
+      start = match + query.length;
+    }
+    if (start < text.length) spans.add(TextSpan(text: text.substring(start)));
+    return spans;
+  }
+}
+
 class _Styles {
   const _Styles({
     required this.base,
@@ -363,6 +512,11 @@ class _Styles {
     required this.code,
     required this.codeBackground,
     required this.quoteBar,
+    required this.mention,
+    required this.selfMentionBackground,
+    required this.spoiler,
+    required this.highlightBackground,
+    required this.spoilerLabel,
   });
 
   final TextStyle base;
@@ -370,6 +524,11 @@ class _Styles {
   final TextStyle code;
   final Color codeBackground;
   final Color quoteBar;
+  final TextStyle mention;
+  final Color selfMentionBackground;
+  final TextStyle spoiler;
+  final Color highlightBackground;
+  final String spoilerLabel;
 
   _Styles copyWithBase(TextStyle base) => _Styles(
         base: base,
@@ -377,5 +536,10 @@ class _Styles {
         code: code,
         codeBackground: codeBackground,
         quoteBar: quoteBar,
+        mention: mention,
+        selfMentionBackground: selfMentionBackground,
+        spoiler: spoiler,
+        highlightBackground: highlightBackground,
+        spoilerLabel: spoilerLabel,
       );
 }

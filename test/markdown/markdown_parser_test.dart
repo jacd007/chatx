@@ -188,4 +188,22 @@ void main() {
       expect(custom.resolve('https://dart.dev'), isNull);
     });
   });
+
+  group('spoilers', () {
+    test('double pipes hide text', () {
+      expect(inline('the end is ||sad|| ok'), [
+        const MdText('the end is '),
+        const MdStyled(MdStyle.spoiler, [MdText('sad')]),
+        const MdText(' ok'),
+      ]);
+    });
+
+    test('single pipes stay literal', () {
+      expect(inline('a | b'), [const MdText('a | b')]);
+    });
+
+    test('plain text previews never reveal spoilers', () {
+      expect(MarkdownParser.toPlainText('Ending: ||he dies||'), 'Ending: •••');
+    });
+  });
 }

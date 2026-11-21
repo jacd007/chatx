@@ -20,39 +20,47 @@ Future<Object?> _showSheetMenu(
     context: context,
     showDragHandle: true,
     useSafeArea: true,
+    // Grows with the number of entries and scrolls past 80% of the screen.
+    isScrollControlled: true,
+    constraints: BoxConstraints(
+      maxHeight: MediaQuery.sizeOf(context).height * 0.8,
+    ),
     builder: (sheetContext) {
       final error = Theme.of(sheetContext).colorScheme.error;
       return SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (emojis.isNotEmpty) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: _ReactionPicker(
-                  emojis: emojis,
-                  message: message,
-                  currentUserId: currentUserId,
-                  label: l10n.addReaction,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (emojis.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: _ReactionPicker(
+                    emojis: emojis,
+                    message: message,
+                    currentUserId: currentUserId,
+                    label: l10n.addReaction,
+                  ),
                 ),
-              ),
-              if (actions.isNotEmpty) const Divider(height: 16),
+                if (actions.isNotEmpty) const Divider(height: 16),
+              ],
+              for (final action in actions)
+                ListTile(
+                  leading: action.icon == null
+                      ? null
+                      : Icon(
+                          action.icon,
+                          color: action.isDestructive ? error : null,
+                        ),
+                  title: Text(
+                    action.label,
+                    style:
+                        action.isDestructive ? TextStyle(color: error) : null,
+                  ),
+                  onTap: () => Navigator.of(sheetContext).pop(action),
+                ),
             ],
-            for (final action in actions)
-              ListTile(
-                leading: action.icon == null
-                    ? null
-                    : Icon(
-                        action.icon,
-                        color: action.isDestructive ? error : null,
-                      ),
-                title: Text(
-                  action.label,
-                  style: action.isDestructive ? TextStyle(color: error) : null,
-                ),
-                onTap: () => Navigator.of(sheetContext).pop(action),
-              ),
-          ],
+          ),
         ),
       );
     },

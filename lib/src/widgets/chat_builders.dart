@@ -212,3 +212,56 @@ typedef ChatMessageActionsBuilder = List<ChatMessageAction> Function(
   ChatMessage message,
   List<ChatMessageAction> defaults,
 );
+
+/// An action of the selection bar, applied to every selected message.
+@immutable
+class ChatSelectionAction {
+  /// Creates a selection action.
+  const ChatSelectionAction({
+    required this.label,
+    required this.icon,
+    required this.onSelected,
+    this.isDestructive = false,
+  });
+
+  /// Tooltip and accessibility label.
+  final String label;
+
+  /// Icon of the button.
+  final IconData icon;
+
+  /// Shows the button in the error color.
+  final bool isDestructive;
+
+  /// Called with the selected messages, oldest first. Selection mode ends
+  /// afterwards.
+  final ValueChanged<List<ChatMessage>> onSelected;
+}
+
+/// Returns the buttons of the selection bar for [selected] messages.
+///
+/// [defaults] holds the built-in actions (copy, delete) that apply.
+typedef ChatSelectionActionsBuilder = List<ChatSelectionAction> Function(
+  BuildContext context,
+  List<ChatMessage> selected,
+  List<ChatSelectionAction> defaults,
+);
+
+/// Called when the user votes in a poll.
+typedef ChatPollVoteCallback = void Function(
+  PollMessage message,
+  String optionId,
+);
+
+/// Called when the user taps an image of an [ImageMessage].
+typedef ChatImageTapCallback = void Function(ImageMessage message, int index);
+
+/// Called when a voice recording ends. [cancelled] is `true` when the user
+/// slid away to discard it.
+typedef ChatVoiceRecordEndCallback = void Function(
+  Duration duration, {
+  required bool cancelled,
+});
+
+/// Called when the user pins or unpins a message.
+typedef ChatPinCallback = void Function(ChatMessage message, bool pinned);

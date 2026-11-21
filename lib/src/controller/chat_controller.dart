@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 
+import '../markdown/markdown_parser.dart';
 import '../models/chat_message.dart';
 import '../models/chat_reaction.dart';
 import '../models/chat_user.dart';
@@ -43,6 +45,12 @@ class ChatController extends ChangeNotifier {
       ValueNotifier<List<ChatUser>>(const []);
   final ValueNotifier<ChatMessage?> _replyingTo = ValueNotifier(null);
   final ValueNotifier<ChatMessage?> _editing = ValueNotifier(null);
+  final ValueNotifier<List<String>> _pinnedIds =
+      ValueNotifier<List<String>>(const []);
+  final ValueNotifier<Set<String>> _selectedIds =
+      ValueNotifier<Set<String>>(const {});
+  final StreamController<ChatScrollRequest> _scrollRequests =
+      StreamController<ChatScrollRequest>.broadcast();
 
   /// All messages, oldest first. The list is a read-only live view.
   List<ChatMessage> get messages => _messagesView;
@@ -67,6 +75,19 @@ class ChatController extends ChangeNotifier {
   /// While set, `ChatView` fills the input with the message text and sends
   /// the result to `onEditMessage`. Set it with [startEditing].
   ValueListenable<ChatMessage?> get editing => _editing;
+
+  /// IDs of pinned messages, oldest pin first. `ChatView` shows a banner for
+  /// them at the top of the list.
+  ValueListenable<List<String>> get pinnedIds => _pinnedIds;
+
+  /// IDs of the messages selected in selection mode.
+  ValueListenable<Set<String>> get selectedIds => _selectedIds;
+
+  /// Whether selection mode is active (at least one message selected).
+  bool get isSelecting => _selectedIds.value.isNotEmpty;
+
+  /// Requests from [scrollToMessage]. `ChatView` listens to this stream.
+  Stream<ChatScrollRequest> get scrollRequests => _scrollRequests.stream;
 
   /// Returns the message with [id], or `null` if there is none.
   ChatMessage? messageById(String id) {
@@ -209,6 +230,116 @@ class ChatController extends ChangeNotifier {
     return update(message.withReactions(List.unmodifiable(reactions)));
   }
 
+  /// Records the vote of [userId] for [optionId] in the [PollMessage] with
+  /// [id], or removes it if that user already chose the option.
+  ///
+  /// In single-answer polls, a new vote replaces the previous one. Returns
+  /// `false` if the message is not an open poll or the option does not
+  /// exist.
+  bool votePoll(String id, String optionId, String userId) {
+    final poll = messageById(id);
+    if (poll is! PollMessage || poll.isClosed) return false;
+    if (!poll.options.any((o) => o.id == optionId)) return false;
+    final options = [
+      for (final option in poll.options)
+        if (option.id == optionId)
+          option.withVoters(
+            option.voterIds.contains(userId)
+                ? [
+                    for (final v in option.voterIds)
+                      if (v != userId) v
+                  ]
+                : [...option.voterIds, userId],
+          )
+        else if (!poll.allowsMultipleAnswers &&
+            option.voterIds.contains(userId))
+          option.withVoters(
+            [
+              for (final v in option.voterIds)
+                if (v != userId) v
+            ],
+          )
+        else
+          option,
+    ];
+    return update(poll.copyWith(options: List.unmodifiable(options)));
+  }
+
+  /// Pins the message with [id]. Returns `false` if it does not exist.
+  bool pin(String id) {
+    if (!contains(id)) return false;
+    if (!_pinnedIds.value.contains(id)) {
+      _pinnedIds.value = List.unmodifiable([..._pinnedIds.value, id]);
+    }
+    return true;
+  }
+
+  /// Unpins the message with [id].
+  void unpin(String id) {
+    if (!_pinnedIds.value.contains(id)) return;
+    _pinnedIds.value = List.unmodifiable([..._pinnedIds.value]..remove(id));
+  }
+
+  /// Whether the message with [id] is pinned.
+  bool isPinned(String id) => _pinnedIds.value.contains(id);
+
+  /// Adds the message with [id] to the selection, or removes it if it is
+  /// already selected. Selecting the first message enters selection mode.
+  void toggleSelection(String id) {
+    if (!contains(id)) return;
+    final selected = {..._selectedIds.value};
+    if (!selected.remove(id)) selected.add(id);
+    _selectedIds.value = Set.unmodifiable(selected);
+  }
+
+  /// Leaves selection mode.
+  void clearSelection() {
+    if (_selectedIds.value.isNotEmpty) _selectedIds.value = const {};
+  }
+
+  /// The selected messages, oldest first.
+  List<ChatMessage> get selectedMessages {
+    final ids = _selectedIds.value;
+    return [
+      for (final m in _messages)
+        if (ids.contains(m.id)) m
+    ];
+  }
+
+  /// Asks `ChatView` to scroll to the message with [id] and, when
+  /// [highlight] is `true`, to flash it.
+  void scrollToMessage(String id, {bool highlight = true}) {
+    if (!contains(id)) return;
+    _scrollRequests.add(ChatScrollRequest(id, highlight: highlight));
+  }
+
+  /// IDs of messages whose text contains [query], ignoring case and
+  /// markdown, newest first. Looks at text, captions, file names, poll
+  /// questions and options, and countdown titles.
+  List<String> search(String query) {
+    final needle = query.trim().toLowerCase();
+    if (needle.isEmpty) return const [];
+    return [
+      for (var i = _messages.length - 1; i >= 0; i--)
+        if (searchableText(_messages[i]).toLowerCase().contains(needle))
+          _messages[i].id,
+    ];
+  }
+
+  /// Plain text of [message] used by [search].
+  static String searchableText(ChatMessage message) => switch (message) {
+        TextMessage(:final text) => MarkdownParser.toPlainText(text),
+        SystemMessage(:final text) => text,
+        ImageMessage(:final caption) =>
+          caption == null ? '' : MarkdownParser.toPlainText(caption),
+        FileMessage(:final name) => name,
+        PollMessage(:final question, :final options) =>
+          [question, ...options.map((o) => o.text)].join(' '),
+        CountdownMessage(:final title, :final description) =>
+          '$title ${description ?? ''}',
+        VoiceMessage() || CustomMessage() => '',
+      };
+
   /// Starts replying to [message]. Cancels any edit in progress.
   void startReply(ChatMessage message) {
     _editing.value = null;
@@ -235,6 +366,7 @@ class ChatController extends ChangeNotifier {
     _watchers.remove(id)?.dispose();
     if (_replyingTo.value?.id == id) _replyingTo.value = null;
     if (_editing.value?.id == id) _editing.value = null;
+    _forget({id});
     notifyListeners();
     return true;
   }
@@ -262,6 +394,10 @@ class ChatController extends ChangeNotifier {
     for (final message in _messages) {
       _watchers[message.id]?.value = message;
     }
+    _forget({
+      ..._pinnedIds.value,
+      ..._selectedIds.value,
+    }.where((id) => !ids.contains(id)).toSet());
     notifyListeners();
   }
 
@@ -303,7 +439,25 @@ class ChatController extends ChangeNotifier {
     _typingUsers.dispose();
     _replyingTo.dispose();
     _editing.dispose();
+    _pinnedIds.dispose();
+    _selectedIds.dispose();
+    _scrollRequests.close();
     super.dispose();
+  }
+
+  // Drops pins and selection of messages that no longer exist.
+  void _forget(Set<String> ids) {
+    if (ids.isEmpty) return;
+    if (_pinnedIds.value.any(ids.contains)) {
+      _pinnedIds.value = List.unmodifiable(
+        _pinnedIds.value.where((id) => !ids.contains(id)),
+      );
+    }
+    if (_selectedIds.value.any(ids.contains)) {
+      _selectedIds.value = Set.unmodifiable(
+        _selectedIds.value.where((id) => !ids.contains(id)),
+      );
+    }
   }
 
   // Searches from the end: most lookups target recent messages.
@@ -357,4 +511,18 @@ class ChatController extends ChangeNotifier {
     }
     _messages.insert(low, message);
   }
+}
+
+/// A request to scroll to a message, sent by
+/// [ChatController.scrollToMessage].
+@immutable
+class ChatScrollRequest {
+  /// Creates a scroll request.
+  const ChatScrollRequest(this.messageId, {this.highlight = true});
+
+  /// The message to reveal.
+  final String messageId;
+
+  /// Whether to flash the message after scrolling.
+  final bool highlight;
 }

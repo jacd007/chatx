@@ -96,4 +96,92 @@ void main() {
     await open(tester, 'Custom look');
     await shoot('06_dark_custom_look');
   });
+
+  testWidgets('media: files, links, spoilers, images, voice', (tester) async {
+    await open(tester, 'Media & files');
+    await settle(tester, 1200);
+    await shoot('07_files_links_spoilers');
+
+    await tester.timedDrag(
+      find.byType(ListView),
+      const Offset(0, 700),
+      const Duration(milliseconds: 600),
+    );
+    await settle(tester, 800);
+    await tester.tap(find.byKey(const Key('chatx_voice_play_voice1')));
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
+    await settle(tester);
+    await shoot('08_images_voice');
+
+    await tester.tap(find.byKey(const Key('chatx_image_trip_0')));
+    await settle(tester, 900);
+    await shoot('09_image_viewer');
+    await tester.tap(find.byKey(const Key('chatx_viewer_close')));
+    await settle(tester, 900);
+
+    // Start recording through the accessibility action, so no test pointer
+    // is drawn on the screenshot.
+    final semantics = tester.ensureSemantics();
+    final mic = find.semantics.byLabel('Hold to record a voice message');
+    tester.semantics.tap(mic);
+    await Future<void>.delayed(const Duration(milliseconds: 2300));
+    await settle(tester);
+    await shoot('10_voice_recording');
+    tester.semantics.tap(mic);
+    await settle(tester);
+    semantics.dispose();
+  });
+
+  testWidgets('community: poll, countdown, mentions, search, selection',
+      (tester) async {
+    await open(tester, 'Community');
+    await tester.tap(find.byKey(const Key('chatx_poll_poll_pizza')));
+    await settle(tester, 1200);
+    await shoot('11_poll_countdown_pinned');
+
+    final field = find.byKey(const Key('chatx_input_field'));
+    await tester.enterText(field, 'Count me in! @');
+    await settle(tester);
+    expect(find.byKey(const Key('chatx_mention_leo')), findsOneWidget);
+    FocusManager.instance.primaryFocus?.unfocus();
+    await settle(tester);
+    await shoot('12_mentions');
+    await tester.tap(find.byKey(const Key('chatx_mention_leo')));
+    await tester.enterText(field, '');
+    FocusManager.instance.primaryFocus?.unfocus();
+    await settle(tester);
+
+    await tester.tap(find.byKey(const Key('demo_search')));
+    await settle(tester);
+    await tester.enterText(
+      find.byKey(const Key('chatx_search_field')),
+      'rooftop',
+    );
+    await settle(tester, 900);
+    FocusManager.instance.primaryFocus?.unfocus();
+    await settle(tester, 600);
+    await shoot('13_search');
+    await tester.tap(find.byKey(const Key('chatx_search_close')));
+    await settle(tester);
+
+    await tester.longPress(find.byKey(const Key('chatx_bubble_mention')));
+    await settle(tester);
+    await tester.tap(find.text('Select'));
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('chatx_bubble_launch')));
+    await settle(tester);
+    await shoot('14_selection');
+    await tester.tap(find.byKey(const Key('chatx_selection_close')));
+    await settle(tester);
+
+    final drag = await tester.startGesture(const Offset(200, 450));
+    for (var i = 0; i < 14; i++) {
+      await drag.moveBy(const Offset(0, 40));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await settle(tester, 100);
+    await shoot('15_floating_date');
+    await drag.up();
+    await settle(tester);
+  });
 }

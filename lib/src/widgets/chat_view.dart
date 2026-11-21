@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' show FontFeature, ImageFilter;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
@@ -8,6 +9,7 @@ import 'package:flutter/services.dart';
 
 import '../chat_scope.dart';
 import '../controller/chat_controller.dart';
+import '../controller/chat_search_controller.dart';
 import '../l10n/chat_localizations.dart';
 import '../markdown/chat_link_policy.dart';
 import '../markdown/chat_text.dart';
@@ -17,6 +19,7 @@ import '../models/chat_message.dart';
 import '../models/chat_reaction.dart';
 import '../models/chat_user.dart';
 import '../models/message_status.dart';
+import '../models/voice_playback.dart';
 import '../theme/chat_bubble_border.dart';
 import '../theme/chat_theme.dart';
 import '../utils/emoji.dart';
@@ -27,9 +30,11 @@ import 'message_status_icon.dart';
 import 'typing_indicator.dart';
 
 part 'chat_view/composer_banner.dart';
+part 'chat_view/conversation_chrome.dart';
 part 'chat_view/decorations.dart';
 part 'chat_view/message_menu.dart';
 part 'chat_view/message_row.dart';
+part 'chat_view/rich_content.dart';
 part 'chat_view/swipe_to_action.dart';
 
 /// A complete conversation screen: message list plus input bar.
@@ -105,6 +110,23 @@ class ChatView extends StatefulWidget {
     this.scrollToBottomBuilder,
     this.loadMoreIndicatorBuilder,
     this.emptyStateBuilder,
+    this.imageProviderBuilder,
+    this.onImageTap,
+    this.onFileTap,
+    this.voicePlayback,
+    this.onVoicePlay,
+    this.onVoicePause,
+    this.onVoiceSeek,
+    this.onVoiceRecordStart,
+    this.onVoiceRecordEnd,
+    this.onPollVote,
+    this.mentionableUsers = const [],
+    this.onMentionTap,
+    this.onPinMessage,
+    this.searchController,
+    this.enableSelection = true,
+    this.selectionActionsBuilder,
+    this.showFloatingDate = true,
   });
 
   /// Reactions offered in the message menu by default.
@@ -270,6 +292,68 @@ class ChatView extends StatefulWidget {
   /// Shown when there are no messages.
   final WidgetBuilder? emptyStateBuilder;
 
+  /// Turns an image URI ([ChatImage.uri], [ChatLinkPreview.imageUri]) into
+  /// an [ImageProvider]. Defaults to [NetworkImage]. Use it for assets,
+  /// files, caching or authenticated requests.
+  final ImageProvider Function(String uri)? imageProviderBuilder;
+
+  /// Called when an image is tapped. When `null`, chatx opens a full-screen
+  /// viewer with zoom and swipe-down to close.
+  final ChatImageTapCallback? onImageTap;
+
+  /// Called when a [FileMessage] is tapped. Open or download the file here.
+  final ValueChanged<FileMessage>? onFileTap;
+
+  /// What your audio player is doing. Drives play buttons and progress of
+  /// [VoiceMessage]s.
+  final ValueListenable<ChatVoicePlayback?>? voicePlayback;
+
+  /// Called when the user taps play on a voice note.
+  final ValueChanged<VoiceMessage>? onVoicePlay;
+
+  /// Called when the user taps pause on a voice note.
+  final ValueChanged<VoiceMessage>? onVoicePause;
+
+  /// Called when the user taps the waveform to jump to a position.
+  final void Function(VoiceMessage message, Duration position)? onVoiceSeek;
+
+  /// Called when the user starts holding the microphone button. When set,
+  /// the send button turns into a microphone while the input is empty.
+  final VoidCallback? onVoiceRecordStart;
+
+  /// Called when the user releases the microphone button or slides to
+  /// cancel.
+  final ChatVoiceRecordEndCallback? onVoiceRecordEnd;
+
+  /// Called when the user votes in a [PollMessage]. Typically calls
+  /// [ChatController.votePoll] and your backend. When `null`, polls are
+  /// read-only.
+  final ChatPollVoteCallback? onPollVote;
+
+  /// Users that can be mentioned. Typing `@` in the input suggests them, and
+  /// `@Name` in messages is highlighted.
+  final List<ChatUser> mentionableUsers;
+
+  /// Called when the user taps a mention in a message.
+  final ValueChanged<ChatUser>? onMentionTap;
+
+  /// Called when the user picks "Pin" or "Unpin" in the menu. When set, the
+  /// menu offers those entries. Update [ChatController.pin] and your backend.
+  final ChatPinCallback? onPinMessage;
+
+  /// Highlights search matches and follows the current result. See
+  /// [ChatSearchController] and `ChatSearchBar`.
+  final ChatSearchController? searchController;
+
+  /// Whether the menu offers "Select" to enter multi-selection mode.
+  final bool enableSelection;
+
+  /// Customizes the buttons of the selection bar.
+  final ChatSelectionActionsBuilder? selectionActionsBuilder;
+
+  /// Whether a date chip floats at the top while scrolling.
+  final bool showFloatingDate;
+
   @override
   State<ChatView> createState() => _ChatViewState();
 }
@@ -299,6 +383,12 @@ class _ChatViewState extends State<ChatView> {
   bool _hasMore = true;
   bool _loadFailed = false;
 
+  StreamSubscription<ChatScrollRequest>? _scrollRequests;
+  final ValueNotifier<DateTime?> _floatingDate = ValueNotifier(null);
+  Timer? _floatingDateTimer;
+  final GlobalKey _listKey = GlobalKey();
+  final ValueNotifier<_MentionQuery?> _mentionQuery = ValueNotifier(null);
+
   ScrollController get _scrollController =>
       widget.scrollController ?? (_ownScrollController ??= ScrollController());
 
@@ -309,6 +399,7 @@ class _ChatViewState extends State<ChatView> {
   @override
   void initState() {
     super.initState();
+    _textController.addListener(_onComposerTextChanged);
     _attachController(widget.controller);
     _scrollController.addListener(_onScroll);
     _resetKnownMessages();
@@ -351,6 +442,9 @@ class _ChatViewState extends State<ChatView> {
     _unreadCount.dispose();
     _highlightedId.dispose();
     _highlightTimer?.cancel();
+    _floatingDate.dispose();
+    _floatingDateTimer?.cancel();
+    _mentionQuery.dispose();
     super.dispose();
   }
 
@@ -358,15 +452,27 @@ class _ChatViewState extends State<ChatView> {
     controller
       ..addListener(_onMessagesChanged)
       ..editing.addListener(_onEditingChanged)
-      ..replyingTo.addListener(_onReplyingChanged);
+      ..replyingTo.addListener(_onReplyingChanged)
+      ..selectedIds.addListener(_onSelectionChanged);
+    _scrollRequests = controller.scrollRequests.listen(
+      (request) => _scrollToMessage(
+        request.messageId,
+        highlight: request.highlight,
+      ),
+    );
   }
 
   void _detachController(ChatController controller) {
     controller
       ..removeListener(_onMessagesChanged)
       ..editing.removeListener(_onEditingChanged)
-      ..replyingTo.removeListener(_onReplyingChanged);
+      ..replyingTo.removeListener(_onReplyingChanged)
+      ..selectedIds.removeListener(_onSelectionChanged);
+    _scrollRequests?.cancel();
+    _scrollRequests = null;
   }
+
+  void _onSelectionChanged() => setState(() {});
 
   void _onEditingChanged() {
     final editing = widget.controller.editing.value;
@@ -496,6 +602,9 @@ class _ChatViewState extends State<ChatView> {
   }
 
   bool _onScrollNotification(ScrollNotification notification) {
+    if (notification.depth == 0 && widget.showFloatingDate) {
+      _updateFloatingDate(notification);
+    }
     if (notification.depth == 0 &&
         notification.metrics.extentAfter < widget.loadMoreThreshold) {
       _loadMore();
@@ -650,6 +759,24 @@ class _ChatViewState extends State<ChatView> {
           icon: Icons.edit_outlined,
           onSelected: (m) => widget.controller.startEditing(m as TextMessage),
         ),
+      if (widget.onPinMessage != null)
+        widget.controller.isPinned(message.id)
+            ? ChatMessageAction(
+                label: l10n.unpin,
+                icon: Icons.push_pin_rounded,
+                onSelected: (m) => widget.onPinMessage!(m, false),
+              )
+            : ChatMessageAction(
+                label: l10n.pin,
+                icon: Icons.push_pin_outlined,
+                onSelected: (m) => widget.onPinMessage!(m, true),
+              ),
+      if (widget.enableSelection)
+        ChatMessageAction(
+          label: l10n.select,
+          icon: Icons.check_circle_outline_rounded,
+          onSelected: (m) => widget.controller.toggleSelection(m.id),
+        ),
       if (mine && widget.onDeleteMessage != null)
         ChatMessageAction(
           label: l10n.delete,
@@ -661,6 +788,10 @@ class _ChatViewState extends State<ChatView> {
   }
 
   Future<void> _handleLongPress(ChatMessage message, BuildContext anchor) {
+    if (widget.controller.isSelecting) {
+      _toggleSelection(message);
+      return Future.value();
+    }
     final onLongPress = widget.onMessageLongPress;
     if (onLongPress != null) {
       unawaited(HapticFeedback.mediumImpact());
@@ -673,7 +804,21 @@ class _ChatViewState extends State<ChatView> {
     return _openMenu(message, anchor);
   }
 
+  void _toggleSelection(ChatMessage message) {
+    if (message is SystemMessage) return;
+    HapticFeedback.selectionClick();
+    widget.controller.toggleSelection(message.id);
+  }
+
   void _handleTap(ChatMessage message, BuildContext anchor) {
+    if (widget.controller.isSelecting) {
+      _toggleSelection(message);
+      return;
+    }
+    if (message is FileMessage && widget.onFileTap != null) {
+      widget.onFileTap!(message);
+      return;
+    }
     if (widget.messageMenuTrigger == ChatMessageMenuTrigger.tap) {
       unawaited(_openMenu(message, anchor));
     } else {
@@ -744,7 +889,10 @@ class _ChatViewState extends State<ChatView> {
               onTypingChanged: widget.onTypingChanged,
               sendIcon:
                   editing ? Icons.check_rounded : Icons.arrow_upward_rounded,
+              onRecordStart: editing ? null : widget.onVoiceRecordStart,
+              onRecordEnd: widget.onVoiceRecordEnd,
             );
+    final selecting = widget.controller.isSelecting;
 
     return ChatScope(
       theme: theme,
@@ -755,10 +903,18 @@ class _ChatViewState extends State<ChatView> {
         color: theme.backgroundColor,
         child: Column(
           children: [
+            _PinnedBanner(state: this),
             Expanded(
               child: Stack(
                 children: [
                   Positioned.fill(child: _buildList(theme)),
+                  if (widget.showFloatingDate)
+                    Positioned(
+                      top: 8,
+                      left: 0,
+                      right: 0,
+                      child: _FloatingDate(date: _floatingDate),
+                    ),
                   if (widget.controller.isEmpty && !_loadingMore)
                     Positioned.fill(
                       child: IgnorePointer(
@@ -777,19 +933,26 @@ class _ChatViewState extends State<ChatView> {
                 ],
               ),
             ),
-            ColoredBox(
+            Material(
               color: theme.inputBackgroundColor,
               child: SafeArea(
                 top: false,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _ComposerBanner(
-                      controller: widget.controller,
-                      currentUser: widget.currentUser,
-                    ),
-                    input,
-                  ],
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: selecting
+                      ? _SelectionBar(key: const Key('selection'), state: this)
+                      : Column(
+                          key: const Key('composer'),
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _MentionSuggestions(state: this),
+                            _ComposerBanner(
+                              controller: widget.controller,
+                              currentUser: widget.currentUser,
+                            ),
+                            input,
+                          ],
+                        ),
                 ),
               ),
             ),
@@ -814,6 +977,7 @@ class _ChatViewState extends State<ChatView> {
         return NotificationListener<ScrollNotification>(
           onNotification: _onScrollNotification,
           child: ListView.builder(
+            key: _listKey,
             controller: _scrollController,
             reverse: true,
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,

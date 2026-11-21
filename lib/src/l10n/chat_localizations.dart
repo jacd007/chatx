@@ -71,6 +71,36 @@ class ChatLocalizations {
     required this.quoteUnavailable,
     required this.addReaction,
     required this.reactionLabel,
+    required this.spoiler,
+    required this.photo,
+    required this.file,
+    required this.voiceMessage,
+    required this.poll,
+    required this.pollVotes,
+    required this.pollSelectOne,
+    required this.pollSelectMany,
+    required this.pollClosed,
+    required this.countdownCompleted,
+    required this.countdownDays,
+    required this.countdownHours,
+    required this.countdownMinutes,
+    required this.countdownSeconds,
+    required this.pinnedMessage,
+    required this.pin,
+    required this.unpin,
+    required this.select,
+    required this.selectedCount,
+    required this.searchHint,
+    required this.searchNoResults,
+    required this.searchPrevious,
+    required this.searchNext,
+    required this.holdToRecord,
+    required this.slideToCancel,
+    required this.play,
+    required this.pause,
+    required this.uploading,
+    required this.close,
+    required this.mentionSuggestions,
   });
 
   /// Placeholder of the message input.
@@ -166,6 +196,96 @@ class ChatLocalizations {
   /// Accessibility label of a reaction chip.
   final ChatReactionLabel reactionLabel;
 
+  /// Accessibility label of hidden spoiler text.
+  final String spoiler;
+
+  /// Preview label of image messages.
+  final String photo;
+
+  /// Preview label of file messages.
+  final String file;
+
+  /// Preview and accessibility label of voice notes.
+  final String voiceMessage;
+
+  /// Preview label of polls.
+  final String poll;
+
+  /// Vote counter of polls.
+  final ChatCountLabel pollVotes;
+
+  /// Hint of single-answer polls.
+  final String pollSelectOne;
+
+  /// Hint of multiple-answer polls.
+  final String pollSelectMany;
+
+  /// Label of closed polls.
+  final String pollClosed;
+
+  /// Default label of countdowns that reached zero.
+  final String countdownCompleted;
+
+  /// Unit label for days in countdowns.
+  final String countdownDays;
+
+  /// Unit label for hours in countdowns.
+  final String countdownHours;
+
+  /// Unit label for minutes in countdowns.
+  final String countdownMinutes;
+
+  /// Unit label for seconds in countdowns.
+  final String countdownSeconds;
+
+  /// Title of the pinned message banner.
+  final String pinnedMessage;
+
+  /// Label of the "pin" action.
+  final String pin;
+
+  /// Label of the "unpin" action.
+  final String unpin;
+
+  /// Label of the "select" action.
+  final String select;
+
+  /// Title of the selection bar.
+  final ChatCountLabel selectedCount;
+
+  /// Placeholder of the search field.
+  final String searchHint;
+
+  /// Shown when a search has no results.
+  final String searchNoResults;
+
+  /// Accessibility label of the "older result" button.
+  final String searchPrevious;
+
+  /// Accessibility label of the "newer result" button.
+  final String searchNext;
+
+  /// Accessibility label of the record button.
+  final String holdToRecord;
+
+  /// Hint shown while recording.
+  final String slideToCancel;
+
+  /// Accessibility label of the play button.
+  final String play;
+
+  /// Accessibility label of the pause button.
+  final String pause;
+
+  /// Accessibility label of upload progress.
+  final String uploading;
+
+  /// Accessibility label of close buttons.
+  final String close;
+
+  /// Accessibility label of the mention suggestions list.
+  final String mentionSuggestions;
+
   /// English strings.
   static const ChatLocalizations en = ChatLocalizations(
     inputHint: 'Message',
@@ -199,6 +319,36 @@ class ChatLocalizations {
     quoteUnavailable: 'Original message not available',
     addReaction: 'Add reaction',
     reactionLabel: _reactionEn,
+    spoiler: 'Spoiler. Double tap to reveal.',
+    photo: 'Photo',
+    file: 'File',
+    voiceMessage: 'Voice message',
+    poll: 'Poll',
+    pollVotes: _votesEn,
+    pollSelectOne: 'Select one',
+    pollSelectMany: 'Select one or more',
+    pollClosed: 'Final results',
+    countdownCompleted: "It's time!",
+    countdownDays: 'days',
+    countdownHours: 'hours',
+    countdownMinutes: 'min',
+    countdownSeconds: 'sec',
+    pinnedMessage: 'Pinned message',
+    pin: 'Pin',
+    unpin: 'Unpin',
+    select: 'Select',
+    selectedCount: _selectedEn,
+    searchHint: 'Search',
+    searchNoResults: 'No results',
+    searchPrevious: 'Previous result',
+    searchNext: 'Next result',
+    holdToRecord: 'Hold to record a voice message',
+    slideToCancel: 'Slide to cancel',
+    play: 'Play',
+    pause: 'Pause',
+    uploading: 'Uploading',
+    close: 'Close',
+    mentionSuggestions: 'Mention suggestions',
   );
 
   /// Spanish strings.
@@ -234,6 +384,36 @@ class ChatLocalizations {
     quoteUnavailable: 'Mensaje original no disponible',
     addReaction: 'Agregar reacción',
     reactionLabel: _reactionEs,
+    spoiler: 'Spoiler. Toca dos veces para mostrar.',
+    photo: 'Foto',
+    file: 'Archivo',
+    voiceMessage: 'Mensaje de voz',
+    poll: 'Encuesta',
+    pollVotes: _votesEs,
+    pollSelectOne: 'Elige una',
+    pollSelectMany: 'Elige una o más',
+    pollClosed: 'Resultados finales',
+    countdownCompleted: '¡Llegó el momento!',
+    countdownDays: 'días',
+    countdownHours: 'horas',
+    countdownMinutes: 'min',
+    countdownSeconds: 'seg',
+    pinnedMessage: 'Mensaje fijado',
+    pin: 'Fijar',
+    unpin: 'Desfijar',
+    select: 'Seleccionar',
+    selectedCount: _selectedEs,
+    searchHint: 'Buscar',
+    searchNoResults: 'Sin resultados',
+    searchPrevious: 'Resultado anterior',
+    searchNext: 'Resultado siguiente',
+    holdToRecord: 'Mantén presionado para grabar',
+    slideToCancel: 'Desliza para cancelar',
+    play: 'Reproducir',
+    pause: 'Pausar',
+    uploading: 'Subiendo',
+    close: 'Cerrar',
+    mentionSuggestions: 'Sugerencias de menciones',
   );
 
   /// Built-in strings by language code.
@@ -286,6 +466,15 @@ class ChatLocalizations {
   }) =>
       includesYou ? '$emoji $count, incluido tú' : '$emoji $count';
 
+  static String _votesEn(int count) => count == 1 ? '1 vote' : '$count votes';
+
+  static String _votesEs(int count) => count == 1 ? '1 voto' : '$count votos';
+
+  static String _selectedEn(int count) => '$count selected';
+
+  static String _selectedEs(int count) =>
+      count == 1 ? '1 seleccionado' : '$count seleccionados';
+
   static String _unreadEn(int count) =>
       count == 1 ? '1 new message' : '$count new messages';
 
@@ -325,6 +514,36 @@ class ChatLocalizations {
     String? quoteUnavailable,
     String? addReaction,
     ChatReactionLabel? reactionLabel,
+    String? spoiler,
+    String? photo,
+    String? file,
+    String? voiceMessage,
+    String? poll,
+    ChatCountLabel? pollVotes,
+    String? pollSelectOne,
+    String? pollSelectMany,
+    String? pollClosed,
+    String? countdownCompleted,
+    String? countdownDays,
+    String? countdownHours,
+    String? countdownMinutes,
+    String? countdownSeconds,
+    String? pinnedMessage,
+    String? pin,
+    String? unpin,
+    String? select,
+    ChatCountLabel? selectedCount,
+    String? searchHint,
+    String? searchNoResults,
+    String? searchPrevious,
+    String? searchNext,
+    String? holdToRecord,
+    String? slideToCancel,
+    String? play,
+    String? pause,
+    String? uploading,
+    String? close,
+    String? mentionSuggestions,
   }) {
     return ChatLocalizations(
       inputHint: inputHint ?? this.inputHint,
@@ -358,6 +577,36 @@ class ChatLocalizations {
       quoteUnavailable: quoteUnavailable ?? this.quoteUnavailable,
       addReaction: addReaction ?? this.addReaction,
       reactionLabel: reactionLabel ?? this.reactionLabel,
+      spoiler: spoiler ?? this.spoiler,
+      photo: photo ?? this.photo,
+      file: file ?? this.file,
+      voiceMessage: voiceMessage ?? this.voiceMessage,
+      poll: poll ?? this.poll,
+      pollVotes: pollVotes ?? this.pollVotes,
+      pollSelectOne: pollSelectOne ?? this.pollSelectOne,
+      pollSelectMany: pollSelectMany ?? this.pollSelectMany,
+      pollClosed: pollClosed ?? this.pollClosed,
+      countdownCompleted: countdownCompleted ?? this.countdownCompleted,
+      countdownDays: countdownDays ?? this.countdownDays,
+      countdownHours: countdownHours ?? this.countdownHours,
+      countdownMinutes: countdownMinutes ?? this.countdownMinutes,
+      countdownSeconds: countdownSeconds ?? this.countdownSeconds,
+      pinnedMessage: pinnedMessage ?? this.pinnedMessage,
+      pin: pin ?? this.pin,
+      unpin: unpin ?? this.unpin,
+      select: select ?? this.select,
+      selectedCount: selectedCount ?? this.selectedCount,
+      searchHint: searchHint ?? this.searchHint,
+      searchNoResults: searchNoResults ?? this.searchNoResults,
+      searchPrevious: searchPrevious ?? this.searchPrevious,
+      searchNext: searchNext ?? this.searchNext,
+      holdToRecord: holdToRecord ?? this.holdToRecord,
+      slideToCancel: slideToCancel ?? this.slideToCancel,
+      play: play ?? this.play,
+      pause: pause ?? this.pause,
+      uploading: uploading ?? this.uploading,
+      close: close ?? this.close,
+      mentionSuggestions: mentionSuggestions ?? this.mentionSuggestions,
     );
   }
 }

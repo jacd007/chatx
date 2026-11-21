@@ -27,6 +27,20 @@ Initial release.
   outline.
 - "New messages" separator (`firstUnreadMessageId`) and large emoji-only
   messages.
+- `ImageMessage` with grid layout, full-screen zoomable viewer, upload
+  progress and spoiler blur; `imageProviderBuilder` for custom loading.
+- `FileMessage` with type icons, size and upload progress.
+- `VoiceMessage` with waveform and playback driven by `ChatVoicePlayback`,
+  and press-and-hold recording with slide to cancel in `ChatInput`.
+- `PollMessage` with animated results and `ChatController.votePoll`.
+- `CountdownMessage` for announcements with a live countdown.
+- Link preview cards (`ChatLinkPreview`) and inline `||spoilers||`.
+- Mentions with suggestions in the input (`mentionableUsers`).
+- Search (`ChatSearchController`, `ChatSearchBar`) with highlighted matches.
+- Multi-selection with a selection bar (`ChatSelectionAction`).
+- Pinned messages banner (`ChatController.pin`) and a floating date while
+  scrolling.
+- `ChatController.scrollToMessage`.
 - Typing indicator, day separators, author grouping and avatars.
 - Infinite history with `onLoadMore`, including error and retry state.
 - Scroll-to-bottom button with unread counter.
