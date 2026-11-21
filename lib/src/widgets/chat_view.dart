@@ -681,9 +681,22 @@ class _ChatViewState extends State<ChatView> {
         widget.connectionState == ChatConnectionState.online) {
       _flushQueued();
     }
-    _builtRevision = -1; // Settings may have changed: rebuild everything.
-    _rebuildEntries();
+    // Rebuilding the entries walks every message: only do it when a setting
+    // they depend on changed, not on every rebuild of the parent.
+    if (oldWidget.controller != widget.controller ||
+        _entrySettingsChanged(oldWidget)) {
+      _builtRevision = -1;
+      _rebuildEntries();
+    }
   }
+
+  bool _entrySettingsChanged(ChatView old) =>
+      old.currentUser.id != widget.currentUser.id ||
+      old.showDateSeparators != widget.showDateSeparators ||
+      old.groupingInterval != widget.groupingInterval ||
+      old.firstUnreadMessageId != widget.firstUnreadMessageId ||
+      (old.threadRoot == null) != (widget.threadRoot == null) ||
+      (old.onLoadMore == null) != (widget.onLoadMore == null);
 
   @override
   void dispose() {

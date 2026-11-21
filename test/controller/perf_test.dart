@@ -75,4 +75,86 @@ void main() {
     // Appending must not depend on the size of the history.
     expect(large, lessThan(small * 2));
   });
+
+  test('updates of old messages do not scan the conversation', () {
+    final controller = ChatController(messages: conversation(20000));
+    addTearDown(controller.dispose);
+    final watch = Stopwatch()..start();
+    for (var i = 0; i < 20000; i++) {
+      controller.updateStatus('m${i % 100}', MessageStatus.read);
+      controller.updateStatus('m${i % 100}', null);
+    }
+    expect(watch.elapsedMilliseconds, lessThan(300));
+  });
+
+  test('a page of history is merged, not inserted one by one', () {
+    final controller = ChatController(
+      messages: [
+        for (final m in conversation(20000))
+          (m as TextMessage).copyWith(
+            id: 'new${m.id}',
+            createdAt: m.createdAt.add(const Duration(days: 365)),
+          ),
+      ],
+    );
+    addTearDown(controller.dispose);
+    final watch = Stopwatch()..start();
+    controller.insertAll(conversation(20000));
+    expect(watch.elapsedMilliseconds, lessThan(150));
+    expect(controller.messages.first.id, 'm0');
+    expect(controller.messages.last.id, 'newm19999');
+  });
+
+  test('repeated searches do not parse the history again', () {
+    final controller = ChatController(messages: conversation(10000));
+    addTearDown(controller.dispose);
+    final cold = Stopwatch()..start();
+    controller.search('message');
+    cold.stop();
+    final warm = Stopwatch()..start();
+    for (final q in ['mes', 'mess', 'messa', 'messag', 'message']) {
+      controller.search(q);
+    }
+    warm.stop();
+    expect(
+        warm.elapsedMicroseconds / 5, lessThan(cold.elapsedMicroseconds / 3));
+  });
+
+  testWidgets('rebuilding the parent costs the same in long conversations',
+      (tester) async {
+    Future<double> rebuildCost(int size) async {
+      final controller = ChatController(messages: conversation(size));
+      final tick = ValueNotifier(0);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ValueListenableBuilder<int>(
+              valueListenable: tick,
+              builder: (_, value, __) => ChatView(
+                controller: controller,
+                currentUser: me,
+                onSendMessage: (_, __) {},
+                readOnlyMessage: 'tick $value',
+              ),
+            ),
+          ),
+        ),
+      );
+      final watch = Stopwatch()..start();
+      const rebuilds = 40;
+      for (var i = 0; i < rebuilds; i++) {
+        tick.value++;
+        await tester.pump();
+      }
+      final cost = watch.elapsedMicroseconds / rebuilds;
+      await tester.pumpWidget(const SizedBox());
+      controller.dispose();
+      tick.dispose();
+      return cost;
+    }
+
+    final small = await rebuildCost(100);
+    final large = await rebuildCost(20000);
+    expect(large, lessThan(small * 2));
+  });
 }
