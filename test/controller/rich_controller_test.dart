@@ -154,4 +154,41 @@ void main() {
     expect(const ChatImage(uri: 'x', width: 400, height: 200).aspectRatio, 2);
     expect(const ChatImage(uri: 'x').aspectRatio, isNull);
   });
+
+  test('recordSurveyResponse and drafts', () {
+    final c = ChatController(
+      initialDraft: 'hi',
+      messages: [
+        SurveyMessage(
+          id: 's',
+          author: me,
+          createdAt: t0,
+          title: 'Feedback',
+          questions: const [TextQuestion(id: 'q', title: 'Why?')],
+        ),
+      ],
+    );
+    addTearDown(c.dispose);
+    expect(c.draft.value, 'hi');
+    c.setDraft('hello');
+    expect(c.draft.value, 'hello');
+    expect(c.recordSurveyResponse('s', 'me'), isTrue);
+    c.recordSurveyResponse('s', 'me');
+    expect((c.messageById('s')! as SurveyMessage).respondentIds, ['me']);
+    expect(c.search('feedback'), ['s']);
+  });
+
+  test('copyWithMeta keeps type-specific fields', () {
+    final poll = PollMessage(
+      id: 'p',
+      author: me,
+      createdAt: t0,
+      question: 'Q',
+      options: const [PollOption(id: 'a', text: 'A')],
+    );
+    final copy = poll.copyWithMeta(forwardedFrom: 'Ana');
+    expect(copy.question, 'Q');
+    expect(copy.forwardedFrom, 'Ana');
+    expect(copy.withStatus(null).status, isNull);
+  });
 }

@@ -41,6 +41,16 @@ Initial release.
 - Pinned messages banner (`ChatController.pin`) and a floating date while
   scrolling.
 - `ChatController.scrollToMessage`.
+- `SurveyMessage`: multi-question surveys (choice, rating, NPS, text)
+  answered step by step, with `onSurveySubmit` and `recordSurveyResponse`.
+- Bot `buttons` and `quickReplies` on `TextMessage`.
+- Threads (`ChatThreadSummary`, `onThreadTap`, `ChatView.threadRoot`).
+- Read receipts (`ChatReadReceipt`) with "Seen by" and a message info sheet.
+- Forwarding (`forwardedFrom`, `onForwardMessages`).
+- Disappearing messages (`expiresAt`).
+- Drafts kept by `ChatController.draft`.
+- `ChatHeader` with presence, last seen, members and typing.
+- `ChatEmojiPicker` in the input and for reactions.
 - Typing indicator, day separators, author grouping and avatars.
 - Infinite history with `onLoadMore`, including error and retry state.
 - Scroll-to-bottom button with unread counter.

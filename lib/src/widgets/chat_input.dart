@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import '../emoji/chat_emoji_picker.dart';
 import '../l10n/chat_localizations.dart';
 import '../material.dart';
 import '../theme/chat_theme.dart';
@@ -47,6 +48,7 @@ class ChatInput extends StatefulWidget {
     this.sendIcon = Icons.arrow_upward_rounded,
     this.onRecordStart,
     this.onRecordEnd,
+    this.showEmojiButton = false,
   });
 
   /// Called with the trimmed text when the user sends a non-empty message.
@@ -108,6 +110,10 @@ class ChatInput extends StatefulWidget {
   /// cancel. Stop your recorder and send or discard the audio.
   final ChatVoiceRecordEndCallback? onRecordEnd;
 
+  /// Whether to show a button that swaps the keyboard for
+  /// [ChatEmojiPicker]. `ChatView` turns it on by default.
+  final bool showEmojiButton;
+
   @override
   State<ChatInput> createState() => _ChatInputState();
 }
@@ -125,6 +131,7 @@ class _ChatInputState extends State<ChatInput> {
   Stopwatch? _recordWatch;
   Timer? _recordTicker;
   bool get _recording => _recordWatch != null;
+  bool _emojiOpen = false;
 
   TextEditingController get _controller =>
       widget.controller ?? (_ownController ??= TextEditingController());
@@ -146,6 +153,7 @@ class _ChatInputState extends State<ChatInput> {
   @override
   void initState() {
     super.initState();
+    _focusNode.addListener(_onFocusChanged);
     _controller.addListener(_onTextChanged);
     _canSend.value = _controller.text.trim().isNotEmpty;
   }
@@ -153,6 +161,10 @@ class _ChatInputState extends State<ChatInput> {
   @override
   void didUpdateWidget(ChatInput oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.focusNode != widget.focusNode) {
+      (oldWidget.focusNode ?? _ownFocusNode)?.removeListener(_onFocusChanged);
+      _focusNode.addListener(_onFocusChanged);
+    }
     if (oldWidget.controller != widget.controller) {
       (oldWidget.controller ?? _ownController)?.removeListener(_onTextChanged);
       _controller.addListener(_onTextChanged);
@@ -162,6 +174,7 @@ class _ChatInputState extends State<ChatInput> {
 
   @override
   void dispose() {
+    _focusNode.removeListener(_onFocusChanged);
     _recordTicker?.cancel();
     if (_recording) widget.onRecordEnd?.call(Duration.zero, cancelled: true);
     _recordElapsed.dispose();
@@ -193,6 +206,33 @@ class _ChatInputState extends State<ChatInput> {
     _isTyping = value;
     if (!value) _typingTimer?.cancel();
     widget.onTypingChanged?.call(value);
+  }
+
+  // Typing again closes the emoji picker, like system keyboards do.
+  void _onFocusChanged() {
+    if (_focusNode.hasFocus && _emojiOpen) setState(() => _emojiOpen = false);
+  }
+
+  void _toggleEmoji() {
+    if (_emojiOpen) {
+      setState(() => _emojiOpen = false);
+      _focusNode.requestFocus();
+    } else {
+      _focusNode.unfocus();
+      setState(() => _emojiOpen = true);
+    }
+  }
+
+  void _insertEmoji(String emoji) {
+    final value = _controller.value;
+    final selection = value.selection;
+    final start = selection.isValid ? selection.start : value.text.length;
+    final end = selection.isValid ? selection.end : value.text.length;
+    final text = value.text.replaceRange(start, end, emoji);
+    _controller.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: start + emoji.length),
+    );
   }
 
   void _startRecording() {
@@ -266,93 +306,123 @@ class _ChatInputState extends State<ChatInput> {
 
     // Material (not ColoredBox) so the text field works even without a
     // Material ancestor, for example inside `material_ui` apps.
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return Material(
       color: theme.inputBackgroundColor,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            if (widget.leading != null) widget.leading!,
-            Expanded(
-              child: _recording
-                  ? _RecordingIndicator(
-                      elapsed: _recordElapsed,
-                      slide: _recordSlide,
-                      cancelDistance: _cancelDistance,
-                      color: theme.errorColor,
-                      hintStyle: theme.inputHintStyle,
-                      label: l10n.slideToCancel,
-                    )
-                  : Focus(
-                      canRequestFocus: false,
-                      skipTraversal: true,
-                      onKeyEvent: _onKeyEvent,
-                      child: TextField(
-                        key: const Key('chatx_input_field'),
-                        controller: _controller,
-                        focusNode: _focusNode,
-                        enabled: widget.enabled,
-                        autofocus: widget.autofocus,
-                        minLines: 1,
-                        maxLines: widget.maxLines,
-                        maxLength: widget.maxLength,
-                        maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                        keyboardType: TextInputType.multiline,
-                        textInputAction: TextInputAction.newline,
-                        textCapitalization: widget.textCapitalization,
-                        style: theme.inputTextStyle,
-                        decoration: InputDecoration(
-                          hintText: widget.hintText ?? l10n.inputHint,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (widget.leading != null) widget.leading!,
+                Expanded(
+                  child: _recording
+                      ? _RecordingIndicator(
+                          elapsed: _recordElapsed,
+                          slide: _recordSlide,
+                          cancelDistance: _cancelDistance,
+                          color: theme.errorColor,
                           hintStyle: theme.inputHintStyle,
-                          filled: true,
-                          fillColor: theme.inputFieldColor,
-                          isDense: true,
-                          counterText: '',
-                          // Keeps the field a 48dp touch target at any font size.
-                          constraints: const BoxConstraints(minHeight: 48),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 18,
-                            vertical: 12,
+                          label: l10n.slideToCancel,
+                        )
+                      : Focus(
+                          canRequestFocus: false,
+                          skipTraversal: true,
+                          onKeyEvent: _onKeyEvent,
+                          child: TextField(
+                            key: const Key('chatx_input_field'),
+                            controller: _controller,
+                            focusNode: _focusNode,
+                            enabled: widget.enabled,
+                            autofocus: widget.autofocus,
+                            minLines: 1,
+                            maxLines: widget.maxLines,
+                            maxLength: widget.maxLength,
+                            maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                            keyboardType: TextInputType.multiline,
+                            textInputAction: TextInputAction.newline,
+                            textCapitalization: widget.textCapitalization,
+                            style: theme.inputTextStyle,
+                            decoration: InputDecoration(
+                              prefixIcon: widget.showEmojiButton
+                                  ? IconButton(
+                                      key: const Key('chatx_emoji_button'),
+                                      tooltip: _emojiOpen
+                                          ? l10n.keyboard
+                                          : l10n.emoji,
+                                      icon: Icon(
+                                        _emojiOpen
+                                            ? Icons.keyboard_alt_outlined
+                                            : Icons.emoji_emotions_outlined,
+                                      ),
+                                      onPressed: _toggleEmoji,
+                                    )
+                                  : null,
+                              hintText: widget.hintText ?? l10n.inputHint,
+                              hintStyle: theme.inputHintStyle,
+                              filled: true,
+                              fillColor: theme.inputFieldColor,
+                              isDense: true,
+                              counterText: '',
+                              // Keeps the field a 48dp touch target at any font size.
+                              constraints: const BoxConstraints(minHeight: 48),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                                vertical: 12,
+                              ),
+                              border: border,
+                              enabledBorder: border,
+                              disabledBorder: border,
+                              focusedBorder: border,
+                            ),
                           ),
-                          border: border,
-                          enabledBorder: border,
-                          disabledBorder: border,
-                          focusedBorder: border,
                         ),
-                      ),
-                    ),
+                ),
+                if (widget.trailing != null) widget.trailing!,
+                const SizedBox(width: 8),
+                ValueListenableBuilder<bool>(
+                  valueListenable: _canSend,
+                  builder: (context, canSend, _) {
+                    if (!canSend && widget.onRecordStart != null) {
+                      return _RecordButton(
+                        recording: _recording,
+                        enabled: widget.enabled,
+                        color: _recording
+                            ? theme.errorColor
+                            : theme.sendButtonColor,
+                        iconColor: theme.sendButtonIconColor,
+                        label: l10n.holdToRecord,
+                        onStart: _startRecording,
+                        onMove: _onRecordMove,
+                        onEnd: () => _stopRecording(cancelled: false),
+                      );
+                    }
+                    return _SendButton(
+                      enabled: widget.enabled && canSend,
+                      color: theme.sendButtonColor,
+                      iconColor: theme.sendButtonIconColor,
+                      label: l10n.sendButton,
+                      icon: widget.sendIcon,
+                      onPressed: _send,
+                    );
+                  },
+                ),
+              ],
             ),
-            if (widget.trailing != null) widget.trailing!,
-            const SizedBox(width: 8),
-            ValueListenableBuilder<bool>(
-              valueListenable: _canSend,
-              builder: (context, canSend, _) {
-                if (!canSend && widget.onRecordStart != null) {
-                  return _RecordButton(
-                    recording: _recording,
-                    enabled: widget.enabled,
-                    color:
-                        _recording ? theme.errorColor : theme.sendButtonColor,
-                    iconColor: theme.sendButtonIconColor,
-                    label: l10n.holdToRecord,
-                    onStart: _startRecording,
-                    onMove: _onRecordMove,
-                    onEnd: () => _stopRecording(cancelled: false),
-                  );
-                }
-                return _SendButton(
-                  enabled: widget.enabled && canSend,
-                  color: theme.sendButtonColor,
-                  iconColor: theme.sendButtonIconColor,
-                  label: l10n.sendButton,
-                  icon: widget.sendIcon,
-                  onPressed: _send,
-                );
-              },
-            ),
-          ],
-        ),
+          ),
+          AnimatedSize(
+            duration: reduceMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            child: _emojiOpen
+                ? ChatEmojiPicker(onSelected: _insertEmoji)
+                : const SizedBox(width: double.infinity),
+          ),
+        ],
       ),
     );
   }

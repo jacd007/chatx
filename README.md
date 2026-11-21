@@ -15,14 +15,18 @@ follows your app's theme.
 | Conversation | Popup menu | Swipe to reply |
 | :---: | :---: | :---: |
 | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/01_conversation.png" width="240" alt="Conversation with replies, reactions and a new messages separator"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/02_popup_menu.png" width="240" alt="Popup menu with quick reactions"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/03_reply.png" width="240" alt="Reply banner after swiping a message"> |
+| **Survey** | **Survey steps** | **Poll & countdown** |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/16_survey_seen_forward.png" width="240" alt="Survey card, read receipts and a forwarded message"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/17_survey_nps.png" width="240" alt="Step-by-step survey with an NPS question"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/11_poll_countdown_pinned.png" width="240" alt="Poll results, countdown announcement and pinned banner"> |
+| **Bot buttons** | **Disappearing code** | **Thread** |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/18_bot_buttons.png" width="240" alt="Bot message with buttons and quick replies"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/20_bot_disappearing.png" width="240" alt="Disappearing message with a countdown"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/19_thread.png" width="240" alt="Thread view with the root message on top"> |
 | **Images, voice, files** | **Image viewer** | **Recording** |
 | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/08_images_voice.png" width="240" alt="Image grid, playing voice note and files"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/09_image_viewer.png" width="240" alt="Full-screen image viewer"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/10_voice_recording.png" width="240" alt="Recording a voice note with slide to cancel"> |
-| **Links & spoilers** | **Poll & countdown** | **Mentions** |
-| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/07_files_links_spoilers.png" width="240" alt="Link preview card, hidden spoiler text and blurred spoiler image"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/11_poll_countdown_pinned.png" width="240" alt="Poll results, countdown announcement and pinned banner"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/12_mentions.png" width="240" alt="Mention suggestions above the input"> |
-| **Search** | **Selection** | **Floating date** |
-| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/13_search.png" width="240" alt="Search bar with highlighted matches"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/14_selection.png" width="240" alt="Multi-selection with the selection bar"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/15_floating_date.png" width="240" alt="Date chip floating while scrolling"> |
-| **AI answers** | **Bubble styles** | **Dark mode** |
-| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/04_ai_markdown.png" width="240" alt="Assistant answer with markdown"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/05_bubble_styles.png" width="240" alt="Bubbles with a top nip and shadow"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/06_dark_custom_look.png" width="240" alt="Dark theme with custom colors"> |
+| **Links & spoilers** | **Emoji picker** | **Header typing** |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/07_files_links_spoilers.png" width="240" alt="Link preview card, hidden spoiler text and blurred spoiler image"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/21_emoji_picker.png" width="240" alt="Built-in emoji picker with categories"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/22_header_typing.png" width="240" alt="Chat header showing typing"> |
+| **Mentions** | **Search** | **Selection** |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/12_mentions.png" width="240" alt="Mention suggestions above the input"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/13_search.png" width="240" alt="Search bar with highlighted matches"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/14_selection.png" width="240" alt="Multi-selection with the selection bar"> |
+| **Floating date** | **AI answers** | **Dark mode** |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/15_floating_date.png" width="240" alt="Date chip floating while scrolling"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/04_ai_markdown.png" width="240" alt="Assistant answer with markdown"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/06_dark_custom_look.png" width="240" alt="Dark theme with custom colors"> |
 
 ## Features
 
@@ -40,6 +44,13 @@ follows your app's theme.
 - **Rich content.** Image grids with a zoomable viewer, files, voice notes
   with waveform and press-and-hold recording, polls, countdown
   announcements and link previews. Upload progress on images and files.
+- **Surveys and polls.** Quick votes with live results, and multi-question
+  surveys (choice, star rating, NPS, free text) answered step by step.
+- **Bots and threads.** Buttons inside messages, quick-reply chips, threads
+  with reply counts, "Seen by" receipts, forwarding and disappearing
+  messages.
+- **Built-in emoji picker** with categories and search, a `ChatHeader` with
+  presence and typing, and drafts that survive leaving the chat.
 - **Spoilers.** `||hidden text||` and blurred images, revealed on tap.
 - **Group features.** `@mentions` with suggestions, pinned messages, search
   with highlighted results, multi-selection and a floating date while
@@ -79,6 +90,15 @@ follows your app's theme.
   - [Images and files](#images-and-files)
   - [Voice notes](#voice-notes)
   - [Polls](#polls)
+  - [Surveys](#surveys)
+  - [Bot buttons and quick replies](#bot-buttons-and-quick-replies)
+  - [Threads](#threads)
+  - [Read receipts](#read-receipts)
+  - [Forwarding](#forwarding)
+  - [Disappearing messages](#disappearing-messages)
+  - [Drafts](#drafts)
+  - [Chat header](#chat-header)
+  - [Emoji picker](#emoji-picker)
   - [Countdowns](#countdowns)
   - [Link previews](#link-previews)
   - [Spoilers](#spoilers)
@@ -212,7 +232,8 @@ const ana = ChatUser(
 | `ImageMessage` | One or more images with an optional caption. |
 | `FileMessage` | A file with icon, name, size and upload progress. |
 | `VoiceMessage` | A voice note with waveform and playback. |
-| `PollMessage` | A question with options to vote on. |
+| `PollMessage` | A quick vote: one question, closed options. |
+| `SurveyMessage` | A questionnaire with several questions. |
 | `CountdownMessage` | An announcement with a live countdown. |
 | `CustomMessage` | Anything else: images, polls, locations… Rendered by your builder. |
 
@@ -244,6 +265,8 @@ the view updates.
 | `pin(id)` / `unpin(id)` | Pins or unpins a message. |
 | `toggleSelection(id)` / `clearSelection()` | Controls selection mode. |
 | `search(query)` | Returns matching message IDs, newest first. |
+| `recordSurveyResponse(id, userId)` | Marks a survey as answered by a user. |
+| `setDraft(text)` / `draft` | The unsent text of the input. |
 | `scrollToMessage(id)` | Scrolls the view to a message and highlights it. |
 
 Always call `controller.dispose()` when the screen goes away.
@@ -616,6 +639,9 @@ Screen reader users tap once to start and again to send.
 
 ### Polls
 
+A poll is a quick vote: one question with closed options to decide
+something now. For questionnaires, see [Surveys](#surveys).
+
 ```dart
 controller.insert(PollMessage(
   id: uuid(),
@@ -640,6 +666,179 @@ ChatView(
 
 Results appear with animated bars after the user votes, or for everyone
 once `isClosed` is `true`.
+
+### Surveys
+
+A survey is a questionnaire with several questions, for example to learn
+what your users need. The bubble shows a card; answering opens a
+step-by-step form with progress, back and next, and required questions.
+
+```dart
+controller.insert(SurveyMessage(
+  id: uuid(),
+  author: team,
+  createdAt: DateTime.now(),
+  title: 'How was our last meetup?',
+  description: 'Takes 1 minute.',
+  questions: const [
+    RatingQuestion(id: 'overall', title: 'How did you like it?'),
+    ChoiceQuestion(
+      id: 'best',
+      title: 'What did you enjoy most?',
+      allowsMultipleAnswers: true,
+      choices: [
+        SurveyChoice(id: 'food', text: 'Food'),
+        SurveyChoice(id: 'music', text: 'Music'),
+      ],
+    ),
+    NpsQuestion(id: 'nps', title: 'How likely are you to recommend us?'),
+    TextQuestion(id: 'ideas', title: 'Ideas?', isRequired: false),
+  ],
+));
+
+ChatView(
+  onSurveySubmit: (survey, response) {
+    controller.recordSurveyResponse(survey.id, me.id);
+    api.saveAnswers(survey.id, response.answers);
+  },
+  // ...
+)
+```
+
+| Question | Answer type in `response.answers` |
+| --- | --- |
+| `ChoiceQuestion` | `List<String>` of choice IDs (`response.choices(id)`) |
+| `RatingQuestion` | `int` from 1 to `max`, stars or faces (`response.rating(id)`) |
+| `NpsQuestion` | `int` from 0 to 10 (`response.rating(id)`) |
+| `TextQuestion` | `String` (`response.text(id)`) |
+
+### Bot buttons and quick replies
+
+```dart
+controller.insert(TextMessage(
+  id: uuid(),
+  author: bot,
+  createdAt: DateTime.now(),
+  text: 'How can I help?',
+  buttons: const [
+    ChatMessageButton(
+      id: 'track',
+      label: 'Track my order',
+      style: ChatButtonStyle.primary,
+    ),
+  ],
+  quickReplies: const [
+    ChatQuickReply(label: 'Billing'),
+    ChatQuickReply(label: 'Talk to a human'),
+  ],
+));
+
+ChatView(
+  onMessageButton: (message, button) => bot.handle(button.id),
+  // Optional: by default a quick reply sends its text.
+  onQuickReply: (reply, message) => bot.send(reply.text),
+  // ...
+)
+```
+
+Quick replies appear above the input while that message is the newest one.
+
+### Threads
+
+```dart
+TextMessage(
+  // ...
+  thread: ChatThreadSummary(
+    replyCount: 3,
+    participants: [sam, leo],
+    lastReplyAt: lastReply,
+  ),
+)
+
+ChatView(
+  onThreadTap: (message) => Navigator.of(context).push(MaterialPageRoute(
+    builder: (_) => Scaffold(
+      appBar: AppBar(title: const Text('Thread')),
+      body: ChatView(
+        controller: threadControllerFor(message),
+        threadRoot: message, // shown on top, followed by the reply count
+        currentUser: me,
+        onSendMessage: sendToThread,
+      ),
+    ),
+  )),
+  // ...
+)
+```
+
+### Read receipts
+
+Fill `receipts` with who read a message. In group chats, small avatars
+appear under the newest outgoing message, and "Info" in the menu lists every
+reader with the time. Turn it off with `showReadReceipts: false`.
+
+```dart
+TextMessage(
+  // ...
+  receipts: [ChatReadReceipt(user: ana, readAt: readTime)],
+)
+```
+
+### Forwarding
+
+Messages with `forwardedFrom` show a "Forwarded from …" label. Provide
+`onForwardMessages` to offer "Forward" in the menu and the selection bar;
+let the user pick the destination there.
+
+### Disappearing messages
+
+Set `expiresAt` and the bubble shows the time left. The controller removes
+the message when it expires (pass `removeExpiredMessages: false` to the
+controller to handle it yourself).
+
+```dart
+TextMessage(
+  // ...
+  text: 'Your code is **739 102**',
+  expiresAt: DateTime.now().add(const Duration(minutes: 2)),
+)
+```
+
+### Drafts
+
+The controller keeps the unsent text in `draft`. Keep the controller alive
+(for example one per conversation in your state management) and the draft is
+there when the user comes back, together with any reply in progress.
+Persist it across restarts by listening to `controller.draft` and passing
+`initialDraft` when you create the controller.
+
+### Chat header
+
+```dart
+AppBar(
+  title: ChatHeader(
+    user: ana,
+    isOnline: presence.online,
+    lastSeenAt: presence.lastSeen,
+    controller: controller, // shows "typing…"
+    onTap: openProfile,
+  ),
+)
+```
+
+For groups, pass `memberCount`. `ChatHeader.relativeTime` formats times like
+"5 min ago" or "yesterday at 18:03".
+
+### Emoji picker
+
+The input has an emoji button that swaps the keyboard for `ChatEmojiPicker`
+(categories, search and recently used), and the reaction row has a "+"
+button that opens it. Turn both off with `enableEmojiPicker: false`, or use
+the picker anywhere:
+
+```dart
+ChatEmojiPicker(onSelected: (emoji) => insert(emoji))
+```
 
 ### Countdowns
 
@@ -973,7 +1172,13 @@ Use `ChatText` to render the same markdown anywhere in your app.
   `chatx_link_preview`, `chatx_spoiler_<id>`, `chatx_mention_<userId>`,
   `chatx_pinned_banner`, `chatx_selection_bar`, `chatx_selection_close`,
   `chatx_selection_action_<index>`, `chatx_search_field`,
-  `chatx_search_older`, `chatx_search_newer` and `chatx_floating_date`.
+  `chatx_search_older`, `chatx_search_newer`, `chatx_floating_date`,
+  `chatx_survey_<id>`, `chatx_survey_next`, `chatx_survey_back`,
+  `chatx_survey_choice_<id>`, `chatx_survey_rating_<n>`,
+  `chatx_survey_nps_<n>`, `chatx_survey_text`, `chatx_button_<id>_<button>`,
+  `chatx_quick_reply_<index>`, `chatx_thread_<id>`, `chatx_seen_by`,
+  `chatx_expiry`, `chatx_emoji_button`, `chatx_emoji_<emoji>`,
+  `chatx_emoji_search`, `chatx_react_more` and `chatx_header`.
 
 ## Security
 
@@ -1007,8 +1212,9 @@ wherever you keep state and feed it from your providers or blocs.
 
 The [`example`](example) folder contains demos for every feature: basic chat
 (replies, reactions, popup menu, editing), media and files (images, voice
-notes, links, spoilers), community (polls, countdown, pins, mentions,
-search, selection), AI streaming, bubble styles, custom look and infinite
+notes, links, spoilers), community (survey, poll, thread, read receipts,
+forwarding, countdown, pins, mentions, search, selection), support bot
+(buttons, quick replies, disappearing code), AI streaming, bubble styles, custom look and infinite
 history. Its
 [integration test](example/integration_test/screenshots_test.dart) walks
 through the app on a device and produces the screenshots above.

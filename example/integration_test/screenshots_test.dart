@@ -63,7 +63,16 @@ void main() {
     await shoot('03_reply');
 
     await tester.tap(find.byKey(const Key('chatx_send_button')));
-    await settle(tester, 3500);
+    // Wait for Ana's reply to start: the header switches to "typing…".
+    for (var i = 0; i < 60; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+      if (find.text('typing…').evaluate().isNotEmpty) break;
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump(const Duration(milliseconds: 300));
+    await shoot('22_header_typing');
+    await settle(tester, 2500);
   });
 
   testWidgets('AI streaming', (tester) async {
@@ -132,9 +141,37 @@ void main() {
     semantics.dispose();
   });
 
-  testWidgets('community: poll, countdown, mentions, search, selection',
+  testWidgets('community: survey, poll, mentions, search, selection, thread',
       (tester) async {
     await open(tester, 'Community');
+    await shoot('16_survey_seen_forward');
+
+    await tester.tap(find.byKey(const Key('chatx_survey_survey')));
+    await settle(tester, 700);
+    final next = find.byKey(const Key('chatx_survey_next'));
+    await tester.tap(find.byKey(const Key('chatx_survey_rating_5')));
+    await settle(tester);
+    await tester.tap(next);
+    await settle(tester, 500);
+    await tester.tap(find.byKey(const Key('chatx_survey_choice_music')));
+    await tester.tap(find.byKey(const Key('chatx_survey_choice_people')));
+    await settle(tester);
+    await tester.tap(next);
+    await settle(tester, 500);
+    await tester.tap(find.byKey(const Key('chatx_survey_nps_9')));
+    await settle(tester);
+    await shoot('17_survey_nps');
+    await tester.tap(next);
+    await settle(tester, 500);
+    await tester.tap(next);
+    await settle(tester, 900);
+
+    final list = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('chatx_poll_poll_pizza')),
+      250,
+      scrollable: list,
+    );
     await tester.tap(find.byKey(const Key('chatx_poll_poll_pizza')));
     await settle(tester, 1200);
     await shoot('11_poll_countdown_pinned');
@@ -164,11 +201,16 @@ void main() {
     await tester.tap(find.byKey(const Key('chatx_search_close')));
     await settle(tester);
 
-    await tester.longPress(find.byKey(const Key('chatx_bubble_mention')));
+    final toBottom = find.byKey(const Key('chatx_scroll_to_bottom'));
+    if (toBottom.hitTestable().evaluate().isNotEmpty) {
+      await tester.tap(toBottom);
+      await settle(tester, 700);
+    }
+    await tester.longPress(find.byKey(const Key('chatx_bubble_drinks')));
     await settle(tester);
     await tester.tap(find.text('Select'));
     await settle(tester);
-    await tester.tap(find.byKey(const Key('chatx_bubble_launch')));
+    await tester.tap(find.byKey(const Key('chatx_bubble_forwarded')));
     await settle(tester);
     await shoot('14_selection');
     await tester.tap(find.byKey(const Key('chatx_selection_close')));
@@ -183,5 +225,35 @@ void main() {
     await shoot('15_floating_date');
     await drag.up();
     await settle(tester);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('chatx_thread_old9')),
+      250,
+      scrollable: list,
+    );
+    await tester.tap(find.byKey(const Key('chatx_thread_old9')));
+    await settle(tester, 900);
+    await shoot('19_thread');
+  });
+
+  testWidgets('support bot: buttons, quick replies, disappearing code',
+      (tester) async {
+    await open(tester, 'Support bot');
+    await shoot('18_bot_buttons');
+    await tester.tap(find.text('📦 Track my order'));
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+      if (find.byKey(const Key('chatx_expiry')).evaluate().isNotEmpty) break;
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    await settle(tester, 800);
+    await shoot('20_bot_disappearing');
+
+    await tester.tap(find.byKey(const Key('chatx_emoji_button')));
+    await settle(tester, 600);
+    await tester.tap(find.byKey(const Key('chatx_emoji_😀')));
+    await tester.tap(find.byKey(const Key('chatx_emoji_😍')));
+    await settle(tester);
+    await shoot('21_emoji_picker');
   });
 }

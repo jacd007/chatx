@@ -15,6 +15,7 @@ Future<Object?> _showSheetMenu(
   required ChatMessage message,
   required String currentUserId,
   required ChatLocalizations l10n,
+  required bool showMore,
 }) {
   return showModalBottomSheet<Object>(
     context: context,
@@ -40,6 +41,7 @@ Future<Object?> _showSheetMenu(
                     message: message,
                     currentUserId: currentUserId,
                     label: l10n.addReaction,
+                    showMore: showMore,
                   ),
                 ),
                 if (actions.isNotEmpty) const Divider(height: 16),
@@ -75,6 +77,7 @@ Future<Object?> _showPopupMenu(
   required ChatMessage message,
   required String currentUserId,
   required ChatLocalizations l10n,
+  required bool showMore,
 }) {
   final box = anchor.findRenderObject()! as RenderBox;
   final overlay =
@@ -104,6 +107,7 @@ Future<Object?> _showPopupMenu(
           message: message,
           currentUserId: currentUserId,
           label: l10n.addReaction,
+          showMore: showMore,
         ),
       if (emojis.isNotEmpty && actions.isNotEmpty) const PopupMenuDivider(),
       for (final action in actions)
@@ -136,7 +140,10 @@ class _ReactionMenuEntry extends PopupMenuEntry<Object> {
     required this.message,
     required this.currentUserId,
     required this.label,
+    required this.showMore,
   });
+
+  final bool showMore;
 
   final List<String> emojis;
   final ChatMessage message;
@@ -163,6 +170,7 @@ class _ReactionMenuEntryState extends State<_ReactionMenuEntry> {
         message: widget.message,
         currentUserId: widget.currentUserId,
         label: widget.label,
+        showMore: widget.showMore,
       ),
     );
   }
@@ -176,8 +184,10 @@ class _ReactionPicker extends StatelessWidget {
     required this.message,
     required this.currentUserId,
     required this.label,
+    required this.showMore,
   });
 
+  final bool showMore;
   final List<String> emojis;
   final ChatMessage message;
   final String currentUserId;
@@ -202,6 +212,34 @@ class _ReactionPicker extends StatelessWidget {
                     .any((r) => r.emoji == emoji && r.hasUser(currentUserId)),
                 selectedColor: selectedColor,
                 onTap: () => Navigator.of(context).pop(_ReactionChoice(emoji)),
+              ),
+            if (showMore)
+              Semantics(
+                button: true,
+                label: ChatLocalizations.of(context).moreReactions,
+                excludeSemantics: true,
+                child: InkResponse(
+                  key: const Key('chatx_react_more'),
+                  radius: 24,
+                  onTap: () async {
+                    final emoji = await showModalBottomSheet<String>(
+                      context: context,
+                      useSafeArea: true,
+                      builder: (sheetContext) => SafeArea(
+                        child: ChatEmojiPicker(
+                          onSelected: (e) => Navigator.of(sheetContext).pop(e),
+                        ),
+                      ),
+                    );
+                    if (emoji != null && context.mounted) {
+                      Navigator.of(context).pop(_ReactionChoice(emoji));
+                    }
+                  },
+                  child: const SizedBox.square(
+                    dimension: 48,
+                    child: Icon(Icons.add_reaction_outlined),
+                  ),
+                ),
               ),
           ],
         ),

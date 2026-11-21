@@ -195,7 +195,13 @@ class _MessageRowState extends State<_MessageRow> {
 
     final hasReactions = message.reactions.isNotEmpty;
     final failed = outgoing && message.status == MessageStatus.failed;
-    if (!hasReactions && !failed) return row;
+    // The root of an open thread does not link to itself.
+    final thread = message.id == view.threadRoot?.id ? null : message.thread;
+    final seenBy = outgoing &&
+        view.showReadReceipts &&
+        message.receipts.isNotEmpty &&
+        message.id == widget.state._lastOutgoingId;
+    if (!hasReactions && !failed && thread == null && !seenBy) return row;
 
     final sideInset = EdgeInsetsDirectional.only(
       start: outgoing ? 0 : avatarInset + tailInset + 6,
@@ -215,6 +221,20 @@ class _MessageRowState extends State<_MessageRow> {
               currentUserId: view.currentUser.id,
               onTap: view.onReactionSelected,
             ),
+          ),
+        if (thread != null && thread.replyCount > 0)
+          Padding(
+            padding: sideInset,
+            child: _ThreadSummaryRow(
+              message: message,
+              summary: thread,
+              onTap: view.onThreadTap,
+            ),
+          ),
+        if (seenBy)
+          Padding(
+            padding: sideInset,
+            child: _SeenBy(receipts: message.receipts),
           ),
         if (failed)
           _FailedLabel(
@@ -338,6 +358,8 @@ class _Bubble extends StatelessWidget {
         crossAxisAlignment:
             stretch ? CrossAxisAlignment.stretch : CrossAxisAlignment.end,
         children: [
+          if (message.forwardedFrom != null)
+            _ForwardedLabel(name: message.forwardedFrom!, color: textColor),
           if (quote != null) ...[quote, const SizedBox(height: 6)],
           ...children,
         ],
@@ -361,6 +383,13 @@ class _Bubble extends StatelessWidget {
               )
             else
               _textContent(message, theme, textStyle, textColor),
+            if (message.buttons.isNotEmpty)
+              _MessageButtons(
+                state: state,
+                message: message,
+                textColor: textColor,
+                accent: accent,
+              ),
             if (linkPreview != null) ...[
               const SizedBox(height: 8),
               _LinkPreviewCard(
@@ -486,6 +515,21 @@ class _Bubble extends StatelessWidget {
               accent: accent,
               textStyle: textStyle,
               richText: (text) => _richText(text, textStyle, theme),
+            ),
+            const SizedBox(height: 3),
+            footer,
+          ]),
+        );
+      case SurveyMessage():
+        body = SizedBox(
+          width: math.min(innerWidth, 320),
+          child: withQuote([
+            _SurveyContent(
+              state: state,
+              message: message,
+              textColor: textColor,
+              accent: accent,
+              textStyle: textStyle,
             ),
             const SizedBox(height: 3),
             footer,
@@ -697,6 +741,7 @@ String _messagePreview(ChatMessage message, ChatLocalizations l10n) =>
         '🎤 ${l10n.voiceMessage} (${_formatDuration(duration)})',
       PollMessage(:final question) => '📊 $question',
       CountdownMessage(:final title) => '⏳ $title',
+      SurveyMessage(:final title) => '📋 $title',
       CustomMessage(:final type) => '📎 $type',
     };
 
@@ -828,9 +873,11 @@ class _Footer extends StatelessWidget {
     );
     final edited = message is TextMessage && message.editedAt != null;
     final status = message.status;
+    final expiresAt = message.expiresAt;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (expiresAt != null) _ExpiryBadge(expiresAt: expiresAt, color: color),
         Text(
           edited ? '${l10n.edited} · $time' : time,
           style: style.copyWith(color: style.color ?? color),

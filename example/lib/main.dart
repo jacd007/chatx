@@ -8,6 +8,7 @@ import 'pages/community_page.dart';
 import 'pages/custom_look_page.dart';
 import 'pages/media_page.dart';
 import 'pages/pagination_page.dart';
+import 'pages/support_bot_page.dart';
 
 void main() => runApp(const ChatxExampleApp());
 
@@ -51,9 +52,15 @@ class DemoListPage extends StatelessWidget {
       ),
       (
         'Community',
-        'Polls, countdown, pins, mentions, search, selection',
+        'Survey, poll, thread, seen by, mentions, search',
         Icons.groups_outlined,
         (_) => const CommunityPage(),
+      ),
+      (
+        'Support bot',
+        'Buttons, quick replies, disappearing code',
+        Icons.support_agent_outlined,
+        (_) => const SupportBotPage(),
       ),
       (
         'AI streaming',

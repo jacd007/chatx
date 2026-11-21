@@ -220,6 +220,12 @@ class _SelectionBar extends StatelessWidget {
           onSelected: (_) =>
               Clipboard.setData(ClipboardData(text: texts.join('\n\n'))),
         ),
+      if (view.onForwardMessages != null)
+        ChatSelectionAction(
+          label: l10n.forward,
+          icon: Icons.shortcut_rounded,
+          onSelected: view.onForwardMessages!,
+        ),
       if (allMine && view.onDeleteMessage != null)
         ChatSelectionAction(
           label: l10n.delete,

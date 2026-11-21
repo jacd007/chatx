@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import '../chat_scope.dart';
 import '../controller/chat_controller.dart';
 import '../controller/chat_search_controller.dart';
+import '../emoji/chat_emoji_picker.dart';
 import '../l10n/chat_localizations.dart';
 import '../markdown/chat_link_policy.dart';
 import '../markdown/chat_text.dart';
@@ -25,16 +26,19 @@ import '../theme/chat_theme.dart';
 import '../utils/emoji.dart';
 import 'chat_avatar.dart';
 import 'chat_builders.dart';
+import 'chat_header.dart';
 import 'chat_input.dart';
 import 'message_status_icon.dart';
 import 'typing_indicator.dart';
 
 part 'chat_view/composer_banner.dart';
 part 'chat_view/conversation_chrome.dart';
+part 'chat_view/conversation_extras.dart';
 part 'chat_view/decorations.dart';
 part 'chat_view/message_menu.dart';
 part 'chat_view/message_row.dart';
 part 'chat_view/rich_content.dart';
+part 'chat_view/survey.dart';
 part 'chat_view/swipe_to_action.dart';
 
 /// A complete conversation screen: message list plus input bar.
@@ -127,6 +131,14 @@ class ChatView extends StatefulWidget {
     this.enableSelection = true,
     this.selectionActionsBuilder,
     this.showFloatingDate = true,
+    this.onSurveySubmit,
+    this.onMessageButton,
+    this.onQuickReply,
+    this.onThreadTap,
+    this.threadRoot,
+    this.onForwardMessages,
+    this.showReadReceipts = true,
+    this.enableEmojiPicker = true,
   });
 
   /// Reactions offered in the message menu by default.
@@ -354,6 +366,40 @@ class ChatView extends StatefulWidget {
   /// Whether a date chip floats at the top while scrolling.
   final bool showFloatingDate;
 
+  /// Called with the answers when the user completes a [SurveyMessage].
+  /// When `null`, surveys cannot be answered.
+  final void Function(SurveyMessage survey, ChatSurveyResponse response)?
+      onSurveySubmit;
+
+  /// Called when the user taps a [ChatMessageButton] of a [TextMessage].
+  final void Function(ChatMessage message, ChatMessageButton button)?
+      onMessageButton;
+
+  /// Called when the user taps a quick reply. When `null`, the reply text is
+  /// sent through [onSendMessage].
+  final void Function(ChatQuickReply reply, ChatMessage message)? onQuickReply;
+
+  /// Called when the user taps the thread summary of a message. Open a
+  /// screen with another [ChatView] and [threadRoot] set.
+  final ValueChanged<ChatMessage>? onThreadTap;
+
+  /// When this view shows a thread, the message that started it. It is
+  /// shown at the top, followed by the reply count.
+  final ChatMessage? threadRoot;
+
+  /// Called when the user forwards messages from the menu or the selection
+  /// bar. Let the user pick a destination here. When set, "Forward" is
+  /// offered.
+  final ValueChanged<List<ChatMessage>>? onForwardMessages;
+
+  /// Whether to show "Seen by" avatars under the newest outgoing message
+  /// and the "Info" menu entry. Uses [ChatMessage.receipts].
+  final bool showReadReceipts;
+
+  /// Whether the input has an emoji button and reactions offer the full
+  /// emoji picker.
+  final bool enableEmojiPicker;
+
   @override
   State<ChatView> createState() => _ChatViewState();
 }
@@ -378,6 +424,8 @@ class _ChatViewState extends State<ChatView> {
   final Set<String> _animatedIds = {};
   String? _newestId;
   ChatMessage? _editingMessage;
+  String _draftBeforeEdit = '';
+  String? _lastOutgoingId;
 
   bool _loadingMore = false;
   bool _hasMore = true;
@@ -399,7 +447,9 @@ class _ChatViewState extends State<ChatView> {
   @override
   void initState() {
     super.initState();
+    _textController.text = widget.controller.draft.value;
     _textController.addListener(_onComposerTextChanged);
+    _textController.addListener(_saveDraft);
     _attachController(widget.controller);
     _scrollController.addListener(_onScroll);
     _resetKnownMessages();
@@ -436,7 +486,9 @@ class _ChatViewState extends State<ChatView> {
     _detachController(widget.controller);
     _scrollController.removeListener(_onScroll);
     _ownScrollController?.dispose();
-    _textController.dispose();
+    _textController
+      ..removeListener(_saveDraft)
+      ..dispose();
     _focusNode.dispose();
     _showScrollButton.dispose();
     _unreadCount.dispose();
@@ -479,15 +531,25 @@ class _ChatViewState extends State<ChatView> {
     final previous = _editingMessage;
     _editingMessage = editing;
     if (editing is TextMessage) {
+      if (previous == null) _draftBeforeEdit = _textController.text;
       _textController.value = TextEditingValue(
         text: editing.text,
         selection: TextSelection.collapsed(offset: editing.text.length),
       );
       _focusNode.requestFocus();
     } else if (previous != null) {
-      _textController.clear();
+      // Leaving edit mode brings back what the user was typing before.
+      _textController.text = _draftBeforeEdit;
     }
     setState(() {});
+  }
+
+  void _saveDraft() {
+    if (_editingMessage != null) return;
+    final text = _textController.text;
+    if (widget.controller.draft.value != text) {
+      widget.controller.setDraft(text);
+    }
   }
 
   void _onReplyingChanged() {
@@ -547,6 +609,13 @@ class _ChatViewState extends State<ChatView> {
   void _rebuildEntries() {
     final messages = widget.controller.messages;
     final entries = <_Entry>[const _TypingEntry()];
+    _lastOutgoingId = null;
+    for (var i = messages.length - 1; i >= 0; i--) {
+      if (_isOutgoing(messages[i])) {
+        _lastOutgoingId = messages[i].id;
+        break;
+      }
+    }
     for (var i = messages.length - 1; i >= 0; i--) {
       final message = messages[i];
       final older = i > 0 ? messages[i - 1] : null;
@@ -572,6 +641,7 @@ class _ChatViewState extends State<ChatView> {
         );
       }
     }
+    if (widget.threadRoot != null) entries.add(const _ThreadRootEntry());
     if (widget.onLoadMore != null) entries.add(const _LoaderEntry());
     _entries = entries;
     _indexByKey = {
@@ -771,6 +841,18 @@ class _ChatViewState extends State<ChatView> {
                 icon: Icons.push_pin_outlined,
                 onSelected: (m) => widget.onPinMessage!(m, true),
               ),
+      if (widget.onForwardMessages != null && !streaming)
+        ChatMessageAction(
+          label: l10n.forward,
+          icon: Icons.shortcut_rounded,
+          onSelected: (m) => widget.onForwardMessages!([m]),
+        ),
+      if (mine && widget.showReadReceipts && message.receipts.isNotEmpty)
+        ChatMessageAction(
+          label: l10n.messageInfo,
+          icon: Icons.info_outline_rounded,
+          onSelected: (m) => _showMessageInfo(context, m, l10n),
+        ),
       if (widget.enableSelection)
         ChatMessageAction(
           label: l10n.select,
@@ -848,6 +930,7 @@ class _ChatViewState extends State<ChatView> {
           message: message,
           currentUserId: widget.currentUser.id,
           l10n: l10n,
+          showMore: widget.enableEmojiPicker,
         ),
       ChatMessageMenuStyle.popup => _showPopupMenu(
           anchor,
@@ -856,6 +939,7 @@ class _ChatViewState extends State<ChatView> {
           message: message,
           currentUserId: widget.currentUser.id,
           l10n: l10n,
+          showMore: widget.enableEmojiPicker,
         ),
     };
     final selection = await menu;
@@ -891,6 +975,7 @@ class _ChatViewState extends State<ChatView> {
                   editing ? Icons.check_rounded : Icons.arrow_upward_rounded,
               onRecordStart: editing ? null : widget.onVoiceRecordStart,
               onRecordEnd: widget.onVoiceRecordEnd,
+              showEmojiButton: widget.enableEmojiPicker,
             );
     final selecting = widget.controller.isSelecting;
 
@@ -945,6 +1030,7 @@ class _ChatViewState extends State<ChatView> {
                           key: const Key('composer'),
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            _QuickReplies(state: this),
                             _MentionSuggestions(state: this),
                             _ComposerBanner(
                               controller: widget.controller,
@@ -1026,6 +1112,38 @@ class _ChatViewState extends State<ChatView> {
         return const _UnreadSeparator();
       case _LoaderEntry():
         return _buildLoader(context);
+      case _ThreadRootEntry():
+        final root = widget.threadRoot!;
+        final l10n = ChatLocalizations.of(context);
+        return Column(
+          key: const Key('chatx_thread_header'),
+          children: [
+            _MessageRow(
+              state: this,
+              listenable: _ConstListenable<ChatMessage>(root),
+              isFirstInGroup: true,
+              isLastInGroup: true,
+              maxBubbleWidth: maxBubbleWidth,
+              animate: false,
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Row(
+                children: [
+                  const Expanded(child: Divider()),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      l10n.threadReplies(widget.controller.length),
+                      style: theme.dateSeparatorTextStyle,
+                    ),
+                  ),
+                  const Expanded(child: Divider()),
+                ],
+              ),
+            ),
+          ],
+        );
       case _MessageEntry(
           :final id,
           :final isFirstInGroup,
@@ -1110,7 +1228,7 @@ sealed class _Entry {
   Key get key;
 }
 
-enum _Slot { typing, loader, unread }
+enum _Slot { typing, loader, unread, threadRoot }
 
 final class _TypingEntry extends _Entry {
   const _TypingEntry();
@@ -1122,6 +1240,12 @@ final class _LoaderEntry extends _Entry {
   const _LoaderEntry();
   @override
   Key get key => const ValueKey<_Slot>(_Slot.loader);
+}
+
+final class _ThreadRootEntry extends _Entry {
+  const _ThreadRootEntry();
+  @override
+  Key get key => const ValueKey<_Slot>(_Slot.threadRoot);
 }
 
 final class _UnreadEntry extends _Entry {

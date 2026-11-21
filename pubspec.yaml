@@ -1,7 +1,7 @@
 name: chatx
 description: >-
-  Zero-dependency, backend-agnostic chat UI for Flutter: replies, reactions,
-  media, voice notes, polls, mentions, search, markdown and streaming.
+  Zero-dependency chat UI for Flutter: replies, reactions, media, voice
+  notes, polls, surveys, threads, mentions, search, bots and markdown.
 version: 0.1.0
 repository: https://github.com/jacd007/chatx
 issue_tracker: https://github.com/jacd007/chatx/issues
@@ -11,20 +11,20 @@ screenshots:
     path: doc/screenshots/01_conversation.png
   - description: Popup menu with quick reactions.
     path: doc/screenshots/02_popup_menu.png
-  - description: Swipe to reply.
-    path: doc/screenshots/03_reply.png
   - description: Image grid, voice note and files.
     path: doc/screenshots/08_images_voice.png
-  - description: Link preview and spoilers.
-    path: doc/screenshots/07_files_links_spoilers.png
+  - description: Survey card, read receipts and forwarded message.
+    path: doc/screenshots/16_survey_seen_forward.png
+  - description: Step-by-step survey with an NPS question.
+    path: doc/screenshots/17_survey_nps.png
   - description: Poll, countdown announcement and pinned message.
     path: doc/screenshots/11_poll_countdown_pinned.png
-  - description: Mention suggestions.
-    path: doc/screenshots/12_mentions.png
-  - description: Search with highlighted results.
-    path: doc/screenshots/13_search.png
-  - description: Bubble tails, radius and shadow.
-    path: doc/screenshots/05_bubble_styles.png
+  - description: Bot buttons and quick replies.
+    path: doc/screenshots/18_bot_buttons.png
+  - description: Thread view.
+    path: doc/screenshots/19_thread.png
+  - description: Built-in emoji picker.
+    path: doc/screenshots/21_emoji_picker.png
   - description: Dark mode with a custom theme.
     path: doc/screenshots/06_dark_custom_look.png
 topics:

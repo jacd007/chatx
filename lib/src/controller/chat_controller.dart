@@ -33,9 +33,21 @@ class ChatController extends ChangeNotifier {
   /// Creates a controller, optionally pre-filled with [messages].
   ///
   /// Throws an [ArgumentError] if two messages share an ID.
-  ChatController({Iterable<ChatMessage> messages = const []}) {
+  ChatController({
+    Iterable<ChatMessage> messages = const [],
+    String initialDraft = '',
+    this.removeExpiredMessages = true,
+  }) : _draft = ValueNotifier<String>(initialDraft) {
     _addAllSorted(messages);
+    _messages.forEach(_scheduleExpiry);
   }
+
+  /// Whether messages are removed automatically when their
+  /// [ChatMessage.expiresAt] passes.
+  final bool removeExpiredMessages;
+
+  final ValueNotifier<String> _draft;
+  final Map<String, Timer> _expiryTimers = {};
 
   final List<ChatMessage> _messages = [];
   late final UnmodifiableListView<ChatMessage> _messagesView =
@@ -89,6 +101,14 @@ class ChatController extends ChangeNotifier {
   /// Requests from [scrollToMessage]. `ChatView` listens to this stream.
   Stream<ChatScrollRequest> get scrollRequests => _scrollRequests.stream;
 
+  /// Unsent text of the input. `ChatView` restores it when it is built
+  /// again with this controller, so keeping the controller alive keeps the
+  /// draft. Listen to it to persist drafts across app restarts.
+  ValueListenable<String> get draft => _draft;
+
+  /// Replaces the draft. `ChatView` calls this as the user types.
+  void setDraft(String text) => _draft.value = text;
+
   /// Returns the message with [id], or `null` if there is none.
   ChatMessage? messageById(String id) {
     final index = _indexOf(id);
@@ -106,6 +126,7 @@ class ChatController extends ChangeNotifier {
   void insert(ChatMessage message) {
     _ensureNew(message.id);
     _insertSorted(message);
+    _scheduleExpiry(message);
     notifyListeners();
   }
 
@@ -117,6 +138,7 @@ class ChatController extends ChangeNotifier {
     final list = messages.toList(growable: false);
     if (list.isEmpty) return;
     _addAllSorted(list);
+    list.forEach(_scheduleExpiry);
     notifyListeners();
   }
 
@@ -127,6 +149,7 @@ class ChatController extends ChangeNotifier {
   bool upsert(ChatMessage message) {
     if (update(message)) return false;
     _insertSorted(message);
+    _scheduleExpiry(message);
     notifyListeners();
     return true;
   }
@@ -154,6 +177,7 @@ class ChatController extends ChangeNotifier {
       _messages[index] = message;
     }
     _watchers[message.id]?.value = message;
+    if (old.expiresAt != message.expiresAt) _scheduleExpiry(message);
     if (structural) notifyListeners();
     return true;
   }
@@ -265,6 +289,20 @@ class ChatController extends ChangeNotifier {
     return update(poll.copyWith(options: List.unmodifiable(options)));
   }
 
+  /// Records that [userId] answered the [SurveyMessage] with [id].
+  ///
+  /// Returns `false` if the message is not a survey.
+  bool recordSurveyResponse(String id, String userId) {
+    final survey = messageById(id);
+    if (survey is! SurveyMessage) return false;
+    if (survey.hasResponded(userId)) return true;
+    return update(
+      survey.copyWith(
+        respondentIds: List.unmodifiable([...survey.respondentIds, userId]),
+      ),
+    );
+  }
+
   /// Pins the message with [id]. Returns `false` if it does not exist.
   bool pin(String id) {
     if (!contains(id)) return false;
@@ -337,6 +375,11 @@ class ChatController extends ChangeNotifier {
           [question, ...options.map((o) => o.text)].join(' '),
         CountdownMessage(:final title, :final description) =>
           '$title ${description ?? ''}',
+        SurveyMessage(:final title, :final description, :final questions) => [
+            title,
+            description ?? '',
+            ...questions.map((q) => q.title)
+          ].join(' '),
         VoiceMessage() || CustomMessage() => '',
       };
 
@@ -364,6 +407,7 @@ class ChatController extends ChangeNotifier {
     if (index == -1) return false;
     _messages.removeAt(index);
     _watchers.remove(id)?.dispose();
+    _expiryTimers.remove(id)?.cancel();
     if (_replyingTo.value?.id == id) _replyingTo.value = null;
     if (_editing.value?.id == id) _editing.value = null;
     _forget({id});
@@ -386,6 +430,11 @@ class ChatController extends ChangeNotifier {
       rethrow;
     }
     final ids = {for (final m in _messages) m.id};
+    for (final timer in _expiryTimers.values) {
+      timer.cancel();
+    }
+    _expiryTimers.clear();
+    _messages.forEach(_scheduleExpiry);
     _watchers.removeWhere((id, watcher) {
       if (ids.contains(id)) return false;
       watcher.dispose();
@@ -442,7 +491,27 @@ class ChatController extends ChangeNotifier {
     _pinnedIds.dispose();
     _selectedIds.dispose();
     _scrollRequests.close();
+    _draft.dispose();
+    for (final timer in _expiryTimers.values) {
+      timer.cancel();
+    }
+    _expiryTimers.clear();
     super.dispose();
+  }
+
+  // Removes the message when its expiresAt passes.
+  void _scheduleExpiry(ChatMessage message) {
+    _expiryTimers.remove(message.id)?.cancel();
+    final expiresAt = message.expiresAt;
+    if (!removeExpiredMessages || expiresAt == null) return;
+    final delay = expiresAt.difference(DateTime.now());
+    _expiryTimers[message.id] = Timer(
+      delay.isNegative ? Duration.zero : delay,
+      () {
+        _expiryTimers.remove(message.id);
+        remove(message.id);
+      },
+    );
   }
 
   // Drops pins and selection of messages that no longer exist.

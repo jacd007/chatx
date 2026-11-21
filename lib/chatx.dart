@@ -17,6 +17,7 @@ library;
 
 export 'src/controller/chat_controller.dart';
 export 'src/controller/chat_search_controller.dart';
+export 'src/emoji/chat_emoji_picker.dart';
 export 'src/l10n/chat_localizations.dart';
 export 'src/markdown/chat_link_policy.dart';
 export 'src/markdown/chat_text.dart';
@@ -29,6 +30,7 @@ export 'src/theme/chat_bubble_border.dart';
 export 'src/theme/chat_theme.dart';
 export 'src/widgets/chat_avatar.dart';
 export 'src/widgets/chat_builders.dart';
+export 'src/widgets/chat_header.dart';
 export 'src/widgets/chat_input.dart';
 export 'src/widgets/chat_search_bar.dart';
 export 'src/widgets/chat_view.dart';

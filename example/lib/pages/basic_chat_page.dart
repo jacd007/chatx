@@ -22,7 +22,10 @@ class _BasicChatPageState extends State<BasicChatPage> {
   static final DateTime _start =
       DateTime.now().subtract(const Duration(minutes: 30));
 
-  late final ChatController _controller = ChatController(
+  // Kept alive across visits so the draft survives leaving the screen.
+  static ChatController? _cached;
+
+  late final ChatController _controller = _cached ??= ChatController(
     messages: [
       SystemMessage(
         id: 'welcome',
@@ -70,7 +73,7 @@ class _BasicChatPageState extends State<BasicChatPage> {
   @override
   void dispose() {
     _disposed = true;
-    _controller.dispose();
+    // Not disposed on purpose: see `_cached`.
     super.dispose();
   }
 
@@ -137,12 +140,10 @@ class _BasicChatPageState extends State<BasicChatPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
-          children: [
-            ChatAvatar(user: ana, size: 36),
-            SizedBox(width: 12),
-            Text('Ana'),
-          ],
+        title: ChatHeader(
+          user: ana,
+          isOnline: true,
+          controller: _controller,
         ),
       ),
       body: ChatView(
