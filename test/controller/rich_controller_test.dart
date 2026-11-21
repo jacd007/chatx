@@ -230,4 +230,38 @@ void main() {
     expect(copy.forwardedFrom, 'Ana');
     expect(copy.withStatus(null).status, isNull);
   });
+
+  test('startRegeneration keeps the whole answer as a version', () {
+    final c = ChatController(
+      messages: [
+        TextMessage(
+          id: 'a',
+          author: me,
+          createdAt: t0,
+          text: 'v1',
+          reasoning: const ChatReasoning(text: 'Hmm'),
+          toolCalls: const [ChatToolCall(id: 'w', name: 'Search')],
+          sources: const [ChatSource(title: 'Docs', url: 'https://dart.dev')],
+          feedback: ChatFeedback.negative,
+        ),
+      ],
+    );
+    addTearDown(c.dispose);
+    expect(c.startRegeneration('a'), isTrue);
+    final m = c.messageById('a')! as TextMessage;
+    expect(m.versions, [
+      const ChatAnswerVersion(
+        text: 'v1',
+        reasoning: ChatReasoning(text: 'Hmm'),
+        toolCalls: [ChatToolCall(id: 'w', name: 'Search')],
+        sources: [ChatSource(title: 'Docs', url: 'https://dart.dev')],
+      ),
+    ]);
+    expect(m.text, isEmpty);
+    expect(m.reasoning, isNull);
+    expect(m.toolCalls, isEmpty);
+    expect(m.sources, isEmpty);
+    expect(m.feedback, isNull);
+    expect(m.isStreaming, isTrue);
+  });
 }

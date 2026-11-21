@@ -180,7 +180,7 @@ class _AiActions extends StatelessWidget {
             // Copies the version on screen.
             final index = state._versionIndex.value[message.id];
             final text = index != null && index < message.versions.length
-                ? message.versions[index]
+                ? message.versions[index].text
                 : message.text;
             Clipboard.setData(ClipboardData(text: text));
           },

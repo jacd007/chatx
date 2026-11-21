@@ -660,6 +660,55 @@ class ChatSource {
   int get hashCode => Object.hash(title, url, snippet);
 }
 
+/// An earlier answer of a regenerated [TextMessage], with everything the
+/// model produced for it.
+@immutable
+class ChatAnswerVersion {
+  /// Creates an answer version.
+  const ChatAnswerVersion({
+    required this.text,
+    this.reasoning,
+    this.toolCalls = const [],
+    this.sources = const [],
+  });
+
+  /// Creates a version from the current answer of [message].
+  ChatAnswerVersion.of(TextMessage message)
+      : text = message.text,
+        reasoning = message.reasoning,
+        toolCalls = message.toolCalls,
+        sources = message.sources;
+
+  /// The answer text.
+  final String text;
+
+  /// What the model thought before this answer.
+  final ChatReasoning? reasoning;
+
+  /// Tools the model used for this answer.
+  final List<ChatToolCall> toolCalls;
+
+  /// Sources this answer cites.
+  final List<ChatSource> sources;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatAnswerVersion &&
+          other.text == text &&
+          other.reasoning == reasoning &&
+          listEquals(other.toolCalls, toolCalls) &&
+          listEquals(other.sources, sources);
+
+  @override
+  int get hashCode => Object.hash(
+        text,
+        reasoning,
+        Object.hashAll(toolCalls),
+        Object.hashAll(sources),
+      );
+}
+
 /// An item of a [ChecklistMessage].
 @immutable
 class ChecklistItem {

@@ -342,9 +342,44 @@ class _Bubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final message = details.message;
+    // A regenerated answer shows the version picked with "‹ 2/3 ›", with
+    // its own reasoning, tools and sources.
+    if (message is TextMessage &&
+        message.versions.isNotEmpty &&
+        !message.isStreaming) {
+      return ValueListenableBuilder<Map<String, int>>(
+        valueListenable: state._versionIndex,
+        builder: (context, indexes, _) {
+          final index = indexes[message.id];
+          if (index == null || index >= message.versions.length) {
+            return _build(context, message, pastVersion: false);
+          }
+          final version = message.versions[index];
+          return _build(
+            context,
+            message.copyWith(
+              text: version.text,
+              reasoning: version.reasoning,
+              clearReasoning: version.reasoning == null,
+              toolCalls: version.toolCalls,
+              sources: version.sources,
+            ),
+            pastVersion: true,
+          );
+        },
+      );
+    }
+    return _build(context, message, pastVersion: false);
+  }
+
+  Widget _build(
+    BuildContext context,
+    ChatMessage message, {
+    required bool pastVersion,
+  }) {
     final theme = ChatThemeData.of(context);
     final l10n = ChatLocalizations.of(context);
-    final message = details.message;
     final outgoing = details.isOutgoing;
     final jumbo = _isJumbo(message);
     final bubbleStyle = theme.bubbleTextStyle(isOutgoing: outgoing);
@@ -489,7 +524,9 @@ class _Bubble extends StatelessWidget {
                   ),
                 )
               else
-                _textContent(message, theme, textStyle, textColor),
+                pastVersion
+                    ? _richText(message.text, textStyle, theme)
+                    : _currentText(message, theme, textStyle, textColor),
               if (message.sources.isNotEmpty && !message.isStreaming)
                 _SourceChips(
                   state: state,
@@ -899,28 +936,6 @@ class _Bubble extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Widget _textContent(
-    TextMessage message,
-    ChatThemeData theme,
-    TextStyle textStyle,
-    Color textColor,
-  ) {
-    // A regenerated answer shows the version picked with "‹ 2/3 ›".
-    if (message.versions.isNotEmpty && !message.isStreaming) {
-      return ValueListenableBuilder<Map<String, int>>(
-        valueListenable: state._versionIndex,
-        builder: (context, indexes, _) {
-          final index = indexes[message.id];
-          if (index == null || index >= message.versions.length) {
-            return _currentText(message, theme, textStyle, textColor);
-          }
-          return _richText(message.versions[index], textStyle, theme);
-        },
-      );
-    }
-    return _currentText(message, theme, textStyle, textColor);
   }
 
   Widget _currentText(

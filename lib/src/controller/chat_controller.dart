@@ -374,8 +374,8 @@ class ChatController extends ChangeNotifier {
   }
 
   /// Prepares the [TextMessage] with [id] for a new answer: keeps the
-  /// current text in `versions`, clears the text and feedback and marks the
-  /// message as streaming. Then stream the new answer with [appendText].
+  /// current answer, with its reasoning, tools and sources, in `versions`,
+  /// clears them and the feedback and marks the message as streaming. Then stream the new answer with [appendText].
   bool startRegeneration(String id) {
     final message = messageById(id);
     if (message is! TextMessage) return false;
@@ -386,8 +386,9 @@ class ChatController extends ChangeNotifier {
         clearFeedback: true,
         versions: List.unmodifiable([
           ...message.versions,
-          if (message.text.isNotEmpty) message.text,
+          if (message.text.isNotEmpty) ChatAnswerVersion.of(message),
         ]),
+        clearReasoning: true,
         toolCalls: const [],
         sources: const [],
       ),

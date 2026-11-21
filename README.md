@@ -609,15 +609,19 @@ Source chips open the link through `onLinkTap`, or call `onSourceTap`.
 
 ### Answer versions
 
-`ChatController.startRegeneration` keeps the current answer in
-`TextMessage.versions` and clears the text for a new stream. The actions row
-then shows "‹ 2/2 ›" to browse the versions; Copy copies the one on screen.
+`ChatController.startRegeneration` keeps the current answer, with its
+reasoning, tool calls and sources, as a `ChatAnswerVersion` in
+`TextMessage.versions`, and clears them for a new stream. The actions row
+then shows "‹ 2/2 ›" to browse the versions. Each version is shown with its
+own reasoning, tools and sources; Copy copies the one on screen.
 
 ```dart
-onRegenerate: (message) {
-  controller.startRegeneration(message.id);
-  streamAnswer(message.id); // appendText + completeStream
-},
+ai: ChatAiOptions(
+  onRegenerate: (message) {
+    controller.startRegeneration(message.id);
+    streamAnswer(message.id); // appendText + completeStream
+  },
+),
 ```
 
 ### Suggested prompts

@@ -187,7 +187,7 @@ void main() {
         ..appendText('t', 'v2')
         ..completeStream('t');
       final regenerated = controller.messageById('t')! as TextMessage;
-      expect(regenerated.versions, ['v1']);
+      expect(regenerated.versions, [const ChatAnswerVersion(text: 'v1')]);
       expect(regenerated.text, 'v2');
 
       controller.composer.addAttachments(const [
@@ -244,7 +244,12 @@ void main() {
           sources: const [
             ChatSource(title: 'Docs', url: 'https://www.dart.dev/x'),
           ],
-          versions: const ['Answer one'],
+          versions: const [
+            ChatAnswerVersion(
+              text: 'Answer one',
+              sources: [ChatSource(title: 'Spec', url: 'https://spec.dev')],
+            ),
+          ],
         ),
       );
       await pump(
@@ -271,6 +276,11 @@ void main() {
       expect(find.text('1/2'), findsOneWidget);
       expect(find.text('Answer one', findRichText: true), findsOneWidget);
       expect(find.text('Answer two', findRichText: true), findsNothing);
+      // The old version shows its own extras, not the current ones.
+      expect(find.text('Thought for 12s'), findsNothing);
+      expect(find.text('Searched the web'), findsNothing);
+      await tester.tap(find.byKey(const Key('chatx_source_a_0')));
+      expect(opened, ['dart.dev', 'spec.dev']);
     });
 
     testWidgets('thinking pulses and prompts send', (tester) async {

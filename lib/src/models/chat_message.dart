@@ -363,9 +363,10 @@ final class TextMessage extends ChatMessage {
   final List<ChatSource> sources;
 
   /// Earlier answers, oldest first, kept when the answer was regenerated.
-  /// The bubble shows "‹ 2/3 ›" to browse them.
-  /// `ChatController.startRegeneration` records them for you.
-  final List<String> versions;
+  /// The bubble shows "‹ 2/3 ›" to browse them, each with its own
+  /// reasoning, tools and sources. `ChatController.startRegeneration`
+  /// records them for you.
+  final List<ChatAnswerVersion> versions;
 
   /// Returns a copy of this message with the given fields replaced.
   TextMessage copyWith({
@@ -384,10 +385,11 @@ final class TextMessage extends ChatMessage {
     ChatReasoning? reasoning,
     List<ChatToolCall>? toolCalls,
     List<ChatSource>? sources,
-    List<String>? versions,
+    List<ChatAnswerVersion>? versions,
     bool clearEditedAt = false,
     bool clearLinkPreview = false,
     bool clearFeedback = false,
+    bool clearReasoning = false,
   }) {
     final m = meta ?? this.meta;
     return TextMessage(
@@ -412,7 +414,7 @@ final class TextMessage extends ChatMessage {
       quickReplies: quickReplies ?? this.quickReplies,
       feedback: clearFeedback ? null : feedback ?? this.feedback,
       editHistory: editHistory ?? this.editHistory,
-      reasoning: reasoning ?? this.reasoning,
+      reasoning: clearReasoning ? null : reasoning ?? this.reasoning,
       toolCalls: toolCalls ?? this.toolCalls,
       sources: sources ?? this.sources,
       versions: versions ?? this.versions,

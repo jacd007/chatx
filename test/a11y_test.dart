@@ -159,7 +159,7 @@ List<ChatMessage> conversation() {
       reasoning:
           const ChatReasoning(text: 'Hmm', duration: Duration(seconds: 3)),
       sources: const [ChatSource(title: 'Docs', url: 'https://dart.dev')],
-      versions: const ['Old answer'],
+      versions: const [ChatAnswerVersion(text: 'Old answer')],
     ),
     TextMessage(
       id: 'b1',
