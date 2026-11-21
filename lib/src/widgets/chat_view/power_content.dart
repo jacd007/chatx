@@ -1248,7 +1248,7 @@ class _AttachmentTray extends StatelessWidget {
     final l10n = ChatLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
     return ValueListenableBuilder<List<ChatAttachment>>(
-      valueListenable: view.controller.attachments,
+      valueListenable: view.controller.composer.attachments,
       builder: (context, attachments, _) {
         if (attachments.isEmpty) return const SizedBox.shrink();
         return SizedBox(
@@ -1323,8 +1323,8 @@ class _AttachmentTray extends StatelessWidget {
                     child: IconButton(
                       key: Key('chatx_remove_attachment_${attachment.id}'),
                       tooltip: '${l10n.removeAttachment} ${attachment.name}',
-                      onPressed: () =>
-                          view.controller.removeAttachment(attachment.id),
+                      onPressed: () => view.controller.composer
+                          .removeAttachment(attachment.id),
                       icon: DecoratedBox(
                         decoration: BoxDecoration(
                           color: scheme.inverseSurface,

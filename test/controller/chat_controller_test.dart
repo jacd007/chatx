@@ -230,19 +230,52 @@ void main() {
 
     test('reply and edit are mutually exclusive', () {
       final message = controller.messageById('a')! as TextMessage;
-      controller.startReply(message);
-      expect(controller.replyingTo.value, message);
-      controller.startEditing(message);
-      expect(controller.replyingTo.value, isNull);
-      expect(controller.editing.value, message);
-      controller.startReply(message);
-      expect(controller.editing.value, isNull);
+      controller.composer.startReply(message);
+      expect(controller.composer.replyingTo.value, message);
+      controller.composer.startEditing(message);
+      expect(controller.composer.replyingTo.value, isNull);
+      expect(controller.composer.editing.value, message);
+      controller.composer.startReply(message);
+      expect(controller.composer.editing.value, isNull);
     });
 
     test('removing a message clears its reply or edit', () {
-      controller.startReply(controller.messageById('a')!);
+      controller.composer.startReply(controller.messageById('a')!);
       controller.remove('a');
-      expect(controller.replyingTo.value, isNull);
+      expect(controller.composer.replyingTo.value, isNull);
+    });
+
+    test('the reply follows new versions of its message', () {
+      controller.composer.startReply(controller.messageById('a')!);
+      controller.editText('a', 'fixed');
+      expect(
+        (controller.composer.replyingTo.value! as TextMessage).text,
+        'fixed',
+      );
+    });
+
+    test('the edit keeps the version the user started from', () {
+      final message = controller.messageById('a')! as TextMessage;
+      controller.composer.startEditing(message);
+      controller.updateStatus('a', MessageStatus.read);
+      expect(controller.composer.editing.value, same(message));
+      controller.remove('a');
+      expect(controller.composer.editing.value, isNull);
+    });
+
+    test('deprecated forwarders still drive the composer', () {
+      final message = controller.messageById('a')! as TextMessage;
+      // ignore: deprecated_member_use_from_same_package
+      controller.startReply(message);
+      expect(controller.composer.replyingTo.value, message);
+      // ignore: deprecated_member_use_from_same_package
+      controller.setDraft('hi');
+      // ignore: deprecated_member_use_from_same_package
+      expect(controller.draft.value, 'hi');
+      // ignore: deprecated_member_use_from_same_package
+      controller.addAttachments(const [ChatAttachment(id: 'f', name: 'f')]);
+      // ignore: deprecated_member_use_from_same_package
+      expect(controller.attachments.value, hasLength(1));
     });
   });
 }

@@ -169,9 +169,9 @@ void main() {
       ],
     );
     addTearDown(c.dispose);
-    expect(c.draft.value, 'hi');
-    c.setDraft('hello');
-    expect(c.draft.value, 'hello');
+    expect(c.composer.draft.value, 'hi');
+    c.composer.setDraft('hello');
+    expect(c.composer.draft.value, 'hello');
     expect(c.recordSurveyResponse('s', 'me'), isTrue);
     c.recordSurveyResponse('s', 'me');
     expect((c.messageById('s')! as SurveyMessage).respondentIds, ['me']);

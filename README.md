@@ -348,17 +348,25 @@ the view updates.
 | `editText(id, text)` | Replaces the text and shows the "edited" label. |
 | `toggleReaction(id, emoji, userId)` | Adds or removes a user's reaction. |
 | `setTyping(user, isTyping: true)` | Shows or hides the typing indicator. |
-| `startReply(message)` / `cancelReply()` | Shows or hides the reply banner. |
-| `startEditing(message)` / `cancelEditing()` | Starts or stops editing in the input bar. |
 | `votePoll(id, optionId, userId)` | Records or removes a vote. |
 | `pin(id)` / `unpin(id)` | Pins or unpins a message. |
 | `toggleSelection(id)` / `clearSelection()` | Controls selection mode. |
 | `search(query)` | Returns matching message IDs, newest first. |
 | `recordSurveyResponse(id, userId)` | Marks a survey as answered by a user. |
-| `setDraft(text)` / `draft` | The unsent text of the input. |
 | `scrollToMessage(id)` | Scrolls the view to a message and highlights it. |
 
-Always call `controller.dispose()` when the screen goes away.
+The input bar has its own state in `controller.composer`:
+
+| Method | What it does |
+| --- | --- |
+| `startReply(message)` / `cancelReply()` | Shows or hides the reply banner. |
+| `startEditing(message)` / `cancelEditing()` | Starts or stops editing in the input bar. |
+| `setDraft(text)` / `draft` | The unsent text of the input. |
+| `addAttachments(files)` / `removeAttachment(id)` / `clearAttachments()` | The files waiting in the input tray. |
+| `reset()` | Clears all of the above. |
+
+Always call `controller.dispose()` when the screen goes away. It also
+disposes the composer.
 
 > **Performance note.** Changes to a single message (status, text, metadata)
 > rebuild only that bubble. Listeners added with `addListener` run only for
@@ -1008,7 +1016,7 @@ TextMessage(
 The controller keeps the unsent text in `draft`. Keep the controller alive
 (for example one per conversation in your state management) and the draft is
 there when the user comes back, together with any reply in progress.
-Persist it across restarts by listening to `controller.draft` and passing
+Persist it across restarts by listening to `controller.composer.draft` and passing
 `initialDraft` when you create the controller.
 
 ### Chat header
@@ -1351,7 +1359,7 @@ ChatView(
   // ...
   onAttach: () async {
     final files = await pickFiles(); // file_picker, image_picker…
-    controller.addAttachments([
+    controller.composer.addAttachments([
       for (final f in files)
         ChatAttachment(
           id: f.path,
@@ -2113,7 +2121,7 @@ is a normal widget; put it in any page.
 
 **How do I keep the conversation when the user leaves the screen?** Keep the
 `ChatController` alive longer than the page (for example in a provider), or
-save `controller.messages` and `controller.draft` and restore them.
+save `controller.messages` and `controller.composer.draft` and restore them.
 
 **Can I use my own bubble design?** Yes. Change colors and shapes with
 `ChatTheme`, or replace bubbles, avatars, input and separators with

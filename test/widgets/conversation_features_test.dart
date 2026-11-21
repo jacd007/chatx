@@ -101,7 +101,7 @@ void main() {
         const Offset(30, 0),
       );
       await tester.pumpAndSettle();
-      expect(controller.replyingTo.value, isNull);
+      expect(controller.composer.replyingTo.value, isNull);
     });
 
     testWidgets('swiping can be disabled', (tester) async {
@@ -112,7 +112,7 @@ void main() {
         const Offset(120, 0),
       );
       await tester.pumpAndSettle();
-      expect(controller.replyingTo.value, isNull);
+      expect(controller.composer.replyingTo.value, isNull);
     });
 
     testWidgets('custom swipe actions receive the message', (tester) async {
@@ -136,11 +136,11 @@ void main() {
     testWidgets('the reply banner can be cancelled', (tester) async {
       controller.insert(message('1'));
       await pump(tester);
-      controller.startReply(controller.messageById('1')!);
+      controller.composer.startReply(controller.messageById('1')!);
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('chatx_cancel_reply')));
       await tester.pumpAndSettle();
-      expect(controller.replyingTo.value, isNull);
+      expect(controller.composer.replyingTo.value, isNull);
     });
 
     testWidgets('replies show a quote that jumps to the original',
@@ -240,13 +240,14 @@ void main() {
       expect(edited.single.$1.id, '1');
       expect(edited.single.$2, 'Hello');
       expect(sent, isEmpty);
-      expect(controller.editing.value, isNull);
+      expect(controller.composer.editing.value, isNull);
     });
 
     testWidgets('cancelling an edit clears the input', (tester) async {
       controller.insert(message('1', author: me, text: 'Draft'));
       await pump(tester);
-      controller.startEditing(controller.messageById('1')! as TextMessage);
+      controller.composer
+          .startEditing(controller.messageById('1')! as TextMessage);
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('chatx_cancel_edit')));
       await tester.pumpAndSettle();

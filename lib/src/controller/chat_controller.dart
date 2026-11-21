@@ -9,6 +9,8 @@ import '../models/chat_reaction.dart';
 import '../models/chat_user.dart';
 import '../models/message_status.dart';
 
+part 'chat_composer_controller.dart';
+
 /// Holds the messages and typing state of one conversation.
 ///
 /// chatx never talks to a backend. Your code feeds the controller from any
@@ -39,7 +41,7 @@ class ChatController extends ChangeNotifier {
     Iterable<ChatMessage> messages = const [],
     String initialDraft = '',
     this.removeExpiredMessages = true,
-  }) : _draft = ValueNotifier<String>(initialDraft) {
+  }) : composer = ChatComposerController(initialDraft: initialDraft) {
     _addAllSorted(messages);
     _messages.forEach(_scheduleExpiry);
   }
@@ -48,7 +50,10 @@ class ChatController extends ChangeNotifier {
   /// [ChatMessage.expiresAt] passes.
   final bool removeExpiredMessages;
 
-  final ValueNotifier<String> _draft;
+  /// The input bar state of this conversation: draft, reply, edit and
+  /// attachments. Disposed with this controller.
+  final ChatComposerController composer;
+
   final Map<String, Timer> _expiryTimers = {};
   // Same messages as _messages, by ID. Every entry is identical to the one
   // in the list, which lets _indexOf find it by binary search.
@@ -70,16 +75,12 @@ class ChatController extends ChangeNotifier {
   final Map<String, ValueNotifier<ChatMessage>> _watchers = {};
   final ValueNotifier<List<ChatUser>> _typingUsers =
       ValueNotifier<List<ChatUser>>(const []);
-  final ValueNotifier<ChatMessage?> _replyingTo = ValueNotifier(null);
-  final ValueNotifier<ChatMessage?> _editing = ValueNotifier(null);
   final ValueNotifier<List<String>> _pinnedIds =
       ValueNotifier<List<String>>(const []);
   final ValueNotifier<Set<String>> _savedIds =
       ValueNotifier<Set<String>>(const {});
   final ValueNotifier<Set<String>> _selectedIds =
       ValueNotifier<Set<String>>(const {});
-  final ValueNotifier<List<ChatAttachment>> _attachments =
-      ValueNotifier<List<ChatAttachment>>(const []);
   final StreamController<ChatScrollRequest> _scrollRequests =
       StreamController<ChatScrollRequest>.broadcast();
 
@@ -96,16 +97,12 @@ class ChatController extends ChangeNotifier {
   ValueListenable<List<ChatUser>> get typingUsers => _typingUsers;
 
   /// The message the user is replying to, or `null`.
-  ///
-  /// While set, `ChatView` shows a reply banner above the input and passes the
-  /// message to `onSendMessage`. Set it with [startReply].
-  ValueListenable<ChatMessage?> get replyingTo => _replyingTo;
+  @Deprecated('Use composer.replyingTo. Removed in 1.0')
+  ValueListenable<ChatMessage?> get replyingTo => composer.replyingTo;
 
   /// The message the user is editing, or `null`.
-  ///
-  /// While set, `ChatView` fills the input with the message text and sends
-  /// the result to `onEditMessage`. Set it with [startEditing].
-  ValueListenable<ChatMessage?> get editing => _editing;
+  @Deprecated('Use composer.editing. Removed in 1.0')
+  ValueListenable<ChatMessage?> get editing => composer.editing;
 
   /// IDs of pinned messages, oldest pin first. `ChatView` shows a banner for
   /// them at the top of the list.
@@ -117,33 +114,22 @@ class ChatController extends ChangeNotifier {
   /// IDs of the messages selected in selection mode.
   ValueListenable<Set<String>> get selectedIds => _selectedIds;
 
-  /// Files waiting in the input. `ChatView` shows them in a tray above the
-  /// text field and sends them with the next message.
-  ValueListenable<List<ChatAttachment>> get attachments => _attachments;
+  /// Files waiting in the input tray.
+  @Deprecated('Use composer.attachments. Removed in 1.0')
+  ValueListenable<List<ChatAttachment>> get attachments => composer.attachments;
 
-  /// Adds files to the input tray, for example after your file picker
-  /// returns.
-  void addAttachments(Iterable<ChatAttachment> attachments) {
-    if (_disposed) return;
-    if (attachments.isEmpty) return;
-    _attachments.value =
-        List.unmodifiable([..._attachments.value, ...attachments]);
-  }
+  /// Adds files to the input tray.
+  @Deprecated('Use composer.addAttachments. Removed in 1.0')
+  void addAttachments(Iterable<ChatAttachment> attachments) =>
+      composer.addAttachments(attachments);
 
   /// Removes the attachment with [id] from the input tray.
-  void removeAttachment(String id) {
-    if (_disposed) return;
-    final rest = _attachments.value.where((a) => a.id != id).toList();
-    if (rest.length != _attachments.value.length) {
-      _attachments.value = List.unmodifiable(rest);
-    }
-  }
+  @Deprecated('Use composer.removeAttachment. Removed in 1.0')
+  void removeAttachment(String id) => composer.removeAttachment(id);
 
   /// Empties the input tray.
-  void clearAttachments() {
-    if (_disposed) return;
-    if (_attachments.value.isNotEmpty) _attachments.value = const [];
-  }
+  @Deprecated('Use composer.clearAttachments. Removed in 1.0')
+  void clearAttachments() => composer.clearAttachments();
 
   /// Messages waiting for the network, oldest first.
   List<ChatMessage> get queuedMessages => [
@@ -157,15 +143,13 @@ class ChatController extends ChangeNotifier {
   /// Requests from [scrollToMessage]. `ChatView` listens to this stream.
   Stream<ChatScrollRequest> get scrollRequests => _scrollRequests.stream;
 
-  /// Unsent text of the input. `ChatView` restores it when it is built
-  /// again with this controller, so keeping the controller alive keeps the
-  /// draft. Listen to it to persist drafts across app restarts.
-  ValueListenable<String> get draft => _draft;
+  /// Unsent text of the input.
+  @Deprecated('Use composer.draft. Removed in 1.0')
+  ValueListenable<String> get draft => composer.draft;
 
-  /// Replaces the draft. `ChatView` calls this as the user types.
-  void setDraft(String text) {
-    if (!_disposed) _draft.value = text;
-  }
+  /// Replaces the draft.
+  @Deprecated('Use composer.setDraft. Removed in 1.0')
+  void setDraft(String text) => composer.setDraft(text);
 
   /// Returns the message with [id], or `null` if there is none.
   ChatMessage? messageById(String id) => _byId[id];
@@ -238,6 +222,9 @@ class ChatController extends ChangeNotifier {
       _byId[message.id] = message;
     }
     _watchers[message.id]?.value = message;
+    if (composer.replyingTo.value?.id == message.id) {
+      composer._sync(messageById);
+    }
     if (old.expiresAt != message.expiresAt) _scheduleExpiry(message);
     if (structural) notifyListeners();
     return true;
@@ -573,28 +560,20 @@ class ChatController extends ChangeNotifier {
       };
 
   /// Starts replying to [message]. Cancels any edit in progress.
-  void startReply(ChatMessage message) {
-    if (_disposed) return;
-    _editing.value = null;
-    _replyingTo.value = message;
-  }
+  @Deprecated('Use composer.startReply. Removed in 1.0')
+  void startReply(ChatMessage message) => composer.startReply(message);
 
   /// Stops replying without sending.
-  void cancelReply() {
-    if (!_disposed) _replyingTo.value = null;
-  }
+  @Deprecated('Use composer.cancelReply. Removed in 1.0')
+  void cancelReply() => composer.cancelReply();
 
   /// Starts editing [message]. Cancels any reply in progress.
-  void startEditing(TextMessage message) {
-    if (_disposed) return;
-    _replyingTo.value = null;
-    _editing.value = message;
-  }
+  @Deprecated('Use composer.startEditing. Removed in 1.0')
+  void startEditing(TextMessage message) => composer.startEditing(message);
 
   /// Stops editing without saving.
-  void cancelEditing() {
-    if (!_disposed) _editing.value = null;
-  }
+  @Deprecated('Use composer.cancelEditing. Removed in 1.0')
+  void cancelEditing() => composer.cancelEditing();
 
   /// Removes the message with [id]. Returns `false` if it did not exist.
   bool remove(String id) {
@@ -607,8 +586,7 @@ class ChatController extends ChangeNotifier {
     _structureRevision++;
     _watchers.remove(id)?.dispose();
     _expiryTimers.remove(id)?.cancel();
-    if (_replyingTo.value?.id == id) _replyingTo.value = null;
-    if (_editing.value?.id == id) _editing.value = null;
+    composer._sync(messageById);
     _forget({id});
     notifyListeners();
     return true;
@@ -664,18 +642,11 @@ class ChatController extends ChangeNotifier {
       ..._savedIds.value,
     }.where((id) => !ids.contains(id)).toSet());
     // A reply or edit can only target a message of this conversation.
-    final replying = _replyingTo.value;
-    if (replying != null) _replyingTo.value = messageById(replying.id);
-    final editing = _editing.value;
-    if (editing != null && messageById(editing.id) is! TextMessage) {
-      _editing.value = null;
-    }
     if (newConversation) {
-      _replyingTo.value = null;
-      _editing.value = null;
+      composer.reset();
       _typingUsers.value = const [];
-      _attachments.value = const [];
-      _draft.value = '';
+    } else {
+      composer._sync(messageById);
     }
     notifyListeners();
   }
@@ -718,14 +689,11 @@ class ChatController extends ChangeNotifier {
     }
     _watchers.clear();
     _typingUsers.dispose();
-    _replyingTo.dispose();
-    _editing.dispose();
     _pinnedIds.dispose();
     _selectedIds.dispose();
     _savedIds.dispose();
-    _attachments.dispose();
     _scrollRequests.close();
-    _draft.dispose();
+    composer.dispose();
     for (final timer in _expiryTimers.values) {
       timer.cancel();
     }

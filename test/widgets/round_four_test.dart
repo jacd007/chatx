@@ -169,14 +169,14 @@ void main() {
       expect(regenerated.versions, ['v1']);
       expect(regenerated.text, 'v2');
 
-      controller.addAttachments(const [
+      controller.composer.addAttachments(const [
         ChatAttachment(id: '1', name: 'a.png'),
         ChatAttachment(id: '2', name: 'b.pdf'),
       ]);
-      controller.removeAttachment('1');
-      expect(controller.attachments.value.map((a) => a.id), ['2']);
-      controller.clearAttachments();
-      expect(controller.attachments.value, isEmpty);
+      controller.composer.removeAttachment('1');
+      expect(controller.composer.attachments.value.map((a) => a.id), ['2']);
+      controller.composer.clearAttachments();
+      expect(controller.composer.attachments.value, isEmpty);
 
       expect(controller.queuedMessages.map((m) => m.id), ['q']);
     });
@@ -419,7 +419,7 @@ void main() {
       await tester.tap(find.byKey(const Key('chatx_attach_button')));
       expect(attachTaps, 1);
 
-      controller.addAttachments([
+      controller.composer.addAttachments([
         ChatAttachment(
           id: '1',
           name: 'photo.png',
@@ -471,10 +471,10 @@ void main() {
       await tester.pump();
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
       await tester.pump();
-      expect(controller.editing.value?.id, 'mine');
+      expect(controller.composer.editing.value?.id, 'mine');
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pump();
-      expect(controller.editing.value, isNull);
+      expect(controller.composer.editing.value, isNull);
     });
   });
 

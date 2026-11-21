@@ -219,7 +219,7 @@ class _MediaPageState extends State<MediaPage> {
 
   /// A real app opens a file picker here (for example `file_picker`).
   void _attach() {
-    _controller.addAttachments(const [
+    _controller.composer.addAttachments(const [
       ChatAttachment(
         id: 'dunes',
         name: 'dunes.png',

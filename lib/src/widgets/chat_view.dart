@@ -637,7 +637,7 @@ class _ChatViewState extends State<ChatView> {
   @override
   void initState() {
     super.initState();
-    _textController.text = widget.controller.draft.value;
+    _textController.text = widget.controller.composer.draft.value;
     _textController.addListener(_onComposerTextChanged);
     _textController.addListener(_saveDraft);
     _attachController(widget.controller);
@@ -739,9 +739,10 @@ class _ChatViewState extends State<ChatView> {
   void _attachController(ChatController controller) {
     controller
       ..addListener(_onMessagesChanged)
+      ..selectedIds.addListener(_onSelectionChanged);
+    controller.composer
       ..editing.addListener(_onEditingChanged)
       ..replyingTo.addListener(_onReplyingChanged)
-      ..selectedIds.addListener(_onSelectionChanged)
       ..draft.addListener(_onDraftChanged);
     _scrollRequests = controller.scrollRequests.listen(
       (request) => _scrollToMessage(
@@ -754,9 +755,10 @@ class _ChatViewState extends State<ChatView> {
   void _detachController(ChatController controller) {
     controller
       ..removeListener(_onMessagesChanged)
+      ..selectedIds.removeListener(_onSelectionChanged);
+    controller.composer
       ..editing.removeListener(_onEditingChanged)
       ..replyingTo.removeListener(_onReplyingChanged)
-      ..selectedIds.removeListener(_onSelectionChanged)
       ..draft.removeListener(_onDraftChanged);
     _scrollRequests?.cancel();
     _scrollRequests = null;
@@ -765,7 +767,7 @@ class _ChatViewState extends State<ChatView> {
   void _onSelectionChanged() => setState(() {});
 
   void _onEditingChanged() {
-    final editing = widget.controller.editing.value;
+    final editing = widget.controller.composer.editing.value;
     final previous = _editingMessage;
     _editingMessage = editing;
     if (editing is TextMessage) {
@@ -785,8 +787,8 @@ class _ChatViewState extends State<ChatView> {
   void _saveDraft() {
     if (_editingMessage != null) return;
     final text = _textController.text;
-    if (widget.controller.draft.value != text) {
-      widget.controller.setDraft(text);
+    if (widget.controller.composer.draft.value != text) {
+      widget.controller.composer.setDraft(text);
     }
   }
 
@@ -794,12 +796,17 @@ class _ChatViewState extends State<ChatView> {
   // `setMessages(newConversation: true)`.
   void _onDraftChanged() {
     if (_editingMessage != null) return;
-    final draft = widget.controller.draft.value;
+    final draft = widget.controller.composer.draft.value;
     if (_textController.text != draft) _textController.text = draft;
   }
 
+  String? _replyingToId;
+
+  // Focuses the input when a reply starts, not when its message updates.
   void _onReplyingChanged() {
-    if (widget.controller.replyingTo.value != null) _focusNode.requestFocus();
+    final id = widget.controller.composer.replyingTo.value?.id;
+    if (id != null && id != _replyingToId) _focusNode.requestFocus();
+    _replyingToId = id;
   }
 
   void _resetKnownMessages() {
@@ -1170,26 +1177,26 @@ class _ChatViewState extends State<ChatView> {
 
   void _handleSend(String text) {
     final controller = widget.controller;
-    final editing = controller.editing.value;
+    final editing = controller.composer.editing.value;
     if (editing is TextMessage) {
       widget.onEditMessage?.call(editing, text);
-      controller.cancelEditing();
+      controller.composer.cancelEditing();
       return;
     }
     // Slow mode also applies to quick replies and prompts.
     if (_slowRemaining != null) return;
-    final replyTo = controller.replyingTo.value;
-    final attachments = controller.attachments.value;
+    final replyTo = controller.composer.replyingTo.value;
+    final attachments = controller.composer.attachments.value;
     final onSendAttachments = widget.onSendAttachments;
     if (attachments.isNotEmpty && onSendAttachments != null) {
       onSendAttachments(attachments, text, replyTo);
-      controller.clearAttachments();
+      controller.composer.clearAttachments();
     } else if (text.isNotEmpty) {
       widget.onSendMessage(text, replyTo);
     } else {
       return;
     }
-    controller.cancelReply();
+    controller.composer.cancelReply();
     _startSlowMode();
     _scrollToBottom();
   }
@@ -1284,7 +1291,7 @@ class _ChatViewState extends State<ChatView> {
       if (_isOutgoing(message) &&
           message is TextMessage &&
           message.deletedAt == null) {
-        widget.controller.startEditing(message);
+        widget.controller.composer.startEditing(message);
         return;
       }
     }
@@ -1292,12 +1299,12 @@ class _ChatViewState extends State<ChatView> {
 
   void _onEscape() {
     final controller = widget.controller;
-    if (controller.editing.value != null) {
-      controller.cancelEditing();
-    } else if (controller.replyingTo.value != null) {
-      controller.cancelReply();
+    if (controller.composer.editing.value != null) {
+      controller.composer.cancelEditing();
+    } else if (controller.composer.replyingTo.value != null) {
+      controller.composer.cancelReply();
     } else {
-      controller.clearAttachments();
+      controller.composer.clearAttachments();
     }
   }
 
@@ -1305,7 +1312,7 @@ class _ChatViewState extends State<ChatView> {
     final data = content.data;
     if (data == null || widget.onSendAttachments == null) return;
     final name = Uri.tryParse(content.uri)?.pathSegments.lastOrNull ?? 'image';
-    widget.controller.addAttachments([
+    widget.controller.composer.addAttachments([
       ChatAttachment(
         id: '${DateTime.now().microsecondsSinceEpoch}',
         name: name,
@@ -1324,13 +1331,13 @@ class _ChatViewState extends State<ChatView> {
     if (onSchedule == null) return;
     final at = await _pickScheduleTime(context);
     if (at == null || !mounted) return;
-    onSchedule(text, at, widget.controller.replyingTo.value);
-    widget.controller.cancelReply();
+    onSchedule(text, at, widget.controller.composer.replyingTo.value);
+    widget.controller.composer.cancelReply();
     _textController.clear();
   }
 
   void _startReply(ChatMessage message) {
-    widget.controller.startReply(message);
+    widget.controller.composer.startReply(message);
   }
 
   void _onSwipe(ChatMessage message) {
@@ -1361,7 +1368,8 @@ class _ChatViewState extends State<ChatView> {
           ChatMessageAction(
             label: l10n.edit,
             icon: Icons.edit_outlined,
-            onSelected: (m) => widget.controller.startEditing(m as TextMessage),
+            onSelected: (m) =>
+                widget.controller.composer.startEditing(m as TextMessage),
           ),
         if (widget.onDeleteMessage != null)
           ChatMessageAction(
@@ -1395,7 +1403,8 @@ class _ChatViewState extends State<ChatView> {
         ChatMessageAction(
           label: l10n.edit,
           icon: Icons.edit_outlined,
-          onSelected: (m) => widget.controller.startEditing(m as TextMessage),
+          onSelected: (m) =>
+              widget.controller.composer.startEditing(m as TextMessage),
         ),
       if (widget.onPinMessage != null)
         widget.controller.isPinned(message.id)
@@ -1575,7 +1584,7 @@ class _ChatViewState extends State<ChatView> {
           !_isOutgoing(latest) &&
           widget.onStopGenerating != null;
       final hasAttachments = widget.onSendAttachments != null &&
-          widget.controller.attachments.value.isNotEmpty;
+          widget.controller.composer.attachments.value.isNotEmpty;
       return widget.inputBuilder?.call(context, _handleSend, _textController) ??
           ChatInput(
             onSend: _handleSend,
@@ -1643,7 +1652,7 @@ class _ChatViewState extends State<ChatView> {
       // Rebuilt when attachments change, to switch the send button and
       // the placeholder.
       input = ValueListenableBuilder<List<ChatAttachment>>(
-        valueListenable: widget.controller.attachments,
+        valueListenable: widget.controller.composer.attachments,
         builder: (context, _, __) => newest == null
             ? buildInput(null)
             : ValueListenableBuilder<ChatMessage>(

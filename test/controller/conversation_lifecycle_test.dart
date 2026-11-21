@@ -20,57 +20,52 @@ void main() {
   group('setMessages', () {
     test('cancels a reply or edit whose message is gone', () {
       controller.insertAll([text('a', 1), text('b', 2, author: me)]);
-      controller.startReply(controller.messageById('a')!);
+      controller.composer.startReply(controller.messageById('a')!);
       controller.setMessages([text('c', 3)]);
-      expect(controller.replyingTo.value, isNull);
+      expect(controller.composer.replyingTo.value, isNull);
 
       controller.setMessages([text('b', 2, author: me)]);
-      controller.startEditing(controller.messageById('b')! as TextMessage);
+      controller.composer
+          .startEditing(controller.messageById('b')! as TextMessage);
       controller.setMessages([text('c', 3)]);
-      expect(controller.editing.value, isNull);
+      expect(controller.composer.editing.value, isNull);
     });
 
     test('keeps a reply whose message survives, with its latest version', () {
       controller.insert(text('a', 1));
-      controller.startReply(controller.messageById('a')!);
+      controller.composer.startReply(controller.messageById('a')!);
       final refreshed = text('a', 1).copyWith(text: 'fixed typo');
       controller.setMessages([refreshed, text('b', 2)]);
-      expect(controller.replyingTo.value, refreshed);
+      expect(controller.composer.replyingTo.value, refreshed);
     });
 
     test('newConversation clears the state of the previous conversation', () {
       controller
         ..insert(text('a', 1))
+        ..setTyping(ana, isTyping: true);
+      controller.composer
         ..startReply(controller.messageById('a')!)
-        ..setTyping(ana, isTyping: true)
-        ..addAttachments(const [
-          ChatAttachment(
-            id: 'f',
-            name: 'f.pdf',
-            uri: 'file://f.pdf',
-            kind: ChatAttachmentKind.file,
-          ),
-        ])
+        ..addAttachments(const [ChatAttachment(id: 'f', name: 'f.pdf')])
         ..setDraft('half written');
 
       controller.setMessages([text('x', 1)], newConversation: true);
 
-      expect(controller.replyingTo.value, isNull);
+      expect(controller.composer.replyingTo.value, isNull);
       expect(controller.typingUsers.value, isEmpty);
-      expect(controller.attachments.value, isEmpty);
-      expect(controller.draft.value, isEmpty);
+      expect(controller.composer.attachments.value, isEmpty);
+      expect(controller.composer.draft.value, isEmpty);
     });
 
-    test('a plain refresh keeps typing users, attachments and draft', () {
+    test('a plain refresh keeps typing users and the draft', () {
       controller
         ..insert(text('a', 1))
         ..setTyping(ana, isTyping: true)
-        ..setDraft('half written');
+        ..composer.setDraft('half written');
 
       controller.setMessages([text('a', 1), text('b', 2)]);
 
       expect(controller.typingUsers.value, [ana]);
-      expect(controller.draft.value, 'half written');
+      expect(controller.composer.draft.value, 'half written');
     });
   });
 
@@ -92,18 +87,23 @@ void main() {
         ..insertAll([text('d', 4)])
         ..setMessages(const [])
         ..setTyping(ana, isTyping: true)
+        ..toggleSaved('a')
+        ..unpin('a')
+        ..toggleSelection('a')
+        ..clearSelection(),
+      returnsNormally,
+    );
+    expect(
+      () => c.composer
         ..setDraft('x')
         ..startReply(a)
         ..cancelReply()
         ..startEditing(a as TextMessage)
         ..cancelEditing()
-        ..toggleSaved('a')
-        ..unpin('a')
-        ..toggleSelection('a')
-        ..clearSelection()
         ..addAttachments(const [ChatAttachment(id: 'f', name: 'f')])
         ..removeAttachment('f')
-        ..clearAttachments(),
+        ..clearAttachments()
+        ..reset(),
       returnsNormally,
     );
   });
