@@ -159,11 +159,14 @@ final communityFeatures = FeatureGroup('Groups and moderation', [
             color: Theme.of(context).colorScheme.surfaceContainerLow,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              child: ChatHeader(
-                user: const ChatUser(id: 'atlas', name: 'Project Atlas'),
-                memberCount: _members.length,
-                controller: c,
-                onTap: () => _showMembers(context),
+              child: SizedBox(
+                width: double.infinity,
+                child: ChatHeader(
+                  user: const ChatUser(id: 'atlas', name: 'Project Atlas'),
+                  memberCount: _members.length,
+                  controller: c,
+                  onTap: () => _showMembers(context),
+                ),
               ),
             ),
           ),

@@ -436,8 +436,18 @@ List<ChatMessage> _seed() {
       author: bot,
       createdAt: next(),
       products: const [
-        ChatProduct(id: 'a', title: 'Card stock', price: r'$12'),
-        ChatProduct(id: 'b', title: 'Sticker pack', price: r'$4'),
+        ChatProduct(
+          id: 'a',
+          title: 'Dunes print',
+          price: r'$12',
+          imageUri: 'asset:dunes',
+        ),
+        ChatProduct(
+          id: 'b',
+          title: 'Forest print',
+          price: r'$14',
+          imageUri: 'asset:forest',
+        ),
       ],
     ),
     PaymentMessage(

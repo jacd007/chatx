@@ -13,7 +13,7 @@ final aiFeatures = FeatureGroup('AI assistants', [
     icon: Icons.stream,
     builder: (_) => DemoChat(
       title: 'Streaming answer',
-      hint: 'Ask anything and watch the answer stream in.',
+      hint: 'Tap a card or ask anything, and watch the answer stream in.',
       view: (context, c) => _AiChat(
         controller: c,
         reply: (chat, prompt) async {
@@ -36,7 +36,8 @@ final aiFeatures = FeatureGroup('AI assistants', [
     icon: Icons.stop_circle_outlined,
     builder: (_) => DemoChat(
       title: 'Stop generating',
-      hint: 'Send a message, then tap the stop button that replaces send.',
+      hint: 'Tap a card, then the stop button that replaces send while '
+          'the answer streams.',
       view: (context, c) => _AiChat(
         controller: c,
         reply: (chat, prompt) async {
@@ -58,8 +59,8 @@ final aiFeatures = FeatureGroup('AI assistants', [
     icon: Icons.psychology_outlined,
     builder: (_) => DemoChat(
       title: 'Reasoning and tools',
-      hint: 'Send a message. Tap the reasoning block to expand it and a '
-          'source chip to open it.',
+      hint: 'Tap a card. Tap the reasoning block to expand it and a source '
+          'chip to open it.',
       view: (context, c) => _AiChat(
         controller: c,
         reply: _answerWithSteps,
@@ -337,8 +338,35 @@ class _AiChatState extends State<_AiChat> {
           unawaited(widget.reply(this, o.text));
         }
       },
-      ai: widget.ai?.call(context, this) ??
-          ChatAiOptions(onStopGenerating: (m) => stop(m.id)),
+      ai: _withPrompts(
+        widget.ai?.call(context, this) ??
+            ChatAiOptions(onStopGenerating: (m) => stop(m.id)),
+      ),
+    );
+  }
+
+  // Empty demos start with prompt cards, so one tap shows the feature.
+  static ChatAiOptions _withPrompts(ChatAiOptions ai) {
+    if (ai.suggestedPrompts.isNotEmpty) return ai;
+    return ChatAiOptions(
+      onRegenerate: ai.onRegenerate,
+      onFeedback: ai.onFeedback,
+      onStopGenerating: ai.onStopGenerating,
+      onTranslate: ai.onTranslate,
+      onReasoningTap: ai.onReasoningTap,
+      onSourceTap: ai.onSourceTap,
+      suggestedPrompts: const [
+        ChatPrompt(
+          title: 'Explain streaming',
+          subtitle: 'in a few lines',
+          icon: Icons.stream,
+        ),
+        ChatPrompt(
+          title: 'How fast is chatx?',
+          subtitle: 'with long conversations',
+          icon: Icons.speed,
+        ),
+      ],
     );
   }
 }

@@ -72,8 +72,8 @@ final appearanceFeatures = FeatureGroup('Appearance', [
             color: Color(0xFFD9480F),
             fontWeight: FontWeight.w700,
           ),
+          // No color: the time follows the text color of each bubble.
           timestampTextStyle: TextStyle(
-            color: Color(0xFF8A6A50),
             fontSize: 11,
             fontFamily: 'monospace',
           ),
