@@ -570,6 +570,9 @@ class ChatView extends StatefulWidget {
   State<ChatView> createState() => _ChatViewState();
 }
 
+/// Controllers whose queued messages were handed out during this frame.
+final Expando<bool> _flushingQueued = Expando('chatx queued flush');
+
 class _ChatViewState extends State<ChatView> {
   static const double _scrollButtonOffset = 240;
 
@@ -676,8 +679,7 @@ class _ChatViewState extends State<ChatView> {
     }
     if (oldWidget.connectionState != ChatConnectionState.online &&
         widget.connectionState == ChatConnectionState.online) {
-      final queued = widget.controller.queuedMessages;
-      if (queued.isNotEmpty) widget.onSendQueued?.call(queued);
+      _flushQueued();
     }
     _builtRevision = -1; // Settings may have changed: rebuild everything.
     _rebuildEntries();
@@ -706,12 +708,28 @@ class _ChatViewState extends State<ChatView> {
     super.dispose();
   }
 
+  // Hands the queued messages to onSendQueued once per reconnection, even
+  // when several views (a chat and its thread) share the controller.
+  void _flushQueued() {
+    final onSendQueued = widget.onSendQueued;
+    final controller = widget.controller;
+    if (onSendQueued == null || _flushingQueued[controller] != null) return;
+    final queued = controller.queuedMessages;
+    if (queued.isEmpty) return;
+    _flushingQueued[controller] = true;
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _flushingQueued[controller] = null,
+    );
+    onSendQueued(queued);
+  }
+
   void _attachController(ChatController controller) {
     controller
       ..addListener(_onMessagesChanged)
       ..editing.addListener(_onEditingChanged)
       ..replyingTo.addListener(_onReplyingChanged)
-      ..selectedIds.addListener(_onSelectionChanged);
+      ..selectedIds.addListener(_onSelectionChanged)
+      ..draft.addListener(_onDraftChanged);
     _scrollRequests = controller.scrollRequests.listen(
       (request) => _scrollToMessage(
         request.messageId,
@@ -725,7 +743,8 @@ class _ChatViewState extends State<ChatView> {
       ..removeListener(_onMessagesChanged)
       ..editing.removeListener(_onEditingChanged)
       ..replyingTo.removeListener(_onReplyingChanged)
-      ..selectedIds.removeListener(_onSelectionChanged);
+      ..selectedIds.removeListener(_onSelectionChanged)
+      ..draft.removeListener(_onDraftChanged);
     _scrollRequests?.cancel();
     _scrollRequests = null;
   }
@@ -756,6 +775,14 @@ class _ChatViewState extends State<ChatView> {
     if (widget.controller.draft.value != text) {
       widget.controller.setDraft(text);
     }
+  }
+
+  // Shows a draft set from outside, for example cleared by
+  // `setMessages(newConversation: true)`.
+  void _onDraftChanged() {
+    if (_editingMessage != null) return;
+    final draft = widget.controller.draft.value;
+    if (_textController.text != draft) _textController.text = draft;
   }
 
   void _onReplyingChanged() {

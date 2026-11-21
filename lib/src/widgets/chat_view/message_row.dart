@@ -398,19 +398,25 @@ class _Bubble extends StatelessWidget {
     );
 
     final replyToId = message.replyToId;
+    Widget replyQuote(ChatMessage? original) => _ReplyQuote(
+          original: original,
+          replyToId: replyToId!,
+          messageId: message.id,
+          textColor: textColor,
+          accentColor:
+              outgoing ? textColor : theme.userNameTextStyle.color ?? textColor,
+          currentUserId: view.currentUser.id,
+          onTap: () => state._scrollToMessage(replyToId),
+        );
+    // Watch the original so the quote follows its edits and deletion.
     final quote = replyToId == null
         ? null
-        : _ReplyQuote(
-            original: view.controller.messageById(replyToId),
-            replyToId: replyToId,
-            messageId: message.id,
-            textColor: textColor,
-            accentColor: outgoing
-                ? textColor
-                : theme.userNameTextStyle.color ?? textColor,
-            currentUserId: view.currentUser.id,
-            onTap: () => state._scrollToMessage(replyToId),
-          );
+        : view.controller.contains(replyToId)
+            ? ValueListenableBuilder<ChatMessage>(
+                valueListenable: view.controller.watch(replyToId),
+                builder: (context, original, _) => replyQuote(original),
+              )
+            : replyQuote(null);
 
     final accent =
         outgoing ? textColor : theme.userNameTextStyle.color ?? textColor;

@@ -344,7 +344,7 @@ the view updates.
 | `appendText(id, delta)` | Appends streamed text. |
 | `completeStream(id)` | Marks a streamed message as finished. |
 | `remove(id)` | Deletes a message. |
-| `setMessages(messages)` | Replaces everything, for example when switching chats. |
+| `setMessages(messages, newConversation: true)` | Replaces everything. With `newConversation`, also clears the reply, edit, typing users, attachments and draft, for example when switching chats. |
 | `editText(id, text)` | Replaces the text and shows the "edited" label. |
 | `toggleReaction(id, emoji, userId)` | Adds or removes a user's reaction. |
 | `setTyping(user, isTyping: true)` | Shows or hides the typing indicator. |

@@ -472,8 +472,10 @@ class ChatController extends ChangeNotifier {
 
   /// Asks `ChatView` to scroll to the message with [id] and, when
   /// [highlight] is `true`, to flash it.
+  ///
+  /// Does nothing after [dispose], so late backend callbacks are safe.
   void scrollToMessage(String id, {bool highlight = true}) {
-    if (!contains(id)) return;
+    if (_scrollRequests.isClosed || !contains(id)) return;
     _scrollRequests.add(ChatScrollRequest(id, highlight: highlight));
   }
 
@@ -577,10 +579,19 @@ class ChatController extends ChangeNotifier {
     return true;
   }
 
-  /// Replaces every message, for example when switching conversations.
+  /// Replaces every message, for example after a full resync or when
+  /// switching conversations.
+  ///
+  /// A reply or edit in progress is cancelled when its message is gone.
+  /// Pass [newConversation] when the messages belong to another
+  /// conversation: the reply, edit, typing users, attachments and draft of
+  /// the previous one are cleared too.
   ///
   /// Throws an [ArgumentError] if two messages share an ID.
-  void setMessages(Iterable<ChatMessage> messages) {
+  void setMessages(
+    Iterable<ChatMessage> messages, {
+    bool newConversation = false,
+  }) {
     final previous = List<ChatMessage>.of(_messages);
     _messages.clear();
     _ids.clear();
@@ -615,6 +626,20 @@ class ChatController extends ChangeNotifier {
       ..._selectedIds.value,
       ..._savedIds.value,
     }.where((id) => !ids.contains(id)).toSet());
+    // A reply or edit can only target a message of this conversation.
+    final replying = _replyingTo.value;
+    if (replying != null) _replyingTo.value = messageById(replying.id);
+    final editing = _editing.value;
+    if (editing != null && messageById(editing.id) is! TextMessage) {
+      _editing.value = null;
+    }
+    if (newConversation) {
+      _replyingTo.value = null;
+      _editing.value = null;
+      _typingUsers.value = const [];
+      _attachments.value = const [];
+      _draft.value = '';
+    }
     notifyListeners();
   }
 
