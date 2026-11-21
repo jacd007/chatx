@@ -47,47 +47,6 @@ void main() {
     expect(find.byKey(const Key('chatx_input_field')), findsNothing);
   });
 
-  testWidgets('deprecated flat parameters still work and follow rebuilds',
-      (tester) async {
-    Future<void> pumpFlat({required bool readOnly}) => pump(
-          tester,
-          ChatView(
-            controller: controller,
-            currentUser: me,
-            onSend: (_) {},
-            // ignore: deprecated_member_use_from_same_package
-            readOnly: readOnly,
-          ),
-        );
-    await pumpFlat(readOnly: true);
-    expect(find.byKey(const Key('chatx_read_only')), findsOneWidget);
-    await pumpFlat(readOnly: false);
-    expect(find.byKey(const Key('chatx_read_only')), findsNothing);
-  });
-
-  testWidgets('mixing a group with its flat parameters asserts',
-      (tester) async {
-    await pump(
-      tester,
-      ChatView(
-        controller: controller,
-        currentUser: me,
-        onSend: (_) {},
-        moderation: const ChatModerationOptions(readOnly: true),
-        // ignore: deprecated_member_use_from_same_package
-        slowMode: const Duration(seconds: 5),
-      ),
-    );
-    expect(
-      tester.takeException(),
-      isA<AssertionError>().having(
-        (e) => e.message,
-        'message',
-        contains('ChatView.moderation is set'),
-      ),
-    );
-  });
-
   testWidgets('content callbacks receive quick replies', (tester) async {
     final replies = <String>[];
     controller.insert(

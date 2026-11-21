@@ -58,7 +58,7 @@ Future<void> pumpGolden(WidgetTester tester, Brightness brightness) async {
         body: ChatView(
           controller: controller,
           currentUser: me,
-          onSendMessage: (_, __) {},
+          onSend: (_) {},
           onRetry: (_) {},
           onLinkTap: (_) {},
         ),

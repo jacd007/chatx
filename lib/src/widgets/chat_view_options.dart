@@ -8,8 +8,7 @@ import 'chat_builders.dart';
 
 /// Builders that replace pieces of the default UI of `ChatView`.
 ///
-/// Pass it as `ChatView.builders`. The flat `ChatView` parameters with the
-/// same names are deprecated and ignored when this is set.
+/// Pass it as `ChatView.builders`.
 @immutable
 class ChatBuilders {
   /// Creates the builders of a `ChatView`.
@@ -70,8 +69,7 @@ class ChatBuilders {
 
 /// Controls for AI assistant answers in `ChatView`.
 ///
-/// Pass it as `ChatView.ai`. The flat `ChatView` parameters with the
-/// same names are deprecated and ignored when this is set.
+/// Pass it as `ChatView.ai`.
 @immutable
 class ChatAiOptions {
   /// Creates the ai of a `ChatView`.
@@ -116,8 +114,7 @@ class ChatAiOptions {
 /// Moderation tools of `ChatView`: read-only channels, slow mode, reports,
 /// blocks and the word filter.
 ///
-/// Pass it as `ChatView.moderation`. The flat `ChatView` parameters with the
-/// same names are deprecated and ignored when this is set.
+/// Pass it as `ChatView.moderation`.
 @immutable
 class ChatModerationOptions {
   /// Creates the moderation of a `ChatView`.
@@ -159,8 +156,7 @@ class ChatModerationOptions {
 
 /// Callbacks of images, files, video and voice notes in `ChatView`.
 ///
-/// Pass it as `ChatView.media`. The flat `ChatView` parameters with the
-/// same names are deprecated and ignored when this is set.
+/// Pass it as `ChatView.media`.
 @immutable
 class ChatMediaOptions {
   /// Creates the media of a `ChatView`.
@@ -218,8 +214,7 @@ class ChatMediaOptions {
 /// buttons, quick replies, locations, events, contacts, checklists, products,
 /// payments and calls.
 ///
-/// Pass it as `ChatView.contentCallbacks`. The flat `ChatView` parameters with
-/// the same names are deprecated and ignored when this is set.
+/// Pass it as `ChatView.contentCallbacks`.
 @immutable
 class ChatContentCallbacks {
   /// Creates the contentCallbacks of a `ChatView`.

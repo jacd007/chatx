@@ -52,8 +52,14 @@ void main() {
           body: ChatView(
             controller: controller,
             currentUser: me,
-            onSendMessage: (text, replyTo) => sent.add((text, replyTo)),
-            onEditMessage: (m, text) => edited.add((m, text)),
+            onSend: (outgoing) => switch (outgoing) {
+              OutgoingText(:final text, :final replyTo) =>
+                sent.add((text, replyTo)),
+              OutgoingEdit(:final message, :final text) =>
+                edited.add((message, text)),
+              _ => fail('Unexpected $outgoing'),
+            },
+            sendFeatures: const {ChatSendFeature.edit},
             onDeleteMessage: (m) => deleted.add(m.id),
             onReactionSelected: (m, emoji) => reacted.add((m.id, emoji)),
             messageMenuStyle: menuStyle,
@@ -221,7 +227,7 @@ void main() {
   });
 
   group('edit', () {
-    testWidgets('editing fills the input and saves through onEditMessage',
+    testWidgets('editing fills the input and saves through onSend',
         (tester) async {
       controller.insert(message('1', author: me, text: 'Helo'));
       await pump(tester);

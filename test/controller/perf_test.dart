@@ -25,7 +25,7 @@ Future<double> insertCost(WidgetTester tester, int size) async {
         body: ChatView(
           controller: controller,
           currentUser: me,
-          onSendMessage: (_, __) {},
+          onSend: (_) {},
         ),
       ),
     ),
@@ -133,8 +133,10 @@ void main() {
               builder: (_, value, __) => ChatView(
                 controller: controller,
                 currentUser: me,
-                onSendMessage: (_, __) {},
-                readOnlyMessage: 'tick $value',
+                onSend: (_) {},
+                moderation: ChatModerationOptions(
+                  readOnlyMessage: 'tick $value',
+                ),
               ),
             ),
           ),

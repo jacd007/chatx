@@ -91,7 +91,7 @@ class _ReasoningBlockState extends State<_ReasoningBlock>
               onTap: () {
                 HapticFeedback.selectionClick();
                 setState(() => _open = !_open);
-                widget.state.widget._ai.onReasoningTap?.call(widget.message);
+                widget.state.widget.ai.onReasoningTap?.call(widget.message);
               },
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 48),
@@ -290,8 +290,8 @@ class _SourceChips extends StatelessWidget {
 
   void _open(ChatSource source) {
     final view = state.widget;
-    if (view._ai.onSourceTap != null) {
-      view._ai.onSourceTap!(source);
+    if (view.ai.onSourceTap != null) {
+      view.ai.onSourceTap!(source);
       return;
     }
     final uri = view.linkPolicy.resolve(source.url);
@@ -473,9 +473,9 @@ class _VideoContent extends StatelessWidget {
       excludeSemantics: true,
       child: GestureDetector(
         key: Key('chatx_video_${message.id}'),
-        onTap: view._media.onVideoTap == null || progress != null
+        onTap: view.media.onVideoTap == null || progress != null
             ? null
-            : () => view._media.onVideoTap!(message),
+            : () => view.media.onVideoTap!(message),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(radius),
           child: SizedBox(
@@ -490,7 +490,7 @@ class _VideoContent extends StatelessWidget {
                     image: ResizeImage.resizeIfNeeded(
                       pixels,
                       null,
-                      view._builders.imageProviderBuilder?.call(thumbnail) ??
+                      view.builders.imageProviderBuilder?.call(thumbnail) ??
                           NetworkImage(thumbnail),
                     ),
                     fit: BoxFit.cover,
@@ -586,7 +586,7 @@ class _VoiceTranscriptState extends State<_VoiceTranscript> {
   bool _loading = false;
 
   Future<void> _transcribe() async {
-    final onTranscribe = widget.state.widget._media.onTranscribe;
+    final onTranscribe = widget.state.widget.media.onTranscribe;
     if (onTranscribe == null || _loading) return;
     setState(() => _loading = true);
     try {
@@ -620,7 +620,7 @@ class _VoiceTranscriptState extends State<_VoiceTranscript> {
         ),
       );
     }
-    if (widget.state.widget._media.onTranscribe == null) {
+    if (widget.state.widget.media.onTranscribe == null) {
       return const SizedBox.shrink();
     }
     final style = Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -682,7 +682,7 @@ class _ChecklistContent extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final done = message.doneCount;
     final total = message.items.length;
-    final onToggle = view._contentCallbacks.onChecklistToggle;
+    final onToggle = view.contentCallbacks.onChecklistToggle;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -799,9 +799,9 @@ class _ProductContent extends StatelessWidget {
     final l10n = ChatLocalizations.of(context);
     final textTheme = Theme.of(context).textTheme;
     final image = product.imageUri;
-    final onTap = view._contentCallbacks.onProductTap == null
+    final onTap = view.contentCallbacks.onProductTap == null
         ? null
-        : () => view._contentCallbacks.onProductTap!(message, product);
+        : () => view.contentCallbacks.onProductTap!(message, product);
     final onAccent =
         accent.computeLuminance() > 0.5 ? Colors.black : Colors.white;
     final pixels = (cardWidth * MediaQuery.devicePixelRatioOf(context)).round();
@@ -832,7 +832,7 @@ class _ProductContent extends StatelessWidget {
                         image: ResizeImage.resizeIfNeeded(
                           pixels,
                           null,
-                          view._builders.imageProviderBuilder?.call(image) ??
+                          view.builders.imageProviderBuilder?.call(image) ??
                               NetworkImage(image),
                         ),
                         fit: BoxFit.cover,
@@ -968,7 +968,7 @@ class _PaymentContent extends StatelessWidget {
           textColor.withValues(alpha: 0.75),
         ),
     };
-    final onAction = view._contentCallbacks.onPaymentAction;
+    final onAction = view.contentCallbacks.onPaymentAction;
     final canAnswer = onAction != null &&
         !outgoing &&
         message.isRequest &&
@@ -1104,7 +1104,7 @@ class _CallContent extends StatelessWidget {
       (false, true) => Icons.call_received_rounded,
       (false, false) => Icons.call_missed_rounded,
     };
-    final onCallBack = view._contentCallbacks.onCallBack;
+    final onCallBack = view.contentCallbacks.onCallBack;
     return Row(
       children: [
         DecoratedBox(
@@ -1265,7 +1265,7 @@ class _AttachmentTray extends StatelessWidget {
                 ChatAttachment(kind: ChatAttachmentKind.image, :final bytes?) =>
                   MemoryImage(bytes),
                 ChatAttachment(kind: ChatAttachmentKind.image, :final uri?) =>
-                  view._builders.imageProviderBuilder?.call(uri) ??
+                  view.builders.imageProviderBuilder?.call(uri) ??
                       NetworkImage(uri),
                 _ => null,
               };
@@ -1361,7 +1361,7 @@ class _PromptSuggestions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final prompts = state.widget._ai.suggestedPrompts;
+    final prompts = state.widget.ai.suggestedPrompts;
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final theme = ChatThemeData.of(context);

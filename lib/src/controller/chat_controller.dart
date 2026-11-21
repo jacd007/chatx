@@ -105,14 +105,6 @@ class ChatController extends ChangeNotifier {
   /// Users that are currently typing, in the order they started.
   ValueListenable<List<ChatUser>> get typingUsers => _typingUsers;
 
-  /// The message the user is replying to, or `null`.
-  @Deprecated('Use composer.replyingTo. Removed in 1.0')
-  ValueListenable<ChatMessage?> get replyingTo => composer.replyingTo;
-
-  /// The message the user is editing, or `null`.
-  @Deprecated('Use composer.editing. Removed in 1.0')
-  ValueListenable<ChatMessage?> get editing => composer.editing;
-
   /// IDs of pinned messages, oldest pin first. `ChatView` shows a banner for
   /// them at the top of the list.
   ValueListenable<List<String>> get pinnedIds => _pinnedIds;
@@ -122,23 +114,6 @@ class ChatController extends ChangeNotifier {
 
   /// IDs of the messages selected in selection mode.
   ValueListenable<Set<String>> get selectedIds => _selectedIds;
-
-  /// Files waiting in the input tray.
-  @Deprecated('Use composer.attachments. Removed in 1.0')
-  ValueListenable<List<ChatAttachment>> get attachments => composer.attachments;
-
-  /// Adds files to the input tray.
-  @Deprecated('Use composer.addAttachments. Removed in 1.0')
-  void addAttachments(Iterable<ChatAttachment> attachments) =>
-      composer.addAttachments(attachments);
-
-  /// Removes the attachment with [id] from the input tray.
-  @Deprecated('Use composer.removeAttachment. Removed in 1.0')
-  void removeAttachment(String id) => composer.removeAttachment(id);
-
-  /// Empties the input tray.
-  @Deprecated('Use composer.clearAttachments. Removed in 1.0')
-  void clearAttachments() => composer.clearAttachments();
 
   /// Messages waiting for the network, oldest first.
   List<ChatMessage> get queuedMessages => [
@@ -151,14 +126,6 @@ class ChatController extends ChangeNotifier {
 
   /// Requests from [scrollToMessage]. `ChatView` listens to this stream.
   Stream<ChatScrollRequest> get scrollRequests => _scrollRequests.stream;
-
-  /// Unsent text of the input.
-  @Deprecated('Use composer.draft. Removed in 1.0')
-  ValueListenable<String> get draft => composer.draft;
-
-  /// Replaces the draft.
-  @Deprecated('Use composer.setDraft. Removed in 1.0')
-  void setDraft(String text) => composer.setDraft(text);
 
   /// Returns the message with [id], or `null` if there is none.
   ChatMessage? messageById(String id) => _byId[id];
@@ -571,22 +538,6 @@ class ChatController extends ChangeNotifier {
         PaymentMessage(:final amount, :final note) => '$amount ${note ?? ''}',
         CallMessage() || CustomMessage() => '',
       };
-
-  /// Starts replying to [message]. Cancels any edit in progress.
-  @Deprecated('Use composer.startReply. Removed in 1.0')
-  void startReply(ChatMessage message) => composer.startReply(message);
-
-  /// Stops replying without sending.
-  @Deprecated('Use composer.cancelReply. Removed in 1.0')
-  void cancelReply() => composer.cancelReply();
-
-  /// Starts editing [message]. Cancels any reply in progress.
-  @Deprecated('Use composer.startEditing. Removed in 1.0')
-  void startEditing(TextMessage message) => composer.startEditing(message);
-
-  /// Stops editing without saving.
-  @Deprecated('Use composer.cancelEditing. Removed in 1.0')
-  void cancelEditing() => composer.cancelEditing();
 
   /// Removes the message with [id]. Returns `false` if it did not exist.
   bool remove(String id) {

@@ -9,7 +9,7 @@ ImageProvider _imageProvider(
   double? displayWidth,
 }) {
   final provider =
-      view._builders.imageProviderBuilder?.call(uri) ?? NetworkImage(uri);
+      view.builders.imageProviderBuilder?.call(uri) ?? NetworkImage(uri);
   if (displayWidth == null || !displayWidth.isFinite) return provider;
   final pixels =
       (displayWidth * MediaQuery.devicePixelRatioOf(context)).round();
@@ -41,7 +41,7 @@ class _ImageGridState extends State<_ImageGrid> {
 
   void _open(int index) {
     final view = widget.state.widget;
-    final onImageTap = view._media.onImageTap;
+    final onImageTap = view.media.onImageTap;
     if (onImageTap != null) {
       onImageTap(message, index);
       return;
@@ -572,7 +572,7 @@ class _VoiceContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final view = state.widget;
     final l10n = ChatLocalizations.of(context);
-    final playback = view._media.voicePlayback ?? const _NoPlayback();
+    final playback = view.media.voicePlayback ?? const _NoPlayback();
     return ValueListenableBuilder<ChatVoicePlayback?>(
       valueListenable: playback,
       builder: (context, value, _) {
@@ -597,8 +597,8 @@ class _VoiceContent extends StatelessWidget {
                 child: InkWell(
                   customBorder: const CircleBorder(),
                   onTap: () => playing
-                      ? view._media.onVoicePause?.call(message)
-                      : view._media.onVoicePlay?.call(message),
+                      ? view.media.onVoicePause?.call(message)
+                      : view.media.onVoicePlay?.call(message),
                   child: SizedBox.square(
                     dimension: 44,
                     child: Icon(
@@ -618,9 +618,9 @@ class _VoiceContent extends StatelessWidget {
                   LayoutBuilder(
                     builder: (context, constraints) => GestureDetector(
                       behavior: HitTestBehavior.opaque,
-                      onTapDown: view._media.onVoiceSeek == null
+                      onTapDown: view.media.onVoiceSeek == null
                           ? null
-                          : (d) => view._media.onVoiceSeek!(
+                          : (d) => view.media.onVoiceSeek!(
                                 message,
                                 message.duration *
                                     (d.localPosition.dx / constraints.maxWidth)
@@ -749,7 +749,7 @@ class _PollContent extends StatelessWidget {
     final showResults = message.isClosed || message.hasVoted(me);
     final total = message.totalVotes;
     final canVote =
-        !message.isClosed && view._contentCallbacks.onPollVote != null;
+        !message.isClosed && view.contentCallbacks.onPollVote != null;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     final textTheme = Theme.of(context).textTheme;
     final hint = message.isClosed
@@ -802,7 +802,7 @@ class _PollContent extends StatelessWidget {
             onTap: canVote
                 ? () {
                     HapticFeedback.selectionClick();
-                    view._contentCallbacks.onPollVote!(message, option.id);
+                    view.contentCallbacks.onPollVote!(message, option.id);
                   }
                 : null,
           ),

@@ -46,7 +46,9 @@ Future<void> pumpChat(
         body: ChatView(
           controller: controller,
           currentUser: me,
-          onSendMessage: (text, _) => onSend?.call(text),
+          onSend: (outgoing) {
+            if (outgoing is OutgoingText) onSend?.call(outgoing.text);
+          },
           onLoadMore: onLoadMore,
           onRetry: onRetry,
           onLinkTap: onLinkTap,
@@ -352,7 +354,7 @@ void main() {
             body: ChatView(
               controller: controller,
               currentUser: me,
-              onSendMessage: (_, __) {},
+              onSend: (_) {},
             ),
           ),
         ),
@@ -376,7 +378,7 @@ void main() {
             body: ChatView(
               controller: controller,
               currentUser: me,
-              onSendMessage: (_, __) {},
+              onSend: (_) {},
               onRetry: (_) {},
             ),
           ),

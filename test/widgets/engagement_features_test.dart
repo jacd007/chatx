@@ -45,10 +45,14 @@ void main() {
           body: ChatView(
             controller: controller,
             currentUser: me,
-            onSendMessage: (text, _) => onSend?.call(text),
-            onSurveySubmit: onSurveySubmit,
-            onMessageButton: onMessageButton,
-            onQuickReply: onQuickReply,
+            onSend: (outgoing) {
+              if (outgoing is OutgoingText) onSend?.call(outgoing.text);
+            },
+            contentCallbacks: ChatContentCallbacks(
+              onSurveySubmit: onSurveySubmit,
+              onMessageButton: onMessageButton,
+              onQuickReply: onQuickReply,
+            ),
             onThreadTap: onThreadTap,
             threadRoot: threadRoot,
             onForwardMessages: onForward,
@@ -205,7 +209,7 @@ void main() {
           body: ChatView(
             controller: thread,
             currentUser: me,
-            onSendMessage: (_, __) {},
+            onSend: (_) {},
             threadRoot: root,
           ),
         ),

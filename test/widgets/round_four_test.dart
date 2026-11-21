@@ -95,7 +95,7 @@ void main() {
 
   ChatView view({
     ValueChanged<String>? onSend,
-    ChatEditCallback? onEdit,
+    void Function(TextMessage message, String text)? onEdit,
     ValueChanged<ChatSource>? onSource,
     ValueChanged<VideoMessage>? onVideo,
     Future<void> Function(VoiceMessage)? onTranscribe,
@@ -104,7 +104,7 @@ void main() {
     void Function(PaymentMessage, ChatPaymentAction)? onPayment,
     ValueChanged<CallMessage>? onCallBack,
     VoidCallback? onAttach,
-    ChatAttachmentsCallback? onAttachments,
+    void Function(List<ChatAttachment> files, String caption)? onAttachments,
     ChatConnectionState connection = ChatConnectionState.online,
     ValueChanged<List<ChatMessage>>? onQueued,
     List<ChatPrompt> prompts = const [],
@@ -113,23 +113,44 @@ void main() {
     return ChatView(
       controller: controller,
       currentUser: me,
-      onSendMessage: (text, _) => onSend?.call(text),
-      onEditMessage: onEdit,
-      onSourceTap: onSource,
-      onVideoTap: onVideo,
-      onTranscribe: onTranscribe,
-      onChecklistToggle: onCheck,
-      onProductTap: onProduct,
-      onPaymentAction: onPayment,
-      onCallBack: onCallBack,
+      onSend: (outgoing) {
+        switch (outgoing) {
+          case OutgoingText(:final text):
+            onSend?.call(text);
+          case OutgoingEdit(:final message, :final text):
+            onEdit?.call(message, text);
+          case OutgoingAttachments(:final attachments, :final caption):
+            onAttachments?.call(attachments, caption);
+          case OutgoingSticker() || OutgoingScheduledNow():
+            break;
+        }
+      },
+      sendFeatures: {
+        if (onEdit != null) ChatSendFeature.edit,
+        if (onAttachments != null) ChatSendFeature.attachments,
+      },
+      ai: ChatAiOptions(
+        onSourceTap: onSource,
+        suggestedPrompts: prompts,
+        onRegenerate: onRegenerate,
+      ),
+      media: ChatMediaOptions(
+        onVideoTap: onVideo,
+        onTranscribe: onTranscribe,
+      ),
+      contentCallbacks: ChatContentCallbacks(
+        onChecklistToggle: onCheck,
+        onProductTap: onProduct,
+        onPaymentAction: onPayment,
+        onCallBack: onCallBack,
+      ),
       onAttach: onAttach,
-      onSendAttachments: onAttachments,
       connectionState: connection,
       onSendQueued: onQueued,
-      suggestedPrompts: prompts,
-      onRegenerate: onRegenerate,
       onReactionSelected: (_, __) {},
-      imageProviderBuilder: (_) => MemoryImage(_pixel),
+      builders: ChatBuilders(
+        imageProviderBuilder: (_) => MemoryImage(_pixel),
+      ),
     );
   }
 
@@ -412,7 +433,7 @@ void main() {
         tester,
         view(
           onAttach: () => attachTaps++,
-          onAttachments: (files, caption, _) =>
+          onAttachments: (files, caption) =>
               sent.add((files.map((f) => f.name).toList(), caption)),
         ),
       );

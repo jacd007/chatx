@@ -94,7 +94,6 @@ void main() {
     WidgetTester tester, {
     Set<ChatSendFeature> features = const {},
     List<ChatStickerPack> stickerPacks = const [],
-    ChatEditCallback? onEditMessage,
   }) =>
       tester.pumpWidget(
         MaterialApp(
@@ -105,12 +104,14 @@ void main() {
               onSend: sent.add,
               sendFeatures: features,
               stickerPacks: stickerPacks,
-              imageProviderBuilder: (_) => MemoryImage(_pixel),
-              // ignore: deprecated_member_use_from_same_package
-              onEditMessage: onEditMessage,
-              suggestedPrompts: const [
-                ChatPrompt(title: 'Plan a trip'),
-              ],
+              builders: ChatBuilders(
+                imageProviderBuilder: (_) => MemoryImage(_pixel),
+              ),
+              ai: ChatAiOptions(
+                suggestedPrompts: const [
+                  ChatPrompt(title: 'Plan a trip'),
+                ],
+              ),
             ),
           ),
         ),
@@ -245,28 +246,5 @@ void main() {
     await tester.tap(find.text('Send now'));
     await tester.pumpAndSettle();
     expect((sent.last as OutgoingScheduledNow).message.id, 'p');
-  });
-
-  testWidgets('an old callback takes precedence over onSend', (tester) async {
-    final edits = <String>[];
-    controller.insert(
-      TextMessage(id: 'm', author: me, createdAt: ago(1), text: 'Helo'),
-    );
-    await pump(tester, onEditMessage: (m, text) => edits.add(text));
-    await openMenu(tester, 'm');
-    await tester.tap(find.text('Edit'));
-    await tester.pumpAndSettle();
-    await type(tester, 'Hello');
-    await tester.tap(find.byKey(const Key('chatx_send_button')));
-    await tester.pumpAndSettle();
-    expect(edits, ['Hello']);
-    expect(sent, isEmpty);
-  });
-
-  test('ChatView needs onSend or onSendMessage', () {
-    expect(
-      () => ChatView(controller: controller, currentUser: me),
-      throwsAssertionError,
-    );
   });
 }

@@ -464,11 +464,6 @@ The rest only appear in the UI when you list them in `sendFeatures`:
 | `stickers` | The `stickerPacks` tabs in the emoji picker | `OutgoingSticker` |
 | `sendScheduledNow` | "Send now" on scheduled messages | `OutgoingScheduledNow` |
 
-`onSendMessage`, `onEditMessage`, `onSendAttachments`, `onSendSticker`,
-`onScheduleMessage` and `onSendScheduledNow` still work and are deprecated
-until 1.0. When one is set it takes precedence over `onSend` for its case,
-so you can migrate one callback at a time.
-
 ### Delivery status and retry
 
 Set `status` on outgoing messages and update it as your backend reports
@@ -1825,10 +1820,6 @@ Besides `builders`, related `ChatView` options come in groups:
 | `moderation` | `ChatModerationOptions` | Read-only mode, slow mode, reports, blocks, the word filter and delete for everyone |
 | `media` | `ChatMediaOptions` | Images, files, video and voice notes |
 | `contentCallbacks` | `ChatContentCallbacks` | Polls, surveys, bot buttons, quick replies, locations, events, contacts, checklists, products, payments and calls |
-
-The same options still exist as flat `ChatView` parameters. They are
-deprecated until 1.0 and ignored for a group once you pass that group, so
-move a whole group at a time.
 
 Other `ChatView` options: `showAvatars`, `showUserNames`,
 `showDateSeparators`, `enableMarkdown`, `enableJumboEmoji`,

@@ -101,7 +101,7 @@ void main() {
     ChatRsvpCallback? onRsvp,
     void Function(ContactMessage, ChatContactAction)? onContact,
     ValueChanged<ChatMessage>? onDeleteForEveryone,
-    ChatScheduleCallback? onSchedule,
+    void Function(String text, DateTime at, ChatMessage? replyTo)? onSchedule,
     ValueChanged<ChatMessage>? onSendNow,
     bool readOnly = false,
     Duration? slowMode,
@@ -112,31 +112,56 @@ void main() {
     List<ChatStickerPack> stickers = const [],
     ValueChanged<ChatSticker>? onSticker,
     ValueChanged<String>? onSend,
-    ChatEditCallback? onEdit,
+    void Function(TextMessage message, String text)? onEdit,
   }) {
     return ChatView(
       controller: controller,
       currentUser: me,
-      onSendMessage: (text, _) => onSend?.call(text),
-      onEditMessage: onEdit,
-      onRegenerate: onRegenerate,
-      onFeedback: onFeedback,
-      onStopGenerating: onStop,
-      onTranslate: onTranslate,
-      onRsvp: onRsvp,
-      onContactAction: onContact,
-      onDeleteForEveryone: onDeleteForEveryone,
-      onScheduleMessage: onSchedule,
-      onSendScheduledNow: onSendNow,
-      readOnly: readOnly,
-      slowMode: slowMode,
-      onReportMessage: onReport,
-      onBlockUser: onBlock,
+      onSend: (outgoing) {
+        switch (outgoing) {
+          case OutgoingText(:final text, :final replyTo, :final scheduledFor?):
+            onSchedule?.call(text, scheduledFor, replyTo);
+          case OutgoingText(:final text):
+            onSend?.call(text);
+          case OutgoingEdit(:final message, :final text):
+            onEdit?.call(message, text);
+          case OutgoingScheduledNow(:final message):
+            onSendNow?.call(message);
+          case OutgoingSticker(:final sticker):
+            onSticker?.call(sticker);
+          case OutgoingAttachments():
+            break;
+        }
+      },
+      sendFeatures: {
+        if (onEdit != null) ChatSendFeature.edit,
+        if (onSchedule != null) ChatSendFeature.schedule,
+        if (onSendNow != null) ChatSendFeature.sendScheduledNow,
+        if (onSticker != null) ChatSendFeature.stickers,
+      },
+      ai: ChatAiOptions(
+        onRegenerate: onRegenerate,
+        onFeedback: onFeedback,
+        onStopGenerating: onStop,
+        onTranslate: onTranslate,
+      ),
+      contentCallbacks: ChatContentCallbacks(
+        onRsvp: onRsvp,
+        onContactAction: onContact,
+      ),
+      moderation: ChatModerationOptions(
+        onDeleteForEveryone: onDeleteForEveryone,
+        readOnly: readOnly,
+        slowMode: slowMode,
+        onReportMessage: onReport,
+        onBlockUser: onBlock,
+        wordFilter: wordFilter,
+      ),
       onSaveMessage: onSave,
-      wordFilter: wordFilter,
       stickerPacks: stickers,
-      onSendSticker: onSticker,
-      imageProviderBuilder: (_) => MemoryImage(_pixel),
+      builders: ChatBuilders(
+        imageProviderBuilder: (_) => MemoryImage(_pixel),
+      ),
     );
   }
 

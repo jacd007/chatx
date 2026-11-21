@@ -262,20 +262,5 @@ void main() {
       controller.remove('a');
       expect(controller.composer.editing.value, isNull);
     });
-
-    test('deprecated forwarders still drive the composer', () {
-      final message = controller.messageById('a')! as TextMessage;
-      // ignore: deprecated_member_use_from_same_package
-      controller.startReply(message);
-      expect(controller.composer.replyingTo.value, message);
-      // ignore: deprecated_member_use_from_same_package
-      controller.setDraft('hi');
-      // ignore: deprecated_member_use_from_same_package
-      expect(controller.draft.value, 'hi');
-      // ignore: deprecated_member_use_from_same_package
-      controller.addAttachments(const [ChatAttachment(id: 'f', name: 'f')]);
-      // ignore: deprecated_member_use_from_same_package
-      expect(controller.attachments.value, hasLength(1));
-    });
   });
 }

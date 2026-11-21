@@ -132,14 +132,6 @@ class ChatSwipeAction {
   final String? label;
 }
 
-/// Called when the user sends a message.
-///
-/// [replyTo] is the message being replied to, or `null`.
-typedef ChatSendCallback = void Function(String text, ChatMessage? replyTo);
-
-/// Called when the user saves an edited message.
-typedef ChatEditCallback = void Function(TextMessage message, String newText);
-
 /// Called when the user picks or taps a reaction.
 typedef ChatReactionCallback = void Function(ChatMessage message, String emoji);
 
@@ -289,13 +281,6 @@ typedef ChatFeedbackCallback = void Function(
   ChatFeedback? feedback,
 );
 
-/// Called when the user schedules a message.
-typedef ChatScheduleCallback = void Function(
-  String text,
-  DateTime at,
-  ChatMessage? replyTo,
-);
-
 /// Hides offensive words by replacing their letters with asterisks.
 ///
 /// chatx ships no word list: provide the words for your audience and
@@ -394,11 +379,3 @@ class ChatPrompt {
   String get message =>
       text ?? [title, if (subtitle != null) subtitle].join(' ');
 }
-
-/// Called when the user sends the attachments waiting in the input, with
-/// the text of the field as a caption (may be empty).
-typedef ChatAttachmentsCallback = void Function(
-  List<ChatAttachment> attachments,
-  String caption,
-  ChatMessage? replyTo,
-);

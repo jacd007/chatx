@@ -154,7 +154,7 @@ class _MessageRowState extends State<_MessageRow> {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Center(
-          child: view._builders.systemMessageBuilder?.call(context, message) ??
+          child: view.builders.systemMessageBuilder?.call(context, message) ??
               Text(
                 message.text,
                 textAlign: TextAlign.center,
@@ -203,8 +203,7 @@ class _MessageRowState extends State<_MessageRow> {
             ),
           ),
         _withHoverActions(
-          view._builders.bubbleBuilder?.call(context, details, bubble) ??
-              bubble,
+          view.builders.bubbleBuilder?.call(context, details, bubble) ?? bubble,
           message,
           outgoing,
         ),
@@ -222,7 +221,7 @@ class _MessageRowState extends State<_MessageRow> {
             SizedBox(
               width: theme.avatarSize,
               child: details.isLastInGroup
-                  ? view._builders.avatarBuilder
+                  ? view.builders.avatarBuilder
                           ?.call(context, message.author) ??
                       ChatAvatar(
                         user: message.author,
@@ -250,8 +249,8 @@ class _MessageRowState extends State<_MessageRow> {
         message is TextMessage &&
         message.author.isBot &&
         !message.isStreaming &&
-        (view._ai.onFeedback != null ||
-            view._ai.onRegenerate != null ||
+        (view.ai.onFeedback != null ||
+            view.ai.onRegenerate != null ||
             message.versions.isNotEmpty);
     final failed = outgoing && message.status == MessageStatus.failed;
     // The root of an open thread does not link to itself.
@@ -662,7 +661,7 @@ class _Bubble extends StatelessWidget {
           );
         case CustomMessage():
           body = withQuote([
-            view._builders.customMessageBuilder
+            view.builders.customMessageBuilder
                     ?.call(context, message, details) ??
                 Text(
                   l10n.unsupportedMessage,
@@ -729,7 +728,7 @@ class _Bubble extends StatelessWidget {
                   image: ResizeImage.resizeIfNeeded(
                     pixels,
                     null,
-                    view._builders.imageProviderBuilder?.call(uri) ??
+                    view.builders.imageProviderBuilder?.call(uri) ??
                         NetworkImage(uri),
                   ),
                   width: 150,
@@ -938,7 +937,7 @@ class _Bubble extends StatelessWidget {
         ),
       );
     }
-    if (view._ai.onTranslate != null) {
+    if (view.ai.onTranslate != null) {
       return ValueListenableBuilder<Map<String, _Translation>>(
         valueListenable: state._translations,
         builder: (context, translations, _) {
@@ -992,7 +991,7 @@ class _Bubble extends StatelessWidget {
     ChatThemeData theme, {
     InlineSpan? trailing,
   }) {
-    final filtered = view._moderation.wordFilter?.apply(text) ?? text;
+    final filtered = view.moderation.wordFilter?.apply(text) ?? text;
     Widget build(String? query) => ChatText(
           filtered,
           style: textStyle,

@@ -26,14 +26,18 @@ Widget app(
         onReactionSelected: (m, emoji) =>
             controller.toggleReaction(m.id, emoji, me.id),
         messageMenuStyle: menuStyle,
-        onSendMessage: (text, replyTo) => controller.insert(
-          TextMessage(
-            id: text,
-            author: me,
-            createdAt: DateTime.now(),
-            text: text,
-          ),
-        ),
+        onSend: (outgoing) {
+          if (outgoing case OutgoingText(:final text)) {
+            controller.insert(
+              TextMessage(
+                id: text,
+                author: me,
+                createdAt: DateTime.now(),
+                text: text,
+              ),
+            );
+          }
+        },
       ),
     ),
   );

@@ -22,7 +22,7 @@ class _Translation {
 
 extension _TranslationLogic on _ChatViewState {
   Future<void> _translate(TextMessage message) async {
-    final onTranslate = widget._ai.onTranslate;
+    final onTranslate = widget.ai.onTranslate;
     if (onTranslate == null) return;
     final current = _translations.value[message.id];
     if (current != null && current.text != null) {
@@ -142,8 +142,8 @@ class _AiActions extends StatelessWidget {
     final color = ChatThemeData.of(context).typingIndicatorColor;
     final accent = ChatThemeData.of(context).outgoingBubbleColor;
     final feedback = message.feedback;
-    final onFeedback = view._ai.onFeedback;
-    final onRegenerate = view._ai.onRegenerate;
+    final onFeedback = view.ai.onFeedback;
+    final onRegenerate = view.ai.onRegenerate;
 
     Widget button({
       required Key key,

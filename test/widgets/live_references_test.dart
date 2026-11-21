@@ -27,7 +27,7 @@ void main() {
       ChatView(
         controller: controller,
         currentUser: me,
-        onSendMessage: (_, __) {},
+        onSend: (_) {},
         connectionState: connection,
         onSendQueued: onQueued,
       );
