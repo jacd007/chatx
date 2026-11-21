@@ -117,7 +117,7 @@ class ChatSwipeAction {
     this.label,
   });
 
-  /// Swipe to reply: starts a reply through `ChatController.startReply`.
+  /// Swipe to reply: starts a reply through `ChatComposerController.startReply`.
   const ChatSwipeAction.reply({this.icon = Icons.reply_rounded, this.label})
       : onTriggered = null;
 

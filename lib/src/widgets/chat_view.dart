@@ -731,7 +731,7 @@ class ChatView extends StatefulWidget {
   final ValueChanged<CallMessage>? onCallBack;
 
   /// When set, the input shows an attach button that calls this. Open your
-  /// file picker and add the files with `ChatController.addAttachments`.
+  /// file picker and add the files with `controller.composer.addAttachments`.
   final VoidCallback? onAttach;
 
   /// Called when the user sends the files waiting in the input. Required to
