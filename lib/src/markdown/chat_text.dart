@@ -134,7 +134,7 @@ class _ChatTextState extends State<ChatText> {
   }
 
   List<MdBlock> _parse() {
-    if (widget.enableMarkdown) return MarkdownParser.parse(widget.text);
+    if (widget.enableMarkdown) return MarkdownParser.parseCached(widget.text);
     return [MdParagraph(_linksOnly(widget.text))];
   }
 

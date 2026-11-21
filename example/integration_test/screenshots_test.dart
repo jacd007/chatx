@@ -112,7 +112,7 @@ void main() {
     await shoot('07_files_links_spoilers');
 
     await tester.timedDrag(
-      find.byType(ListView),
+      find.byType(CustomScrollView).first,
       const Offset(0, 700),
       const Duration(milliseconds: 600),
     );

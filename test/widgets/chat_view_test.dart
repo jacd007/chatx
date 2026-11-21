@@ -285,7 +285,8 @@ void main() {
     ]);
     await pumpChat(tester, controller: controller);
 
-    await tester.drag(find.byType(ListView), const Offset(0, 1500));
+    await tester.drag(
+        find.byType(CustomScrollView).first, const Offset(0, 1500));
     await tester.pumpAndSettle();
     final button = find.byKey(const Key('chatx_scroll_to_bottom'));
     expect(button.hitTestable(), findsOneWidget);
@@ -384,5 +385,53 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('reading history does not jump when new messages arrive',
+      (tester) async {
+    final start = DateTime.now().subtract(const Duration(hours: 1));
+    controller.insertAll([
+      for (var i = 0; i < 40; i++)
+        message('m$i', at: start.add(Duration(seconds: i))),
+    ]);
+    await pumpChat(tester, controller: controller);
+    await tester.drag(
+      find.byType(CustomScrollView).first,
+      const Offset(0, 500),
+    );
+    await tester.pumpAndSettle();
+
+    final visible = find.byKey(const Key('chatx_bubble_m30'));
+    final before = tester.getRect(visible);
+    for (var i = 0; i < 3; i++) {
+      controller
+          .insert(message('new$i', text: 'A longer message\nthat\nwraps'));
+      await tester.pumpAndSettle();
+    }
+    expect(tester.getRect(visible), before);
+  });
+
+  testWidgets('at the bottom, new messages stay in view', (tester) async {
+    final start = DateTime.now().subtract(const Duration(hours: 1));
+    controller.insertAll([
+      for (var i = 0; i < 40; i++)
+        message('m$i', at: start.add(Duration(seconds: i))),
+    ]);
+    await pumpChat(tester, controller: controller);
+    for (var i = 0; i < 5; i++) {
+      controller.insert(message('new$i'));
+      await tester.pumpAndSettle();
+    }
+    expect(find.byKey(const Key('chatx_bubble_new4')).hitTestable(),
+        findsOneWidget);
+    controller.setTyping(ana, isTyping: true);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    // The jump to the new bottom happens after the frame that grew the list.
+    await tester.pump();
+    final list = tester.getRect(find.byType(CustomScrollView).first);
+    final typing = tester.getRect(find.byType(TypingIndicator));
+    expect(typing.bottom, lessThanOrEqualTo(list.bottom + 0.5));
+    expect(typing.top, greaterThanOrEqualTo(list.top));
   });
 }

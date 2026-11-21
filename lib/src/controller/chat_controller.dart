@@ -48,6 +48,14 @@ class ChatController extends ChangeNotifier {
 
   final ValueNotifier<String> _draft;
   final Map<String, Timer> _expiryTimers = {};
+  final Set<String> _ids = {};
+  int _structureRevision = 0;
+
+  /// Changes whenever messages are inserted anywhere but at the end,
+  /// removed or reordered. Appending newer messages keeps it unchanged.
+  ///
+  /// `ChatView` uses it to update long conversations incrementally.
+  int get structureRevision => _structureRevision;
 
   final List<ChatMessage> _messages = [];
   late final UnmodifiableListView<ChatMessage> _messagesView =
@@ -172,7 +180,9 @@ class ChatController extends ChangeNotifier {
         old.createdAt != message.createdAt;
     if (structural) {
       _messages.removeAt(index);
+      _ids.remove(message.id);
       _insertSorted(message);
+      _structureRevision++;
     } else {
       _messages[index] = message;
     }
@@ -406,6 +416,8 @@ class ChatController extends ChangeNotifier {
     final index = _indexOf(id);
     if (index == -1) return false;
     _messages.removeAt(index);
+    _ids.remove(id);
+    _structureRevision++;
     _watchers.remove(id)?.dispose();
     _expiryTimers.remove(id)?.cancel();
     if (_replyingTo.value?.id == id) _replyingTo.value = null;
@@ -421,12 +433,17 @@ class ChatController extends ChangeNotifier {
   void setMessages(Iterable<ChatMessage> messages) {
     final previous = List<ChatMessage>.of(_messages);
     _messages.clear();
+    _ids.clear();
+    _structureRevision++;
     try {
       _addAllSorted(messages);
     } on ArgumentError {
       _messages
         ..clear()
         ..addAll(previous);
+      _ids
+        ..clear()
+        ..addAll(previous.map((m) => m.id));
       rethrow;
     }
     final ids = {for (final m in _messages) m.id};
@@ -531,6 +548,7 @@ class ChatController extends ChangeNotifier {
 
   // Searches from the end: most lookups target recent messages.
   int _indexOf(String id) {
+    if (!_ids.contains(id)) return -1;
     for (var i = _messages.length - 1; i >= 0; i--) {
       if (_messages[i].id == id) return i;
     }
@@ -563,11 +581,13 @@ class ChatController extends ChangeNotifier {
   // Binary search for the upper bound keeps equal timestamps in insertion
   // order. The fast path covers the common "new message at the end" case.
   void _insertSorted(ChatMessage message) {
+    _ids.add(message.id);
     final time = message.createdAt;
     if (_messages.isEmpty || !_messages.last.createdAt.isAfter(time)) {
       _messages.add(message);
       return;
     }
+    _structureRevision++;
     var low = 0;
     var high = _messages.length;
     while (low < high) {

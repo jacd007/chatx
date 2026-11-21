@@ -418,8 +418,22 @@ class _ChatViewState extends State<ChatView> {
   /// Contexts of the message rows currently built, used to jump to them.
   final Map<String, BuildContext> _rowContexts = {};
 
+  // The list is split at an anchor message. Messages up to the anchor live
+  // in the center sliver and grow upward; messages that arrive later live
+  // in a sliver below it and grow downward, so they never push the content
+  // the user is reading.
+  String? _anchorId;
+  final Key _centerKey = UniqueKey();
   List<_Entry> _entries = const [];
   Map<Key, int> _indexByKey = const {};
+  List<_Entry> _newerEntries = const [_TypingEntry()];
+  Map<Key, int> _newerIndexByKey = const {};
+  bool _atBottom = true;
+  // State of the last full rebuild, to take the cheap path when messages
+  // were only appended.
+  int _builtRevision = -1;
+  int _builtAnchorIndex = -1;
+  ChatController? _builtFor;
   final Set<String> _knownIds = {};
   final Set<String> _animatedIds = {};
   String? _newestId;
@@ -469,6 +483,7 @@ class _ChatViewState extends State<ChatView> {
     if (oldWidget.controller != widget.controller) {
       _detachController(oldWidget.controller);
       _attachController(widget.controller);
+      _anchorId = null;
       _resetKnownMessages();
       _hasMore = true;
       _loadFailed = false;
@@ -478,6 +493,7 @@ class _ChatViewState extends State<ChatView> {
           ?.removeListener(_onScroll);
       _scrollController.addListener(_onScroll);
     }
+    _builtRevision = -1; // Settings may have changed: rebuild everything.
     _rebuildEntries();
   }
 
@@ -564,9 +580,15 @@ class _ChatViewState extends State<ChatView> {
     _newestId = messages.isEmpty ? null : messages.last.id;
   }
 
-  bool get _isAwayFromBottom =>
-      _scrollController.hasClients &&
-      _scrollController.offset > _scrollButtonOffset;
+  /// Distance from the newest message, in pixels.
+  double get _distanceFromBottom {
+    if (!_scrollController.hasClients) return 0;
+    final position = _scrollController.position;
+    if (!position.hasContentDimensions) return 0;
+    return position.pixels - position.minScrollExtent;
+  }
+
+  bool get _isAwayFromBottom => _distanceFromBottom > _scrollButtonOffset;
 
   void _onMessagesChanged() {
     final messages = widget.controller.messages;
@@ -591,16 +613,29 @@ class _ChatViewState extends State<ChatView> {
       }
     }
 
-    _resetKnownMessages();
+    _knownIds.addAll(arrived.map((m) => m.id));
+    _newestId = messages.isEmpty ? null : messages.last.id;
     setState(_rebuildEntries);
     _scheduleLoadMoreCheck();
   }
 
   void _onScroll() {
     if (!_scrollController.hasClients) return;
-    final offset = _scrollController.offset;
-    _showScrollButton.value = offset > _scrollButtonOffset;
-    if (offset < 40) _unreadCount.value = 0;
+    final distance = _distanceFromBottom;
+    _showScrollButton.value = distance > _scrollButtonOffset;
+    if (distance < 40) _unreadCount.value = 0;
+    _atBottom = distance <= 4;
+  }
+
+  // Keeps the newest message in view while the user is at the bottom, as
+  // new messages or the typing indicator extend the list downward.
+  bool _onMetricsChanged(ScrollMetricsNotification notification) {
+    if (notification.depth != 0 || !_atBottom) return false;
+    final position = _scrollController.position;
+    if (position.pixels != position.minScrollExtent) {
+      position.jumpTo(position.minScrollExtent);
+    }
+    return false;
   }
 
   bool _isOutgoing(ChatMessage message) =>
@@ -608,7 +643,10 @@ class _ChatViewState extends State<ChatView> {
 
   void _rebuildEntries() {
     final messages = widget.controller.messages;
-    final entries = <_Entry>[const _TypingEntry()];
+    if (_canAppendOnly(messages)) {
+      _rebuildNewer(messages, _builtAnchorIndex);
+      return;
+    }
     _lastOutgoingId = null;
     for (var i = messages.length - 1; i >= 0; i--) {
       if (_isOutgoing(messages[i])) {
@@ -616,36 +654,134 @@ class _ChatViewState extends State<ChatView> {
         break;
       }
     }
-    for (var i = messages.length - 1; i >= 0; i--) {
+
+    var anchorIndex = -1;
+    if (_anchorId != null) {
+      for (var i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].id == _anchorId) {
+          anchorIndex = i;
+          break;
+        }
+      }
+    }
+    if (anchorIndex == -1) {
+      anchorIndex = messages.length - 1;
+      _anchorId = messages.isEmpty ? null : messages.last.id;
+    }
+
+    _MessageEntry entryAt(int i) {
       final message = messages[i];
       final older = i > 0 ? messages[i - 1] : null;
       final newer = i < messages.length - 1 ? messages[i + 1] : null;
-      entries.add(
-        _MessageEntry(
-          message.id,
-          isFirstInGroup: older == null || !_sameGroup(older, message),
-          isLastInGroup: newer == null || !_sameGroup(message, newer),
-        ),
+      return _MessageEntry(
+        message.id,
+        isFirstInGroup: older == null || !_sameGroup(older, message),
+        isLastInGroup: newer == null || !_sameGroup(message, newer),
       );
-      if (message.id == widget.firstUnreadMessageId) {
+    }
+
+    bool startsDay(int i) =>
+        widget.showDateSeparators &&
+        (i == 0 ||
+            !DateUtils.isSameDay(
+              messages[i - 1].createdAt.toLocal(),
+              messages[i].createdAt.toLocal(),
+            ));
+
+    // Center sliver, bottom to top: newest anchored message first.
+    final entries = <_Entry>[];
+    for (var i = anchorIndex; i >= 0; i--) {
+      entries.add(entryAt(i));
+      if (messages[i].id == widget.firstUnreadMessageId) {
         entries.add(const _UnreadEntry());
       }
-      if (widget.showDateSeparators &&
-          (older == null ||
-              !DateUtils.isSameDay(
-                older.createdAt.toLocal(),
-                message.createdAt.toLocal(),
-              ))) {
+      if (startsDay(i)) {
         entries.add(
-          _DateEntry(DateUtils.dateOnly(message.createdAt.toLocal())),
+          _DateEntry(DateUtils.dateOnly(messages[i].createdAt.toLocal())),
         );
       }
     }
     if (widget.threadRoot != null) entries.add(const _ThreadRootEntry());
     if (widget.onLoadMore != null) entries.add(const _LoaderEntry());
+
+    // Sliver below the anchor, top to bottom: oldest new message first.
+    final newer = <_Entry>[];
+    for (var i = anchorIndex + 1; i < messages.length; i++) {
+      if (startsDay(i)) {
+        newer.add(
+          _DateEntry(DateUtils.dateOnly(messages[i].createdAt.toLocal())),
+        );
+      }
+      if (messages[i].id == widget.firstUnreadMessageId) {
+        newer.add(const _UnreadEntry());
+      }
+      newer.add(entryAt(i));
+    }
+    newer.add(const _TypingEntry());
+
     _entries = entries;
     _indexByKey = {
       for (var i = 0; i < entries.length; i++) entries[i].key: i,
+    };
+    _newerEntries = newer;
+    _newerIndexByKey = {
+      for (var i = 0; i < newer.length; i++) newer[i].key: i,
+    };
+    _builtRevision = widget.controller.structureRevision;
+    _builtAnchorIndex = anchorIndex;
+    _builtFor = widget.controller;
+  }
+
+  /// Whether only messages after the anchor changed since the last full
+  /// rebuild, so the history part of the list can be kept as is.
+  bool _canAppendOnly(List<ChatMessage> messages) =>
+      identical(_builtFor, widget.controller) &&
+      _builtRevision == widget.controller.structureRevision &&
+      _builtAnchorIndex >= 0 &&
+      _builtAnchorIndex < messages.length &&
+      messages[_builtAnchorIndex].id == _anchorId;
+
+  /// Rebuilds the entries below the anchor and refreshes the anchor itself,
+  /// whose grouping depends on the message after it. O(new messages).
+  void _rebuildNewer(List<ChatMessage> messages, int anchorIndex) {
+    final last = messages.last;
+    if (_isOutgoing(last)) _lastOutgoingId = last.id;
+
+    _MessageEntry entryAt(int i) {
+      final message = messages[i];
+      final older = i > 0 ? messages[i - 1] : null;
+      final newer = i < messages.length - 1 ? messages[i + 1] : null;
+      return _MessageEntry(
+        message.id,
+        isFirstInGroup: older == null || !_sameGroup(older, message),
+        isLastInGroup: newer == null || !_sameGroup(message, newer),
+      );
+    }
+
+    final entries = List<_Entry>.of(_entries);
+    entries[0] = entryAt(anchorIndex);
+    _entries = entries;
+
+    final newer = <_Entry>[];
+    for (var i = anchorIndex + 1; i < messages.length; i++) {
+      if (widget.showDateSeparators &&
+          !DateUtils.isSameDay(
+            messages[i - 1].createdAt.toLocal(),
+            messages[i].createdAt.toLocal(),
+          )) {
+        newer.add(
+          _DateEntry(DateUtils.dateOnly(messages[i].createdAt.toLocal())),
+        );
+      }
+      if (messages[i].id == widget.firstUnreadMessageId) {
+        newer.add(const _UnreadEntry());
+      }
+      newer.add(entryAt(i));
+    }
+    newer.add(const _TypingEntry());
+    _newerEntries = newer;
+    _newerIndexByKey = {
+      for (var i = 0; i < newer.length; i++) newer[i].key: i,
     };
   }
 
@@ -721,13 +857,14 @@ class _ChatViewState extends State<ChatView> {
   void _scrollToBottom() {
     if (!mounted || !_scrollController.hasClients) return;
     _unreadCount.value = 0;
-    final distance = _scrollController.offset;
+    final distance = _distanceFromBottom;
     if (distance <= 0) return;
+    final bottom = _scrollController.position.minScrollExtent;
     if (MediaQuery.disableAnimationsOf(context) || distance > 4000) {
-      _scrollController.jumpTo(0);
+      _scrollController.jumpTo(bottom);
     } else {
       _scrollController.animateTo(
-        0,
+        bottom,
         duration: const Duration(milliseconds: 350),
         curve: Curves.easeOutCubic,
       );
@@ -742,8 +879,10 @@ class _ChatViewState extends State<ChatView> {
     bool highlight = true,
     double alignment = 0.5,
   }) async {
-    final index = _indexByKey[ValueKey<String>(id)];
-    if (index == null || !_scrollController.hasClients) return;
+    final key = ValueKey<String>(id);
+    final index = _indexByKey[key];
+    final isNewer = _newerIndexByKey.containsKey(key);
+    if ((index == null && !isNewer) || !_scrollController.hasClients) return;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     for (var attempt = 0; attempt < 10 && mounted; attempt++) {
@@ -760,12 +899,17 @@ class _ChatViewState extends State<ChatView> {
         return;
       }
       final position = _scrollController.position;
-      final averageExtent =
-          (position.maxScrollExtent + position.viewportDimension) /
-              math.max(1, _entries.length);
-      final target = (index * averageExtent - position.viewportDimension / 2)
-          .clamp(0.0, position.maxScrollExtent);
-      _scrollController.jumpTo(target);
+      if (isNewer) {
+        // Messages below the anchor are close to the bottom.
+        _scrollController.jumpTo(position.minScrollExtent);
+      } else {
+        final averageExtent =
+            (position.maxScrollExtent + position.viewportDimension) /
+                math.max(1, _entries.length);
+        final target = (index! * averageExtent - position.viewportDimension / 2)
+            .clamp(position.minScrollExtent, position.maxScrollExtent);
+        _scrollController.jumpTo(target);
+      }
       await WidgetsBinding.instance.endOfFrame;
     }
   }
@@ -1060,26 +1204,54 @@ class _ChatViewState extends State<ChatView> {
             available * theme.maxBubbleWidthFactor,
           ),
         );
-        return NotificationListener<ScrollNotification>(
-          onNotification: _onScrollNotification,
-          child: ListView.builder(
-            key: _listKey,
-            controller: _scrollController,
-            reverse: true,
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.symmetric(
-              horizontal: horizontalPadding,
-              vertical: 8,
+        Widget item(BuildContext context, _Entry entry) => KeyedSubtree(
+              key: entry.key,
+              child: _buildEntry(context, entry, theme, maxBubbleWidth),
+            );
+        return NotificationListener<ScrollMetricsNotification>(
+          onNotification: _onMetricsChanged,
+          child: NotificationListener<ScrollNotification>(
+            onNotification: _onScrollNotification,
+            child: CustomScrollView(
+              key: _listKey,
+              controller: _scrollController,
+              reverse: true,
+              center: _centerKey,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              slivers: [
+                // Laid out downward from the anchor: newer messages.
+                SliverPadding(
+                  padding: const EdgeInsets.only(
+                    left: horizontalPadding,
+                    right: horizontalPadding,
+                    bottom: 8,
+                  ),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => item(context, _newerEntries[index]),
+                      childCount: _newerEntries.length,
+                      findChildIndexCallback: (key) => _newerIndexByKey[key],
+                    ),
+                  ),
+                ),
+                // The anchor: history grows upward from here.
+                SliverPadding(
+                  key: _centerKey,
+                  padding: const EdgeInsets.only(
+                    left: horizontalPadding,
+                    right: horizontalPadding,
+                    top: 8,
+                  ),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => item(context, _entries[index]),
+                      childCount: _entries.length,
+                      findChildIndexCallback: (key) => _indexByKey[key],
+                    ),
+                  ),
+                ),
+              ],
             ),
-            itemCount: _entries.length,
-            findChildIndexCallback: (key) => _indexByKey[key],
-            itemBuilder: (context, index) {
-              final entry = _entries[index];
-              return KeyedSubtree(
-                key: entry.key,
-                child: _buildEntry(context, entry, theme, maxBubbleWidth),
-              );
-            },
           ),
         );
       },

@@ -194,6 +194,23 @@ abstract final class MarkdownParser {
   static final RegExp _quote = RegExp(r'^ {0,3}> ?(.*)$');
   static final RegExp _fence = RegExp(r'^ {0,3}(```+|~~~+)[ \t]*([^`\s]*)');
 
+  static final Map<String, List<MdBlock>> _cache = {};
+  static const int _cacheSize = 512;
+
+  /// Like [parse], but reuses the result for recently parsed texts. Message
+  /// rows are rebuilt often while scrolling; their text rarely changes.
+  static List<MdBlock> parseCached(String source) {
+    final cached = _cache.remove(source);
+    if (cached != null) {
+      _cache[source] = cached; // Most recently used goes last.
+      return cached;
+    }
+    final blocks = List<MdBlock>.unmodifiable(parse(source));
+    _cache[source] = blocks;
+    if (_cache.length > _cacheSize) _cache.remove(_cache.keys.first);
+    return blocks;
+  }
+
   /// Parses [source] into blocks.
   static List<MdBlock> parse(String source) {
     final lines = source.replaceAll('\r\n', '\n').split('\n');
