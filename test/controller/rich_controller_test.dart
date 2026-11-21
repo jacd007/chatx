@@ -141,6 +141,45 @@ void main() {
     expect(search.isActive, isFalse);
   });
 
+  test('ChatSearchController follows edits and streamed text', () {
+    final c = ChatController(
+      messages: [
+        TextMessage(id: 'a', author: me, createdAt: t0, text: 'hello'),
+        TextMessage(
+          id: 'b',
+          author: me,
+          createdAt: t0.add(const Duration(minutes: 1)),
+          text: '',
+          isStreaming: true,
+        ),
+      ],
+    );
+    final search = ChatSearchController(chatController: c);
+    var notifications = 0;
+    search.addListener(() => notifications++);
+    addTearDown(() {
+      search.dispose();
+      c.dispose();
+    });
+    var contentChanges = 0;
+    c.contentChanges.addListener(() => contentChanges++);
+
+    search.search('hello');
+    expect(search.results, ['a']);
+    notifications = 0;
+
+    c.editText('a', 'goodbye');
+    expect(search.results, isEmpty);
+    c.appendText('b', 'hel');
+    c.appendText('b', 'lo');
+    expect(search.results, ['b']);
+    c.appendText('b', ' world');
+    expect(search.results, ['b']);
+    // Two changes of the results; the last delta changed nothing.
+    expect(notifications, 2);
+    expect(contentChanges, 4);
+  });
+
   test('file extensions and image ratios', () {
     expect(
       FileMessage(id: 'f', author: me, createdAt: t0, name: 'Report.PDF')

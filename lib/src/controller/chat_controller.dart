@@ -81,8 +81,17 @@ class ChatController extends ChangeNotifier {
       ValueNotifier<Set<String>>(const {});
   final ValueNotifier<Set<String>> _selectedIds =
       ValueNotifier<Set<String>>(const {});
+  final _Signal _contentChanges = _Signal();
   final StreamController<ChatScrollRequest> _scrollRequests =
       StreamController<ChatScrollRequest>.broadcast();
+
+  /// Notifies when the content of a message changes without a structural
+  /// change: new status, edited or streamed text, reactions...
+  ///
+  /// Listeners registered with [addListener] are not called for these
+  /// changes. Listen to both to react to every change, or use [watch] for
+  /// a single message.
+  Listenable get contentChanges => _contentChanges;
 
   /// All messages, oldest first. The list is a read-only live view.
   List<ChatMessage> get messages => _messagesView;
@@ -226,7 +235,11 @@ class ChatController extends ChangeNotifier {
       composer._sync(messageById);
     }
     if (old.expiresAt != message.expiresAt) _scheduleExpiry(message);
-    if (structural) notifyListeners();
+    if (structural) {
+      notifyListeners();
+    } else {
+      _contentChanges.notify();
+    }
     return true;
   }
 
@@ -693,6 +706,7 @@ class ChatController extends ChangeNotifier {
     _selectedIds.dispose();
     _savedIds.dispose();
     _scrollRequests.close();
+    _contentChanges.dispose();
     composer.dispose();
     for (final timer in _expiryTimers.values) {
       timer.cancel();
@@ -860,4 +874,8 @@ class ChatScrollRequest {
 
   /// Whether to flash the message after scrolling.
   final bool highlight;
+}
+
+class _Signal extends ChangeNotifier {
+  void notify() => notifyListeners();
 }
