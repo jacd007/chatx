@@ -820,18 +820,6 @@ enum ChatCallOutcome {
   declined,
 }
 
-/// Role of a user in a group, shown as a badge next to the name.
-enum ChatRole {
-  /// Owner of the group.
-  owner,
-
-  /// Administrator.
-  admin,
-
-  /// Moderator.
-  moderator,
-}
-
 /// Kind of a [ChatAttachment].
 enum ChatAttachmentKind {
   /// A photo.

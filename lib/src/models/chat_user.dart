@@ -1,7 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import 'chat_message.dart' show ChatRole;
-
 /// A participant in a conversation.
 ///
 /// Two users are considered the same author when their [id]s match. The
@@ -87,4 +85,16 @@ class ChatUser {
 
   @override
   String toString() => 'ChatUser(id: $id, name: $name)';
+}
+
+/// Role of a user in a group, shown as a badge next to the name.
+enum ChatRole {
+  /// Owner of the group.
+  owner,
+
+  /// Administrator.
+  admin,
+
+  /// Moderator.
+  moderator,
 }
