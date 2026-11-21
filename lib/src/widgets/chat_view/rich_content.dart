@@ -1046,18 +1046,24 @@ class _CountdownContentState extends State<_CountdownContent> {
                     for (final (value, unit) in units) '$value $unit',
                   ].join(', '),
                   excludeSemantics: true,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (final (i, (value, unit)) in units.indexed) ...[
-                        if (i > 0) const SizedBox(width: 6),
-                        _CountdownUnit(
-                          value: value,
-                          unit: unit,
-                          textColor: widget.textColor,
-                        ),
+                  // Shrinks in narrow bubbles and with large text instead of
+                  // overflowing.
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final (i, (value, unit)) in units.indexed) ...[
+                          if (i > 0) const SizedBox(width: 6),
+                          _CountdownUnit(
+                            value: value,
+                            unit: unit,
+                            textColor: widget.textColor,
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
         ),
