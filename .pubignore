@@ -1,0 +1,22 @@
+# When this file exists, pub ignores the root .gitignore, so every local-only
+# path must be listed here too.
+
+# AI assistant configuration: never published
+CLAUDE.md
+.claude/
+
+# Repository tooling
+.github/
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Build output and caches
+.dart_tool/
+build/
+coverage/
+pubspec.lock
+**/failures/
+example/build/
+example/.dart_tool/

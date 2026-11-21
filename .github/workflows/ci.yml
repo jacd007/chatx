@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  stable:
+    name: Lint and test (stable)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Format
+        run: dart format --output=none --set-exit-if-changed lib test example/lib
+      - name: Analyze package
+        run: flutter analyze --fatal-infos
+      - name: Analyze example
+        working-directory: example
+        run: flutter pub get && flutter analyze --fatal-infos
+      - name: Test with coverage
+        run: flutter test --coverage
+      - name: Upload golden failures
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-failures
+          path: test/**/failures/
+      - name: Upload coverage
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage/lcov.info
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  minimum-sdk:
+    name: Test (minimum Flutter 3.27.0)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.27.0
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      # Pixel output changes between Flutter versions; goldens run on stable.
+      - run: flutter test --exclude-tags golden
+
+  pana:
+    name: Package score (pana)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub global activate pana
+      - name: Run pana
+        run: flutter pub global run pana --no-warning --exit-code-threshold 20 .
+      - name: Publish dry run
+        run: flutter pub publish --dry-run

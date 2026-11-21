@@ -1,0 +1,29 @@
+name: chatx
+description: >-
+  Backend-agnostic, zero-dependency chat UI for Flutter. Markdown, streaming
+  messages, delivery status, typing indicator, pagination and full theming.
+version: 0.1.0
+repository: https://github.com/jacd007/chatx
+issue_tracker: https://github.com/jacd007/chatx/issues
+documentation: https://github.com/jacd007/chatx#readme
+topics:
+  - chat
+  - messaging
+  - ui
+  - widget
+  - markdown
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+  flutter: ">=3.27.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_lints: ^5.0.0
+  flutter_localizations:
+    sdk: flutter
+  flutter_test:
+    sdk: flutter

@@ -1,0 +1,8 @@
+# Only GitHub Actions are updated automatically. Dev dependencies stay pinned
+# to versions that still support the minimum Flutter SDK.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

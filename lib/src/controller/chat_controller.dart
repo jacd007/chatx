@@ -1,0 +1,283 @@
+import 'dart:collection';
+
+import 'package:flutter/foundation.dart';
+
+import '../models/chat_message.dart';
+import '../models/chat_user.dart';
+import '../models/message_status.dart';
+
+/// Holds the messages and typing state of one conversation.
+///
+/// chatx never talks to a backend. Your code feeds the controller from any
+/// source (REST, WebSocket, Firebase, Supabase, a local database...) and the
+/// `ChatView` reacts.
+///
+/// Messages are kept sorted by [ChatMessage.createdAt], oldest first.
+/// Messages with the same timestamp keep their insertion order.
+///
+/// ## Two kinds of notifications
+///
+/// To keep large conversations smooth, the controller separates changes into:
+///
+/// * **Structural changes** (insert, remove, reorder, replace all). These call
+///   the listeners registered with [addListener] and rebuild the list.
+/// * **Content changes** of a single message (new status, edited or streamed
+///   text). These only notify the listenable returned by [watch] for that
+///   message, so only its bubble rebuilds.
+///
+/// Call [dispose] when the conversation is no longer shown.
+class ChatController extends ChangeNotifier {
+  /// Creates a controller, optionally pre-filled with [messages].
+  ///
+  /// Throws an [ArgumentError] if two messages share an ID.
+  ChatController({Iterable<ChatMessage> messages = const []}) {
+    _addAllSorted(messages);
+  }
+
+  final List<ChatMessage> _messages = [];
+  late final UnmodifiableListView<ChatMessage> _messagesView =
+      UnmodifiableListView(_messages);
+  final Map<String, ValueNotifier<ChatMessage>> _watchers = {};
+  final ValueNotifier<List<ChatUser>> _typingUsers =
+      ValueNotifier<List<ChatUser>>(const []);
+
+  /// All messages, oldest first. The list is a read-only live view.
+  List<ChatMessage> get messages => _messagesView;
+
+  /// Whether the conversation has no messages.
+  bool get isEmpty => _messages.isEmpty;
+
+  /// Number of messages in the conversation.
+  int get length => _messages.length;
+
+  /// Users that are currently typing, in the order they started.
+  ValueListenable<List<ChatUser>> get typingUsers => _typingUsers;
+
+  /// Returns the message with [id], or `null` if there is none.
+  ChatMessage? messageById(String id) {
+    final index = _indexOf(id);
+    return index == -1 ? null : _messages[index];
+  }
+
+  /// Whether a message with [id] exists.
+  bool contains(String id) => _indexOf(id) != -1;
+
+  /// Adds [message] at the position given by its [ChatMessage.createdAt].
+  ///
+  /// Throws an [ArgumentError] if a message with the same ID already exists.
+  /// Use [upsert] when the message may already be present, for example when
+  /// your backend echoes back a message you inserted optimistically.
+  void insert(ChatMessage message) {
+    _ensureNew(message.id);
+    _insertSorted(message);
+    notifyListeners();
+  }
+
+  /// Adds several messages at once, for example a page of older history.
+  ///
+  /// Notifies listeners a single time. Throws an [ArgumentError] if any ID is
+  /// already present or repeated.
+  void insertAll(Iterable<ChatMessage> messages) {
+    final list = messages.toList(growable: false);
+    if (list.isEmpty) return;
+    _addAllSorted(list);
+    notifyListeners();
+  }
+
+  /// Inserts [message], or replaces the existing message with the same ID.
+  ///
+  /// Returns `true` when the message was inserted, `false` when it replaced
+  /// an existing one.
+  bool upsert(ChatMessage message) {
+    if (update(message)) return false;
+    _insertSorted(message);
+    notifyListeners();
+    return true;
+  }
+
+  /// Replaces the message that has the same ID as [message].
+  ///
+  /// Returns `false` and does nothing if no such message exists.
+  ///
+  /// When only the content changes (text, status, metadata), only the
+  /// bubble of this message rebuilds. When the author, the type or
+  /// [ChatMessage.createdAt] changes, the list is rebuilt and reordered.
+  bool update(ChatMessage message) {
+    final index = _indexOf(message.id);
+    if (index == -1) return false;
+    final old = _messages[index];
+    if (old == message) return true;
+
+    final structural = old.runtimeType != message.runtimeType ||
+        old.author.id != message.author.id ||
+        old.createdAt != message.createdAt;
+    if (structural) {
+      _messages.removeAt(index);
+      _insertSorted(message);
+    } else {
+      _messages[index] = message;
+    }
+    _watchers[message.id]?.value = message;
+    if (structural) notifyListeners();
+    return true;
+  }
+
+  /// Sets the [MessageStatus] of the message with [id].
+  ///
+  /// Returns `false` if the message does not exist.
+  bool updateStatus(String id, MessageStatus? status) {
+    final message = messageById(id);
+    if (message == null) return false;
+    return update(message.withStatus(status));
+  }
+
+  /// Appends [delta] to the text of the [TextMessage] with [id].
+  ///
+  /// Designed for streamed responses: only that bubble rebuilds. Returns
+  /// `false` if the message does not exist or is not a [TextMessage].
+  bool appendText(String id, String delta) {
+    final message = messageById(id);
+    if (message is! TextMessage) return false;
+    if (delta.isEmpty) return true;
+    return update(message.copyWith(text: message.text + delta));
+  }
+
+  /// Marks the streamed [TextMessage] with [id] as complete.
+  ///
+  /// Optionally sets its [status] and replaces its whole [text], which is
+  /// useful when the server sends a final, normalized version.
+  bool completeStream(String id, {MessageStatus? status, String? text}) {
+    final message = messageById(id);
+    if (message is! TextMessage) return false;
+    return update(
+      message.copyWith(isStreaming: false, status: status, text: text),
+    );
+  }
+
+  /// Removes the message with [id]. Returns `false` if it did not exist.
+  bool remove(String id) {
+    final index = _indexOf(id);
+    if (index == -1) return false;
+    _messages.removeAt(index);
+    _watchers.remove(id)?.dispose();
+    notifyListeners();
+    return true;
+  }
+
+  /// Replaces every message, for example when switching conversations.
+  ///
+  /// Throws an [ArgumentError] if two messages share an ID.
+  void setMessages(Iterable<ChatMessage> messages) {
+    final previous = List<ChatMessage>.of(_messages);
+    _messages.clear();
+    try {
+      _addAllSorted(messages);
+    } on ArgumentError {
+      _messages
+        ..clear()
+        ..addAll(previous);
+      rethrow;
+    }
+    final ids = {for (final m in _messages) m.id};
+    _watchers.removeWhere((id, watcher) {
+      if (ids.contains(id)) return false;
+      watcher.dispose();
+      return true;
+    });
+    for (final message in _messages) {
+      _watchers[message.id]?.value = message;
+    }
+    notifyListeners();
+  }
+
+  /// Removes every message.
+  void clear() => setMessages(const []);
+
+  /// Shows or hides the typing indicator for [user].
+  void setTyping(ChatUser user, {required bool isTyping}) {
+    final current = _typingUsers.value;
+    final index = current.indexWhere((u) => u.id == user.id);
+    if (isTyping && index == -1) {
+      _typingUsers.value = List.unmodifiable([...current, user]);
+    } else if (!isTyping && index != -1) {
+      _typingUsers.value = List.unmodifiable([...current]..removeAt(index));
+    }
+  }
+
+  /// Returns a listenable that always holds the latest version of the
+  /// message with [id].
+  ///
+  /// Use it to build widgets that react to content changes of one message.
+  /// Throws an [ArgumentError] if the message does not exist.
+  ValueListenable<ChatMessage> watch(String id) {
+    final existing = _watchers[id];
+    if (existing != null) return existing;
+    final message = messageById(id);
+    if (message == null) {
+      throw ArgumentError.value(id, 'id', 'No message with this ID');
+    }
+    return _watchers[id] = ValueNotifier<ChatMessage>(message);
+  }
+
+  @override
+  void dispose() {
+    for (final watcher in _watchers.values) {
+      watcher.dispose();
+    }
+    _watchers.clear();
+    _typingUsers.dispose();
+    super.dispose();
+  }
+
+  // Searches from the end: most lookups target recent messages.
+  int _indexOf(String id) {
+    for (var i = _messages.length - 1; i >= 0; i--) {
+      if (_messages[i].id == id) return i;
+    }
+    return -1;
+  }
+
+  void _ensureNew(String id) {
+    if (_indexOf(id) != -1) {
+      throw ArgumentError.value(
+        id,
+        'message.id',
+        'A message with this ID already exists. Use upsert() instead',
+      );
+    }
+  }
+
+  void _addAllSorted(Iterable<ChatMessage> messages) {
+    final ids = <String>{};
+    for (final message in messages) {
+      if (!ids.add(message.id)) {
+        throw ArgumentError.value(message.id, 'messages', 'Duplicate ID');
+      }
+      _ensureNew(message.id);
+    }
+    for (final message in messages) {
+      _insertSorted(message);
+    }
+  }
+
+  // Binary search for the upper bound keeps equal timestamps in insertion
+  // order. The fast path covers the common "new message at the end" case.
+  void _insertSorted(ChatMessage message) {
+    final time = message.createdAt;
+    if (_messages.isEmpty || !_messages.last.createdAt.isAfter(time)) {
+      _messages.add(message);
+      return;
+    }
+    var low = 0;
+    var high = _messages.length;
+    while (low < high) {
+      final mid = (low + high) >> 1;
+      if (_messages[mid].createdAt.isAfter(time)) {
+        high = mid;
+      } else {
+        low = mid + 1;
+      }
+    }
+    _messages.insert(low, message);
+  }
+}
