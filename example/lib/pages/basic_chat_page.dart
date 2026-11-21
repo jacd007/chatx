@@ -5,11 +5,12 @@ import 'package:flutter/material.dart';
 
 import '../fake_backend.dart';
 
-/// The recommended integration pattern:
+/// The recommended integration pattern, plus every conversation feature:
 ///
-/// 1. Insert the message right away with `MessageStatus.sending`.
-/// 2. Send it to the backend.
-/// 3. Update its status when the backend answers.
+/// * Optimistic sending: insert with `MessageStatus.sending`, then update.
+/// * Swipe a bubble to reply. Tap a bubble to open the popup menu.
+/// * Reactions, editing and deleting from the menu.
+/// * "New messages" separator and large emoji-only messages.
 class BasicChatPage extends StatefulWidget {
   const BasicChatPage({super.key});
 
@@ -18,19 +19,48 @@ class BasicChatPage extends StatefulWidget {
 }
 
 class _BasicChatPageState extends State<BasicChatPage> {
+  static final DateTime _start =
+      DateTime.now().subtract(const Duration(minutes: 30));
+
   late final ChatController _controller = ChatController(
     messages: [
       SystemMessage(
         id: 'welcome',
-        createdAt: DateTime.now().subtract(const Duration(minutes: 3)),
+        createdAt: _start,
         text: 'Ana joined the conversation',
       ),
       TextMessage(
-        id: 'hello',
+        id: 'm1',
         author: ana,
-        createdAt: DateTime.now().subtract(const Duration(minutes: 2)),
-        text: 'Hi! Send me anything and I will answer. '
-            'Messages containing **fail** will not be delivered.',
+        createdAt: _start.add(const Duration(minutes: 1)),
+        text: 'Hey! Are we still on for **Friday**? 🍕',
+        reactions: const [
+          ChatReaction(emoji: '🔥', userIds: ['me']),
+        ],
+      ),
+      TextMessage(
+        id: 'm2',
+        author: me,
+        createdAt: _start.add(const Duration(minutes: 3)),
+        text: 'Of course! I booked a table at 8.',
+        replyToId: 'm1',
+        status: MessageStatus.read,
+      ),
+      TextMessage(
+        id: 'm3',
+        author: ana,
+        createdAt: _start.add(const Duration(minutes: 20)),
+        text: '🎉🥳',
+      ),
+      TextMessage(
+        id: 'm4',
+        author: ana,
+        createdAt: _start.add(const Duration(minutes: 21)),
+        text: 'Tip: **swipe** a bubble to reply, **tap** it for the menu. '
+            'Messages containing "fail" are not delivered.',
+        reactions: const [
+          ChatReaction(emoji: '👍', userIds: ['ana', 'me']),
+        ],
       ),
     ],
   );
@@ -44,12 +74,13 @@ class _BasicChatPageState extends State<BasicChatPage> {
     super.dispose();
   }
 
-  void _send(String text) {
+  void _send(String text, ChatMessage? replyTo) {
     final message = TextMessage(
       id: newId(),
       author: me,
       createdAt: DateTime.now(),
       text: text,
+      replyToId: replyTo?.id,
       status: MessageStatus.sending,
     );
     _controller.insert(message);
@@ -75,6 +106,7 @@ class _BasicChatPageState extends State<BasicChatPage> {
     if (_disposed) return;
     _controller
       ..updateStatus(message.id, MessageStatus.read)
+      ..toggleReaction(message.id, '❤️', ana.id)
       ..setTyping(ana, isTyping: true);
     await latency(1200);
     if (_disposed) return;
@@ -85,7 +117,8 @@ class _BasicChatPageState extends State<BasicChatPage> {
           id: newId(),
           author: ana,
           createdAt: DateTime.now(),
-          text: 'You said: _${message.text}_',
+          text: 'Got it 👌',
+          replyToId: message.id,
         ),
       );
   }
@@ -103,13 +136,32 @@ class _BasicChatPageState extends State<BasicChatPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Ana')),
+      appBar: AppBar(
+        title: const Row(
+          children: [
+            ChatAvatar(user: ana, size: 36),
+            SizedBox(width: 12),
+            Text('Ana'),
+          ],
+        ),
+      ),
       body: ChatView(
         controller: _controller,
         currentUser: me,
         onSendMessage: _send,
         onRetry: _retry,
         onLinkTap: (uri) => showLink(context, uri),
+        firstUnreadMessageId: 'm3',
+        // Tap a bubble to open a popup menu anchored to it.
+        messageMenuTrigger: ChatMessageMenuTrigger.tap,
+        messageMenuStyle: ChatMessageMenuStyle.popup,
+        // Swipe to reply is the default; shown here for clarity.
+        swipeAction: const ChatSwipeAction.reply(),
+        onReactionSelected: (message, emoji) =>
+            _controller.toggleReaction(message.id, emoji, me.id),
+        onEditMessage: (message, text) =>
+            _controller.editText(message.id, text),
+        onDeleteMessage: (message) => _controller.remove(message.id),
       ),
     );
   }

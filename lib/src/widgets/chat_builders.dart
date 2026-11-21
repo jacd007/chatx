@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
 
+import '../material.dart';
 import '../models/chat_message.dart';
 import '../models/chat_user.dart';
 
@@ -41,7 +41,7 @@ class ChatMessageDetails {
       Object.hash(message, isOutgoing, isFirstInGroup, isLastInGroup);
 }
 
-/// An entry of the long-press menu of a message.
+/// An entry of the message menu.
 @immutable
 class ChatMessageAction {
   /// Creates a menu action.
@@ -66,8 +66,8 @@ class ChatMessageAction {
 
   /// Action that copies the text of a [TextMessage] to the clipboard.
   ///
-  /// Use it to keep the default "copy" entry when you provide your own
-  /// actions. Pass the label from `ChatLocalizations.of(context).copy`.
+  /// The default menu already includes it. Use it when you build the menu
+  /// from scratch. Pass the label from `ChatLocalizations.of(context).copy`.
   static ChatMessageAction copyText({
     required String label,
     IconData? icon,
@@ -83,6 +83,64 @@ class ChatMessageAction {
     );
   }
 }
+
+/// How the message menu is shown.
+enum ChatMessageMenuStyle {
+  /// A modal bottom sheet, easy to reach with the thumb.
+  bottomSheet,
+
+  /// A popup menu anchored to the bubble.
+  popup,
+}
+
+/// Which gesture opens the message menu.
+enum ChatMessageMenuTrigger {
+  /// Long press on the bubble. A tap calls `ChatView.onMessageTap`.
+  longPress,
+
+  /// Tap on the bubble. `ChatView.onMessageTap` is not called.
+  tap,
+}
+
+/// Action performed when the user swipes a message bubble sideways.
+///
+/// The bubble follows the finger, an icon appears behind it, and the action
+/// runs with haptic feedback when the swipe passes a threshold. Screen reader
+/// users get the same action as a custom accessibility action.
+@immutable
+class ChatSwipeAction {
+  /// Creates a custom swipe action.
+  const ChatSwipeAction({
+    required this.icon,
+    required ValueChanged<ChatMessage> this.onTriggered,
+    this.label,
+  });
+
+  /// Swipe to reply: starts a reply through `ChatController.startReply`.
+  const ChatSwipeAction.reply({this.icon = Icons.reply_rounded, this.label})
+      : onTriggered = null;
+
+  /// Icon shown behind the bubble while swiping.
+  final IconData icon;
+
+  /// Called with the message when the swipe completes. `null` for
+  /// [ChatSwipeAction.reply].
+  final ValueChanged<ChatMessage>? onTriggered;
+
+  /// Accessibility label. Defaults to the localized "Reply".
+  final String? label;
+}
+
+/// Called when the user sends a message.
+///
+/// [replyTo] is the message being replied to, or `null`.
+typedef ChatSendCallback = void Function(String text, ChatMessage? replyTo);
+
+/// Called when the user saves an edited message.
+typedef ChatEditCallback = void Function(TextMessage message, String newText);
+
+/// Called when the user picks or taps a reaction.
+typedef ChatReactionCallback = void Function(ChatMessage message, String emoji);
 
 /// Wraps or replaces the default bubble of a message.
 ///
@@ -114,10 +172,14 @@ typedef ChatAvatarBuilder = Widget Function(
   ChatUser user,
 );
 
-/// Builds the input bar. Call [send] with the text to send.
+/// Builds the input bar.
+///
+/// Call [send] with the text to send. Use [textController] for your text
+/// field so that editing a message can fill it in.
 typedef ChatInputBuilder = Widget Function(
   BuildContext context,
   ValueChanged<String> send,
+  TextEditingController textController,
 );
 
 /// Builds the label between messages of different days. [day] is the local
@@ -140,9 +202,13 @@ typedef ChatScrollToBottomBuilder = Widget Function(
   VoidCallback scrollToBottom,
 );
 
-/// Returns the long-press menu entries for [message]. Return an empty list
-/// to disable the menu for that message.
+/// Returns the menu entries for [message].
+///
+/// [defaults] holds the built-in entries that apply to this message (reply,
+/// copy, edit, delete). Return them, a modified copy, or your own list. An
+/// empty list disables the menu for that message.
 typedef ChatMessageActionsBuilder = List<ChatMessageAction> Function(
   BuildContext context,
   ChatMessage message,
+  List<ChatMessageAction> defaults,
 );

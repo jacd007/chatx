@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'pages/ai_streaming_page.dart';
 import 'pages/basic_chat_page.dart';
+import 'pages/bubble_styles_page.dart';
 import 'pages/custom_look_page.dart';
 import 'pages/pagination_page.dart';
 
@@ -36,7 +37,7 @@ class DemoListPage extends StatelessWidget {
     final demos = <(String, String, IconData, WidgetBuilder)>[
       (
         'Basic chat',
-        'Optimistic sending, status, typing, retry',
+        'Swipe to reply, reactions, popup menu, edit',
         Icons.forum_outlined,
         (_) => const BasicChatPage(),
       ),
@@ -45,6 +46,12 @@ class DemoListPage extends StatelessWidget {
         'Token-by-token answers with markdown',
         Icons.auto_awesome_outlined,
         (_) => const AiStreamingPage(),
+      ),
+      (
+        'Bubble styles',
+        'Tail, radius, shadow and outline',
+        Icons.chat_bubble_outline,
+        (_) => const BubbleStylesPage(),
       ),
       (
         'Custom look',

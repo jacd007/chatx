@@ -7,7 +7,7 @@
 /// ChatView(
 ///   controller: controller,
 ///   currentUser: const ChatUser(id: 'me'),
-///   onSendMessage: (text) => myBackend.send(text),
+///   onSendMessage: (text, replyTo) => myBackend.send(text, replyTo),
 /// )
 /// ```
 ///
@@ -20,8 +20,10 @@ export 'src/l10n/chat_localizations.dart';
 export 'src/markdown/chat_link_policy.dart';
 export 'src/markdown/chat_text.dart';
 export 'src/models/chat_message.dart';
+export 'src/models/chat_reaction.dart';
 export 'src/models/chat_user.dart';
 export 'src/models/message_status.dart';
+export 'src/theme/chat_bubble_border.dart';
 export 'src/theme/chat_theme.dart';
 export 'src/widgets/chat_avatar.dart';
 export 'src/widgets/chat_builders.dart';

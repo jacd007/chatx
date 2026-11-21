@@ -42,13 +42,14 @@ Read more at https://github.com/jacd007/chatx''';
     super.dispose();
   }
 
-  void _send(String text) {
+  void _send(String text, ChatMessage? replyTo) {
     _controller.insert(
       TextMessage(
         id: newId(),
         author: me,
         createdAt: DateTime.now(),
         text: text,
+        replyToId: replyTo?.id,
         status: MessageStatus.sent,
       ),
     );

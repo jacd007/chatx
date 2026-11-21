@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../chat_scope.dart';
 import '../material.dart';
+import 'chat_bubble_border.dart';
 
 /// Visual overrides for chatx widgets.
 ///
@@ -43,13 +44,24 @@ class ChatTheme extends ThemeExtension<ChatTheme> with Diagnosticable {
     this.userNameTextStyle,
     this.dateSeparatorTextStyle,
     this.dateSeparatorColor,
+    this.unreadSeparatorColor,
     this.systemMessageTextStyle,
     this.bubbleRadius,
     this.bubbleGroupedRadius,
     this.bubblePadding,
+    this.bubbleTail,
+    this.bubbleTailWidth,
+    this.bubbleTailHeight,
+    this.bubbleElevation,
+    this.bubbleShadowColor,
+    this.outgoingBubbleBorderSide,
+    this.incomingBubbleBorderSide,
     this.maxBubbleWidth,
     this.maxBubbleWidthFactor,
     this.avatarSize,
+    this.reactionChipColor,
+    this.reactionChipSelectedColor,
+    this.highlightColor,
     this.inputBackgroundColor,
     this.inputFieldColor,
     this.inputTextStyle,
@@ -99,6 +111,9 @@ class ChatTheme extends ThemeExtension<ChatTheme> with Diagnosticable {
   /// Background of the day label pill.
   final Color? dateSeparatorColor;
 
+  /// Color of the "new messages" separator line and label.
+  final Color? unreadSeparatorColor;
+
   /// Style of `SystemMessage` text.
   final TextStyle? systemMessageTextStyle;
 
@@ -108,8 +123,31 @@ class ChatTheme extends ThemeExtension<ChatTheme> with Diagnosticable {
   /// Corner radius on the side where consecutive bubbles of a group touch.
   final double? bubbleGroupedRadius;
 
-  /// Padding inside bubbles.
+  /// Padding inside bubbles, not counting the tail.
   final EdgeInsetsGeometry? bubblePadding;
+
+  /// Where bubbles draw their tail. See [ChatBubbleTail].
+  final ChatBubbleTail? bubbleTail;
+
+  /// Horizontal size of the tail. Every bubble reserves this space so
+  /// bubbles with and without a tail stay aligned.
+  final double? bubbleTailWidth;
+
+  /// Vertical size of the tail.
+  final double? bubbleTailHeight;
+
+  /// Shadow elevation of bubbles.
+  final double? bubbleElevation;
+
+  /// Shadow color of bubbles. Only visible when [bubbleElevation] is above
+  /// zero.
+  final Color? bubbleShadowColor;
+
+  /// Outline of outgoing bubbles.
+  final BorderSide? outgoingBubbleBorderSide;
+
+  /// Outline of incoming bubbles.
+  final BorderSide? incomingBubbleBorderSide;
 
   /// Absolute maximum bubble width, in logical pixels.
   final double? maxBubbleWidth;
@@ -119,6 +157,15 @@ class ChatTheme extends ThemeExtension<ChatTheme> with Diagnosticable {
 
   /// Diameter of avatars.
   final double? avatarSize;
+
+  /// Background of reaction chips.
+  final Color? reactionChipColor;
+
+  /// Background of reaction chips that include the current user.
+  final Color? reactionChipSelectedColor;
+
+  /// Flash shown on a message after jumping to it from a reply.
+  final Color? highlightColor;
 
   /// Background of the input bar.
   final Color? inputBackgroundColor;
@@ -172,13 +219,24 @@ class ChatTheme extends ThemeExtension<ChatTheme> with Diagnosticable {
     TextStyle? userNameTextStyle,
     TextStyle? dateSeparatorTextStyle,
     Color? dateSeparatorColor,
+    Color? unreadSeparatorColor,
     TextStyle? systemMessageTextStyle,
     double? bubbleRadius,
     double? bubbleGroupedRadius,
     EdgeInsetsGeometry? bubblePadding,
+    ChatBubbleTail? bubbleTail,
+    double? bubbleTailWidth,
+    double? bubbleTailHeight,
+    double? bubbleElevation,
+    Color? bubbleShadowColor,
+    BorderSide? outgoingBubbleBorderSide,
+    BorderSide? incomingBubbleBorderSide,
     double? maxBubbleWidth,
     double? maxBubbleWidthFactor,
     double? avatarSize,
+    Color? reactionChipColor,
+    Color? reactionChipSelectedColor,
+    Color? highlightColor,
     Color? inputBackgroundColor,
     Color? inputFieldColor,
     TextStyle? inputTextStyle,
@@ -206,14 +264,28 @@ class ChatTheme extends ThemeExtension<ChatTheme> with Diagnosticable {
       dateSeparatorTextStyle:
           dateSeparatorTextStyle ?? this.dateSeparatorTextStyle,
       dateSeparatorColor: dateSeparatorColor ?? this.dateSeparatorColor,
+      unreadSeparatorColor: unreadSeparatorColor ?? this.unreadSeparatorColor,
       systemMessageTextStyle:
           systemMessageTextStyle ?? this.systemMessageTextStyle,
       bubbleRadius: bubbleRadius ?? this.bubbleRadius,
       bubbleGroupedRadius: bubbleGroupedRadius ?? this.bubbleGroupedRadius,
       bubblePadding: bubblePadding ?? this.bubblePadding,
+      bubbleTail: bubbleTail ?? this.bubbleTail,
+      bubbleTailWidth: bubbleTailWidth ?? this.bubbleTailWidth,
+      bubbleTailHeight: bubbleTailHeight ?? this.bubbleTailHeight,
+      bubbleElevation: bubbleElevation ?? this.bubbleElevation,
+      bubbleShadowColor: bubbleShadowColor ?? this.bubbleShadowColor,
+      outgoingBubbleBorderSide:
+          outgoingBubbleBorderSide ?? this.outgoingBubbleBorderSide,
+      incomingBubbleBorderSide:
+          incomingBubbleBorderSide ?? this.incomingBubbleBorderSide,
       maxBubbleWidth: maxBubbleWidth ?? this.maxBubbleWidth,
       maxBubbleWidthFactor: maxBubbleWidthFactor ?? this.maxBubbleWidthFactor,
       avatarSize: avatarSize ?? this.avatarSize,
+      reactionChipColor: reactionChipColor ?? this.reactionChipColor,
+      reactionChipSelectedColor:
+          reactionChipSelectedColor ?? this.reactionChipSelectedColor,
+      highlightColor: highlightColor ?? this.highlightColor,
       inputBackgroundColor: inputBackgroundColor ?? this.inputBackgroundColor,
       inputFieldColor: inputFieldColor ?? this.inputFieldColor,
       inputTextStyle: inputTextStyle ?? this.inputTextStyle,
@@ -252,14 +324,25 @@ class ChatTheme extends ThemeExtension<ChatTheme> with Diagnosticable {
       dateSeparatorTextStyle:
           _mergeStyle(dateSeparatorTextStyle, other.dateSeparatorTextStyle),
       dateSeparatorColor: other.dateSeparatorColor,
+      unreadSeparatorColor: other.unreadSeparatorColor,
       systemMessageTextStyle:
           _mergeStyle(systemMessageTextStyle, other.systemMessageTextStyle),
       bubbleRadius: other.bubbleRadius,
       bubbleGroupedRadius: other.bubbleGroupedRadius,
       bubblePadding: other.bubblePadding,
+      bubbleTail: other.bubbleTail,
+      bubbleTailWidth: other.bubbleTailWidth,
+      bubbleTailHeight: other.bubbleTailHeight,
+      bubbleElevation: other.bubbleElevation,
+      bubbleShadowColor: other.bubbleShadowColor,
+      outgoingBubbleBorderSide: other.outgoingBubbleBorderSide,
+      incomingBubbleBorderSide: other.incomingBubbleBorderSide,
       maxBubbleWidth: other.maxBubbleWidth,
       maxBubbleWidthFactor: other.maxBubbleWidthFactor,
       avatarSize: other.avatarSize,
+      reactionChipColor: other.reactionChipColor,
+      reactionChipSelectedColor: other.reactionChipSelectedColor,
+      highlightColor: other.highlightColor,
       inputBackgroundColor: other.inputBackgroundColor,
       inputFieldColor: other.inputFieldColor,
       inputTextStyle: _mergeStyle(inputTextStyle, other.inputTextStyle),
@@ -302,6 +385,8 @@ class ChatTheme extends ThemeExtension<ChatTheme> with Diagnosticable {
           dateSeparatorTextStyle, other.dateSeparatorTextStyle, t),
       dateSeparatorColor:
           Color.lerp(dateSeparatorColor, other.dateSeparatorColor, t),
+      unreadSeparatorColor:
+          Color.lerp(unreadSeparatorColor, other.unreadSeparatorColor, t),
       systemMessageTextStyle: TextStyle.lerp(
           systemMessageTextStyle, other.systemMessageTextStyle, t),
       bubbleRadius: lerpDouble(bubbleRadius, other.bubbleRadius, t),
@@ -309,10 +394,37 @@ class ChatTheme extends ThemeExtension<ChatTheme> with Diagnosticable {
           lerpDouble(bubbleGroupedRadius, other.bubbleGroupedRadius, t),
       bubblePadding:
           EdgeInsetsGeometry.lerp(bubblePadding, other.bubblePadding, t),
+      bubbleTail: t < 0.5 ? bubbleTail : other.bubbleTail,
+      bubbleTailWidth: lerpDouble(bubbleTailWidth, other.bubbleTailWidth, t),
+      bubbleTailHeight: lerpDouble(bubbleTailHeight, other.bubbleTailHeight, t),
+      bubbleElevation: lerpDouble(bubbleElevation, other.bubbleElevation, t),
+      bubbleShadowColor:
+          Color.lerp(bubbleShadowColor, other.bubbleShadowColor, t),
+      outgoingBubbleBorderSide: outgoingBubbleBorderSide == null &&
+              other.outgoingBubbleBorderSide == null
+          ? null
+          : BorderSide.lerp(
+              outgoingBubbleBorderSide ?? BorderSide.none,
+              other.outgoingBubbleBorderSide ?? BorderSide.none,
+              t,
+            ),
+      incomingBubbleBorderSide: incomingBubbleBorderSide == null &&
+              other.incomingBubbleBorderSide == null
+          ? null
+          : BorderSide.lerp(
+              incomingBubbleBorderSide ?? BorderSide.none,
+              other.incomingBubbleBorderSide ?? BorderSide.none,
+              t,
+            ),
       maxBubbleWidth: lerpDouble(maxBubbleWidth, other.maxBubbleWidth, t),
       maxBubbleWidthFactor:
           lerpDouble(maxBubbleWidthFactor, other.maxBubbleWidthFactor, t),
       avatarSize: lerpDouble(avatarSize, other.avatarSize, t),
+      reactionChipColor:
+          Color.lerp(reactionChipColor, other.reactionChipColor, t),
+      reactionChipSelectedColor: Color.lerp(
+          reactionChipSelectedColor, other.reactionChipSelectedColor, t),
+      highlightColor: Color.lerp(highlightColor, other.highlightColor, t),
       inputBackgroundColor:
           Color.lerp(inputBackgroundColor, other.inputBackgroundColor, t),
       inputFieldColor: Color.lerp(inputFieldColor, other.inputFieldColor, t),
@@ -347,13 +459,24 @@ class ChatTheme extends ThemeExtension<ChatTheme> with Diagnosticable {
         userNameTextStyle,
         dateSeparatorTextStyle,
         dateSeparatorColor,
+        unreadSeparatorColor,
         systemMessageTextStyle,
         bubbleRadius,
         bubbleGroupedRadius,
         bubblePadding,
+        bubbleTail,
+        bubbleTailWidth,
+        bubbleTailHeight,
+        bubbleElevation,
+        bubbleShadowColor,
+        outgoingBubbleBorderSide,
+        incomingBubbleBorderSide,
         maxBubbleWidth,
         maxBubbleWidthFactor,
         avatarSize,
+        reactionChipColor,
+        reactionChipSelectedColor,
+        highlightColor,
         inputBackgroundColor,
         inputFieldColor,
         inputTextStyle,
@@ -383,6 +506,7 @@ class ChatTheme extends ThemeExtension<ChatTheme> with Diagnosticable {
     properties
       ..add(ColorProperty('outgoingBubbleColor', outgoingBubbleColor))
       ..add(ColorProperty('incomingBubbleColor', incomingBubbleColor))
+      ..add(EnumProperty<ChatBubbleTail>('bubbleTail', bubbleTail))
       ..add(DoubleProperty('bubbleRadius', bubbleRadius));
   }
 }
@@ -417,13 +541,24 @@ class ChatThemeData {
     required this.userNameTextStyle,
     required this.dateSeparatorTextStyle,
     required this.dateSeparatorColor,
+    required this.unreadSeparatorColor,
     required this.systemMessageTextStyle,
     required this.bubbleRadius,
     required this.bubbleGroupedRadius,
     required this.bubblePadding,
+    required this.bubbleTail,
+    required this.bubbleTailWidth,
+    required this.bubbleTailHeight,
+    required this.bubbleElevation,
+    required this.bubbleShadowColor,
+    required this.outgoingBubbleBorderSide,
+    required this.incomingBubbleBorderSide,
     required this.maxBubbleWidth,
     required this.maxBubbleWidthFactor,
     required this.avatarSize,
+    required this.reactionChipColor,
+    required this.reactionChipSelectedColor,
+    required this.highlightColor,
     required this.inputBackgroundColor,
     required this.inputFieldColor,
     required this.inputTextStyle,
@@ -460,9 +595,9 @@ class ChatThemeData {
         fontFamilyFallback: const ['Menlo', 'Consolas', 'Roboto Mono'],
         fontSize: (body.fontSize ?? 16) * 0.88,
       ),
-      // No color: the footer derives it from the bubble text color so it
-      // stays readable on both bubble colors.
-      timestampTextStyle: TextStyle(
+      timestampTextStyle: // No color: the footer derives it from the bubble text color so it
+          // stays readable on both bubble colors.
+          TextStyle(
         fontSize: text.labelSmall?.fontSize ?? 11,
         fontWeight: text.labelSmall?.fontWeight,
         letterSpacing: 0.2,
@@ -475,14 +610,25 @@ class ChatThemeData {
         fontWeight: FontWeight.w600,
       ),
       dateSeparatorColor: scheme.surfaceContainerHighest,
+      unreadSeparatorColor: scheme.primary,
       systemMessageTextStyle: (text.bodySmall ?? const TextStyle(fontSize: 12))
           .copyWith(color: scheme.onSurfaceVariant),
       bubbleRadius: 20,
       bubbleGroupedRadius: 6,
       bubblePadding: const EdgeInsets.fromLTRB(14, 9, 14, 7),
+      bubbleTail: ChatBubbleTail.bottom,
+      bubbleTailWidth: 7,
+      bubbleTailHeight: 14,
+      bubbleElevation: 0,
+      bubbleShadowColor: scheme.shadow,
+      outgoingBubbleBorderSide: BorderSide.none,
+      incomingBubbleBorderSide: BorderSide.none,
       maxBubbleWidth: 560,
       maxBubbleWidthFactor: 0.78,
       avatarSize: 32,
+      reactionChipColor: scheme.surfaceContainerHighest,
+      reactionChipSelectedColor: scheme.primaryContainer,
+      highlightColor: scheme.primary.withValues(alpha: 0.18),
       inputBackgroundColor: scheme.surface,
       inputFieldColor: scheme.surfaceContainerHigh,
       inputTextStyle: body.copyWith(color: scheme.onSurface),
@@ -544,6 +690,9 @@ class ChatThemeData {
   /// See [ChatTheme.dateSeparatorColor].
   final Color dateSeparatorColor;
 
+  /// See [ChatTheme.unreadSeparatorColor].
+  final Color unreadSeparatorColor;
+
   /// See [ChatTheme.systemMessageTextStyle].
   final TextStyle systemMessageTextStyle;
 
@@ -556,6 +705,27 @@ class ChatThemeData {
   /// See [ChatTheme.bubblePadding].
   final EdgeInsetsGeometry bubblePadding;
 
+  /// See [ChatTheme.bubbleTail].
+  final ChatBubbleTail bubbleTail;
+
+  /// See [ChatTheme.bubbleTailWidth].
+  final double bubbleTailWidth;
+
+  /// See [ChatTheme.bubbleTailHeight].
+  final double bubbleTailHeight;
+
+  /// See [ChatTheme.bubbleElevation].
+  final double bubbleElevation;
+
+  /// See [ChatTheme.bubbleShadowColor].
+  final Color bubbleShadowColor;
+
+  /// See [ChatTheme.outgoingBubbleBorderSide].
+  final BorderSide outgoingBubbleBorderSide;
+
+  /// See [ChatTheme.incomingBubbleBorderSide].
+  final BorderSide incomingBubbleBorderSide;
+
   /// See [ChatTheme.maxBubbleWidth].
   final double maxBubbleWidth;
 
@@ -564,6 +734,15 @@ class ChatThemeData {
 
   /// See [ChatTheme.avatarSize].
   final double avatarSize;
+
+  /// See [ChatTheme.reactionChipColor].
+  final Color reactionChipColor;
+
+  /// See [ChatTheme.reactionChipSelectedColor].
+  final Color reactionChipSelectedColor;
+
+  /// See [ChatTheme.highlightColor].
+  final Color highlightColor;
 
   /// See [ChatTheme.inputBackgroundColor].
   final Color inputBackgroundColor;
@@ -612,6 +791,10 @@ class ChatThemeData {
   Color bubbleColor({required bool isOutgoing}) =>
       isOutgoing ? outgoingBubbleColor : incomingBubbleColor;
 
+  /// Outline of a bubble, depending on its direction.
+  BorderSide bubbleBorderSide({required bool isOutgoing}) =>
+      isOutgoing ? outgoingBubbleBorderSide : incomingBubbleBorderSide;
+
   /// Returns a copy where the non-null values of [overrides] win.
   /// Text styles are merged.
   ChatThemeData merge(ChatTheme? overrides) {
@@ -630,14 +813,28 @@ class ChatThemeData {
       dateSeparatorTextStyle:
           dateSeparatorTextStyle.merge(o.dateSeparatorTextStyle),
       dateSeparatorColor: o.dateSeparatorColor ?? dateSeparatorColor,
+      unreadSeparatorColor: o.unreadSeparatorColor ?? unreadSeparatorColor,
       systemMessageTextStyle:
           systemMessageTextStyle.merge(o.systemMessageTextStyle),
       bubbleRadius: o.bubbleRadius ?? bubbleRadius,
       bubbleGroupedRadius: o.bubbleGroupedRadius ?? bubbleGroupedRadius,
       bubblePadding: o.bubblePadding ?? bubblePadding,
+      bubbleTail: o.bubbleTail ?? bubbleTail,
+      bubbleTailWidth: o.bubbleTailWidth ?? bubbleTailWidth,
+      bubbleTailHeight: o.bubbleTailHeight ?? bubbleTailHeight,
+      bubbleElevation: o.bubbleElevation ?? bubbleElevation,
+      bubbleShadowColor: o.bubbleShadowColor ?? bubbleShadowColor,
+      outgoingBubbleBorderSide:
+          o.outgoingBubbleBorderSide ?? outgoingBubbleBorderSide,
+      incomingBubbleBorderSide:
+          o.incomingBubbleBorderSide ?? incomingBubbleBorderSide,
       maxBubbleWidth: o.maxBubbleWidth ?? maxBubbleWidth,
       maxBubbleWidthFactor: o.maxBubbleWidthFactor ?? maxBubbleWidthFactor,
       avatarSize: o.avatarSize ?? avatarSize,
+      reactionChipColor: o.reactionChipColor ?? reactionChipColor,
+      reactionChipSelectedColor:
+          o.reactionChipSelectedColor ?? reactionChipSelectedColor,
+      highlightColor: o.highlightColor ?? highlightColor,
       inputBackgroundColor: o.inputBackgroundColor ?? inputBackgroundColor,
       inputFieldColor: o.inputFieldColor ?? inputFieldColor,
       inputTextStyle: inputTextStyle.merge(o.inputTextStyle),
@@ -666,13 +863,24 @@ class ChatThemeData {
         userNameTextStyle,
         dateSeparatorTextStyle,
         dateSeparatorColor,
+        unreadSeparatorColor,
         systemMessageTextStyle,
         bubbleRadius,
         bubbleGroupedRadius,
         bubblePadding,
+        bubbleTail,
+        bubbleTailWidth,
+        bubbleTailHeight,
+        bubbleElevation,
+        bubbleShadowColor,
+        outgoingBubbleBorderSide,
+        incomingBubbleBorderSide,
         maxBubbleWidth,
         maxBubbleWidthFactor,
         avatarSize,
+        reactionChipColor,
+        reactionChipSelectedColor,
+        highlightColor,
         inputBackgroundColor,
         inputFieldColor,
         inputTextStyle,

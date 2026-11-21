@@ -42,6 +42,7 @@ class ChatInput extends StatefulWidget {
     this.maxLength,
     this.sendOnEnter,
     this.textCapitalization = TextCapitalization.sentences,
+    this.sendIcon = Icons.arrow_upward_rounded,
   });
 
   /// Called with the trimmed text when the user sends a non-empty message.
@@ -88,6 +89,10 @@ class ChatInput extends StatefulWidget {
 
   /// Capitalization of the on-screen keyboard.
   final TextCapitalization textCapitalization;
+
+  /// Icon of the send button. `ChatView` switches it to a check mark while
+  /// editing a message.
+  final IconData sendIcon;
 
   @override
   State<ChatInput> createState() => _ChatInputState();
@@ -259,6 +264,7 @@ class _ChatInputState extends State<ChatInput> {
                 color: theme.sendButtonColor,
                 iconColor: theme.sendButtonIconColor,
                 label: l10n.sendButton,
+                icon: widget.sendIcon,
                 onPressed: _send,
               ),
             ),
@@ -275,9 +281,11 @@ class _SendButton extends StatelessWidget {
     required this.color,
     required this.iconColor,
     required this.label,
+    required this.icon,
     required this.onPressed,
   });
 
+  final IconData icon;
   final bool enabled;
   final Color color;
   final Color iconColor;
@@ -310,7 +318,10 @@ class _SendButton extends StatelessWidget {
               onTap: enabled ? onPressed : null,
               child: SizedBox.square(
                 dimension: 48,
-                child: Icon(Icons.arrow_upward_rounded, color: iconColor),
+                child: AnimatedSwitcher(
+                  duration: duration,
+                  child: Icon(icon, key: ValueKey(icon), color: iconColor),
+                ),
               ),
             ),
           ),

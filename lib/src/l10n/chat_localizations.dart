@@ -8,6 +8,16 @@ typedef ChatTypingLabel = String Function(List<String> names);
 /// Formats a label that depends on a count.
 typedef ChatCountLabel = String Function(int count);
 
+/// Formats a label that includes a user's display name.
+typedef ChatNameLabel = String Function(String name);
+
+/// Formats the accessibility label of a reaction chip.
+typedef ChatReactionLabel = String Function(
+  String emoji,
+  int count, {
+  required bool includesYou,
+});
+
 /// User-facing strings of chatx.
 ///
 /// English ([en]) and Spanish ([es]) ship with the package. chatx picks one
@@ -51,6 +61,16 @@ class ChatLocalizations {
     required this.statusDelivered,
     required this.statusRead,
     required this.statusFailed,
+    required this.reply,
+    required this.edit,
+    required this.delete,
+    required this.cancel,
+    required this.replyingTo,
+    required this.editingMessage,
+    required this.unreadSeparator,
+    required this.quoteUnavailable,
+    required this.addReaction,
+    required this.reactionLabel,
   });
 
   /// Placeholder of the message input.
@@ -116,6 +136,36 @@ class ChatLocalizations {
   /// Accessibility label for `MessageStatus.failed`.
   final String statusFailed;
 
+  /// Label of the "reply" action.
+  final String reply;
+
+  /// Label of the "edit" action.
+  final String edit;
+
+  /// Label of the "delete" action.
+  final String delete;
+
+  /// Accessibility label of buttons that cancel a reply or an edit.
+  final String cancel;
+
+  /// Title of the reply banner above the input.
+  final ChatNameLabel replyingTo;
+
+  /// Title of the edit banner above the input.
+  final String editingMessage;
+
+  /// Label of the separator above the first unread message.
+  final String unreadSeparator;
+
+  /// Shown in a reply quote when the original message is not loaded or was deleted.
+  final String quoteUnavailable;
+
+  /// Accessibility label of the quick reaction row.
+  final String addReaction;
+
+  /// Accessibility label of a reaction chip.
+  final ChatReactionLabel reactionLabel;
+
   /// English strings.
   static const ChatLocalizations en = ChatLocalizations(
     inputHint: 'Message',
@@ -139,6 +189,16 @@ class ChatLocalizations {
     statusDelivered: 'Delivered',
     statusRead: 'Read',
     statusFailed: 'Failed to send',
+    reply: 'Reply',
+    edit: 'Edit',
+    delete: 'Delete',
+    cancel: 'Cancel',
+    replyingTo: _replyingToEn,
+    editingMessage: 'Editing message',
+    unreadSeparator: 'New messages',
+    quoteUnavailable: 'Original message not available',
+    addReaction: 'Add reaction',
+    reactionLabel: _reactionEn,
   );
 
   /// Spanish strings.
@@ -164,6 +224,16 @@ class ChatLocalizations {
     statusDelivered: 'Entregado',
     statusRead: 'Leído',
     statusFailed: 'Error al enviar',
+    reply: 'Responder',
+    edit: 'Editar',
+    delete: 'Eliminar',
+    cancel: 'Cancelar',
+    replyingTo: _replyingToEs,
+    editingMessage: 'Editando mensaje',
+    unreadSeparator: 'Mensajes nuevos',
+    quoteUnavailable: 'Mensaje original no disponible',
+    addReaction: 'Agregar reacción',
+    reactionLabel: _reactionEs,
   );
 
   /// Built-in strings by language code.
@@ -198,6 +268,24 @@ class ChatLocalizations {
         _ => '${names[0]} y ${names.length - 1} más están escribiendo…',
       };
 
+  static String _replyingToEn(String name) => 'Replying to $name';
+
+  static String _replyingToEs(String name) => 'Respondiendo a $name';
+
+  static String _reactionEn(
+    String emoji,
+    int count, {
+    required bool includesYou,
+  }) =>
+      includesYou ? '$emoji $count, including you' : '$emoji $count';
+
+  static String _reactionEs(
+    String emoji,
+    int count, {
+    required bool includesYou,
+  }) =>
+      includesYou ? '$emoji $count, incluido tú' : '$emoji $count';
+
   static String _unreadEn(int count) =>
       count == 1 ? '1 new message' : '$count new messages';
 
@@ -227,6 +315,16 @@ class ChatLocalizations {
     String? statusDelivered,
     String? statusRead,
     String? statusFailed,
+    String? reply,
+    String? edit,
+    String? delete,
+    String? cancel,
+    ChatNameLabel? replyingTo,
+    String? editingMessage,
+    String? unreadSeparator,
+    String? quoteUnavailable,
+    String? addReaction,
+    ChatReactionLabel? reactionLabel,
   }) {
     return ChatLocalizations(
       inputHint: inputHint ?? this.inputHint,
@@ -250,6 +348,16 @@ class ChatLocalizations {
       statusDelivered: statusDelivered ?? this.statusDelivered,
       statusRead: statusRead ?? this.statusRead,
       statusFailed: statusFailed ?? this.statusFailed,
+      reply: reply ?? this.reply,
+      edit: edit ?? this.edit,
+      delete: delete ?? this.delete,
+      cancel: cancel ?? this.cancel,
+      replyingTo: replyingTo ?? this.replyingTo,
+      editingMessage: editingMessage ?? this.editingMessage,
+      unreadSeparator: unreadSeparator ?? this.unreadSeparator,
+      quoteUnavailable: quoteUnavailable ?? this.quoteUnavailable,
+      addReaction: addReaction ?? this.addReaction,
+      reactionLabel: reactionLabel ?? this.reactionLabel,
     );
   }
 }

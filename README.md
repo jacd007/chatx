@@ -12,7 +12,11 @@ You bring the messages (from Firebase, Supabase, WebSockets, REST, a local
 database or an LLM). chatx renders a polished, accessible conversation that
 follows your app's theme.
 
-**[Try the web demo →](https://jacd007.github.io/chatx/)**
+| Conversation | Popup menu | Swipe to reply |
+| :---: | :---: | :---: |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/01_conversation.png" width="240" alt="Conversation with replies, reactions and a new messages separator"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/02_popup_menu.png" width="240" alt="Popup menu with quick reactions"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/03_reply.png" width="240" alt="Reply banner after swiping a message"> |
+| **AI answers** | **Bubble styles** | **Dark mode** |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/04_ai_markdown.png" width="240" alt="Assistant answer with markdown"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/05_bubble_styles.png" width="240" alt="Bubbles with a top nip and shadow"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/06_dark_custom_look.png" width="240" alt="Dark theme with custom colors"> |
 
 ## Features
 
@@ -23,9 +27,15 @@ follows your app's theme.
   headings and links.
 - **Streaming.** Show LLM answers token by token. Only the streaming bubble
   rebuilds.
+- **Replies.** Swipe a bubble to reply. Quotes jump to the original message.
+- **Reactions, editing and deleting** from a menu that opens as a bottom
+  sheet or as a popup, on long press or on tap.
 - **Delivery status.** Sending, sent, delivered, read and failed, with retry.
+- **Bubbles with character.** Tail at the bottom (iMessage style), nip at the
+  top (WhatsApp style) or none, plus radius, shadow and outline.
 - **Conversation UX.** Typing indicator, day separators, author grouping,
-  avatars, infinite history and a scroll-to-bottom button with unread count.
+  avatars, "new messages" separator, large emoji-only messages, infinite
+  history and a scroll-to-bottom button with unread count.
 - **Your design.** Derived from Material 3 with automatic dark mode. Override
   any color or style, or replace any piece with a builder.
 - **Accessible.** Screen reader labels, 48dp touch targets, text scaling and
@@ -48,9 +58,14 @@ follows your app's theme.
   - [Infinite history](#infinite-history)
   - [Typing indicator](#typing-indicator)
   - [Opening links](#opening-links)
-  - [Long-press actions](#long-press-actions)
+  - [Replies and swipe actions](#replies-and-swipe-actions)
+  - [Message menu](#message-menu)
+  - [Reactions](#reactions)
+  - [Editing and deleting](#editing-and-deleting)
+  - [Unread messages](#unread-messages)
   - [Custom message types](#custom-message-types)
   - [Theming](#theming)
+  - [Bubble shape](#bubble-shape)
   - [Builders](#builders)
   - [Localization](#localization)
 - [Markdown reference](#markdown-reference)
@@ -116,12 +131,13 @@ class _ChatPageState extends State<ChatPage> {
     super.dispose();
   }
 
-  void send(String text) {
+  void send(String text, ChatMessage? replyTo) {
     controller.insert(TextMessage(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       author: me,
       createdAt: DateTime.now(),
       text: text,
+      replyToId: replyTo?.id,
     ));
     controller.insert(TextMessage(
       id: '${DateTime.now().microsecondsSinceEpoch}-reply',
@@ -172,8 +188,8 @@ const ana = ChatUser(
 | `SystemMessage` | Centered notices like "Ana joined the chat". |
 | `CustomMessage` | Anything else: images, polls, locations… Rendered by your builder. |
 
-Every message has an `id`, an `author`, a `createdAt` date, an optional
-`status` and optional `metadata` for your own data.
+Every message has an `id`, an `author`, a `createdAt` date, and optionally a
+`status`, a `replyToId`, `reactions` and `metadata` for your own data.
 
 ### The controller
 
@@ -191,7 +207,11 @@ the view updates.
 | `completeStream(id)` | Marks a streamed message as finished. |
 | `remove(id)` | Deletes a message. |
 | `setMessages(messages)` | Replaces everything, for example when switching chats. |
+| `editText(id, text)` | Replaces the text and shows the "edited" label. |
+| `toggleReaction(id, emoji, userId)` | Adds or removes a user's reaction. |
 | `setTyping(user, isTyping: true)` | Shows or hides the typing indicator. |
+| `startReply(message)` / `cancelReply()` | Shows or hides the reply banner. |
+| `startEditing(message)` / `cancelEditing()` | Starts or stops editing in the input bar. |
 
 Always call `controller.dispose()` when the screen goes away.
 
@@ -225,13 +245,14 @@ subscription = api.messages(roomId).listen((dto) {
 ChatView(
   controller: controller,
   currentUser: me,
-  onSendMessage: (text) async {
+  onSendMessage: (text, replyTo) async {
     final id = uuid();
     controller.insert(TextMessage(
       id: id,
       author: me,
       createdAt: DateTime.now(),
       text: text,
+      replyToId: replyTo?.id,
       status: MessageStatus.sending,
     ));
     try {
@@ -359,33 +380,138 @@ ChatView(
 )
 ```
 
-### Long-press actions
+### Replies and swipe actions
 
-By default, a long press on a text message offers "Copy text". Provide your
-own entries:
+Swiping a bubble toward the center starts a reply: a banner appears above the
+input, and `onSendMessage` receives the message being replied to. Store its
+ID in `replyToId` and the new bubble shows a quote. Tapping the quote scrolls
+to the original message and highlights it.
 
 ```dart
 ChatView(
-  messageActionsBuilder: (context, message) => [
-    ChatMessageAction.copyText(label: 'Copy', icon: Icons.copy),
+  onSendMessage: (text, replyTo) => controller.insert(TextMessage(
+    id: uuid(),
+    author: me,
+    createdAt: DateTime.now(),
+    text: text,
+    replyToId: replyTo?.id,
+  )),
+  // ...
+)
+```
+
+Swipe to reply is on by default. Change what the swipe does, or turn it off:
+
+```dart
+ChatView(
+  swipeAction: ChatSwipeAction(
+    icon: Icons.star_outline,
+    label: 'Star',
+    onTriggered: (message) => star(message),
+  ),
+  // swipeAction: null, // disables swiping
+  // ...
+)
+```
+
+The bubble follows the finger with a spring, and a haptic tick marks the
+point where releasing triggers the action. Screen reader users get the same
+action in their actions menu.
+
+### Message menu
+
+A long press opens a bottom sheet by default. Open a popup anchored to the
+bubble instead, and on a simple tap:
+
+```dart
+ChatView(
+  messageMenuStyle: ChatMessageMenuStyle.popup,
+  messageMenuTrigger: ChatMessageMenuTrigger.tap,
+  // ...
+)
+```
+
+The menu includes the built-in entries that apply to each message: Reply,
+Copy text, Edit and Delete (the last two only for the current user's messages
+and only when you provide `onEditMessage` and `onDeleteMessage`). Add, remove
+or reorder entries with `messageActionsBuilder`, which receives those
+defaults:
+
+```dart
+ChatView(
+  messageActionsBuilder: (context, message, defaults) => [
+    ...defaults,
     ChatMessageAction(
-      label: 'Reply',
-      icon: Icons.reply,
-      onSelected: (message) => startReply(message),
+      label: 'Forward',
+      icon: Icons.forward,
+      onSelected: (message) => forward(message),
     ),
-    if (message.author.id == me.id)
-      ChatMessageAction(
-        label: 'Delete',
-        icon: Icons.delete_outline,
-        isDestructive: true,
-        onSelected: (message) => controller.remove(message.id),
-      ),
   ],
   // ...
 )
 ```
 
-Use `onMessageLongPress` instead to show your own UI.
+Use `onMessageLongPress` to show your own UI instead.
+
+### Reactions
+
+Provide `onReactionSelected` to show a row of quick reactions in the menu and
+make the reaction chips under bubbles tappable:
+
+```dart
+ChatView(
+  onReactionSelected: (message, emoji) {
+    controller.toggleReaction(message.id, emoji, me.id);
+    api.react(message.id, emoji);
+  },
+  reactionEmojis: const ['👍', '❤️', '😂', '🎉'], // optional
+  // ...
+)
+```
+
+Reactions live in `ChatMessage.reactions`, so messages from your backend can
+carry them:
+
+```dart
+TextMessage(
+  // ...
+  reactions: const [ChatReaction(emoji: '👍', userIds: ['ana', 'me'])],
+)
+```
+
+### Editing and deleting
+
+```dart
+ChatView(
+  onEditMessage: (message, newText) {
+    controller.editText(message.id, newText);
+    api.edit(message.id, newText);
+  },
+  onDeleteMessage: (message) {
+    controller.remove(message.id);
+    api.delete(message.id);
+  },
+  // ...
+)
+```
+
+"Edit" fills the input with the message text and shows an edit banner; the
+send button becomes a check mark. Edited messages show an "edited" label.
+
+### Unread messages
+
+Pass the ID of the oldest unread message. chatx shows a "New messages"
+separator above it and scrolls there when the view opens:
+
+```dart
+ChatView(
+  firstUnreadMessageId: conversation.firstUnreadId,
+  // ...
+)
+```
+
+Messages with only one to three emoji are shown large and without a bubble.
+Turn this off with `enableJumboEmoji: false`.
 
 ### Custom message types
 
@@ -453,6 +579,8 @@ Main `ChatTheme` values:
 | Group | Values |
 | --- | --- |
 | Bubbles | `outgoingBubbleColor`, `incomingBubbleColor`, `bubbleRadius`, `bubbleGroupedRadius`, `bubblePadding`, `maxBubbleWidth`, `maxBubbleWidthFactor` |
+| Bubble shape | `bubbleTail`, `bubbleTailWidth`, `bubbleTailHeight`, `bubbleElevation`, `bubbleShadowColor`, `outgoingBubbleBorderSide`, `incomingBubbleBorderSide` |
+| Reactions and replies | `reactionChipColor`, `reactionChipSelectedColor`, `highlightColor`, `unreadSeparatorColor` |
 | Text | `outgoingTextStyle`, `incomingTextStyle`, `linkStyle`, `codeTextStyle`, `timestampTextStyle`, `userNameTextStyle` |
 | List | `backgroundColor`, `dateSeparatorTextStyle`, `dateSeparatorColor`, `systemMessageTextStyle`, `avatarSize`, `typingIndicatorColor` |
 | Input | `inputBackgroundColor`, `inputFieldColor`, `inputTextStyle`, `inputHintStyle`, `sendButtonColor`, `sendButtonIconColor` |
@@ -461,6 +589,32 @@ Main `ChatTheme` values:
 
 Inside your own builders, read the resolved values with
 `ChatThemeData.of(context)`.
+
+### Bubble shape
+
+Bubbles draw a tail on the author's side. Choose its style in the theme:
+
+| `bubbleTail` | Look |
+| --- | --- |
+| `ChatBubbleTail.bottom` (default) | Curved tail on the last bubble of a group, like iMessage. |
+| `ChatBubbleTail.top` | Pointed nip on the first bubble of a group, like WhatsApp. |
+| `ChatBubbleTail.none` | Rounded rectangles. |
+
+```dart
+ChatView(
+  theme: ChatTheme(
+    bubbleTail: ChatBubbleTail.top,
+    bubbleRadius: 12,
+    bubbleElevation: 1,
+    incomingBubbleBorderSide: BorderSide(color: Colors.black12),
+  ),
+  // ...
+)
+```
+
+Every bubble of a group reserves the tail space, so bubbles with and without
+a tail stay aligned. The shape is also available as `ChatBubbleBorder` for
+your own widgets.
 
 ### Builders
 
@@ -483,8 +637,9 @@ Example: add an attachment button to the input bar.
 
 ```dart
 ChatView(
-  inputBuilder: (context, send) => ChatInput(
+  inputBuilder: (context, send, textController) => ChatInput(
     onSend: send,
+    controller: textController, // lets "Edit" fill the field
     leading: IconButton(
       icon: const Icon(Icons.attach_file),
       onPressed: pickFile,
@@ -495,8 +650,9 @@ ChatView(
 ```
 
 Other `ChatView` options: `showAvatars`, `showUserNames`,
-`showDateSeparators`, `enableMarkdown`, `groupingInterval`, `inputEnabled`,
-`onMessageTap`, `onAvatarTap` and `scrollController`.
+`showDateSeparators`, `enableMarkdown`, `enableJumboEmoji`,
+`groupingInterval`, `inputEnabled`, `onMessageTap`, `onAvatarTap` and
+`scrollController`.
 
 ### Localization
 
@@ -549,13 +705,18 @@ Use `ChatText` to render the same markdown anywhere in your app.
 
 - Bubbles announce the author and time, and status icons have labels.
 - The typing indicator is a live region.
-- Interactive elements are at least 48×48 dp.
+- Interactive elements are at least 48×48 dp, except the small reaction chips
+  (the same reactions are available in the message menu).
+- Swipe actions are also available as screen reader custom actions.
 - Layouts adapt to large text sizes.
 - Animations stop when the system asks to reduce motion.
 - Layouts mirror correctly in right-to-left languages.
 - Widgets used in tests have stable keys: `chatx_input_field`,
   `chatx_send_button`, `chatx_scroll_to_bottom`, `chatx_bubble_<id>`,
-  `chatx_retry_<id>` and `chatx_load_more_retry`.
+  `chatx_quote_<id>`, `chatx_reaction_<id>_<emoji>`, `chatx_react_<emoji>`,
+  `chatx_reply_banner`, `chatx_cancel_reply`, `chatx_edit_banner`,
+  `chatx_cancel_edit`, `chatx_unread_separator`, `chatx_retry_<id>` and
+  `chatx_load_more_retry`.
 
 ## Security
 
@@ -585,8 +746,11 @@ wherever you keep state and feed it from your providers or blocs.
 
 ## Example app
 
-The [`example`](example) folder contains demos for every feature: basic chat,
-AI streaming, custom look and infinite history.
+The [`example`](example) folder contains demos for every feature: basic chat
+(replies, reactions, popup menu, editing), AI streaming, bubble styles,
+custom look and infinite history. Its
+[integration test](example/integration_test/screenshots_test.dart) walks
+through the app on a device and produces the screenshots above.
 
 ```bash
 cd example

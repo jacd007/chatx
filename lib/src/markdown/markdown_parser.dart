@@ -201,6 +201,54 @@ abstract final class MarkdownParser {
   static List<MdInline> parseInline(String source) =>
       _InlineParser(source).parse();
 
+  /// Returns [source] without markdown syntax, on a single line. Used for
+  /// reply quotes and previews.
+  static String toPlainText(String source) {
+    final parts = <String>[];
+    void inline(MdInline node, StringBuffer out) {
+      switch (node) {
+        case MdText(:final text):
+          out.write(text);
+        case MdCode(:final code):
+          out.write(code);
+        case MdStyled(:final children):
+          for (final child in children) {
+            inline(child, out);
+          }
+        case MdLink(:final children):
+          for (final child in children) {
+            inline(child, out);
+          }
+      }
+    }
+
+    String inlines(List<MdInline> nodes) {
+      final out = StringBuffer();
+      for (final node in nodes) {
+        inline(node, out);
+      }
+      return out.toString();
+    }
+
+    void block(MdBlock node) {
+      switch (node) {
+        case MdParagraph(:final children):
+          parts.add(inlines(children));
+        case MdHeading(:final children):
+          parts.add(inlines(children));
+        case MdCodeBlock(:final code):
+          parts.add(code);
+        case MdQuote(:final children):
+          children.forEach(block);
+        case MdList(:final items):
+          parts.addAll(items.map(inlines));
+      }
+    }
+
+    parse(source).forEach(block);
+    return parts.join(' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
   static List<MdBlock> _parseBlocks(List<String> lines) {
     final blocks = <MdBlock>[];
     final paragraph = <String>[];

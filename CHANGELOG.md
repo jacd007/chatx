@@ -15,6 +15,18 @@ Initial release.
 - Built-in markdown subset with safe, policy-filtered links (`ChatLinkPolicy`).
 - Streaming messages with `appendText` and `completeStream`.
 - Delivery status (`sending`, `sent`, `delivered`, `read`, `failed`) with retry.
+- Replies: swipe a bubble to reply (`ChatSwipeAction`), reply banner above the
+  input, quotes inside bubbles that jump to the original message.
+- Message menu as a bottom sheet or popup (`ChatMessageMenuStyle`), opened by
+  long press or tap (`ChatMessageMenuTrigger`), with built-in Reply, Copy,
+  Edit and Delete entries.
+- Emoji reactions (`ChatReaction`, `ChatController.toggleReaction`) with
+  quick picker and tappable chips.
+- Editing (`onEditMessage`, `ChatController.editText`) with an edit banner.
+- Bubble shape with tail (`ChatBubbleTail`, `ChatBubbleBorder`), elevation and
+  outline.
+- "New messages" separator (`firstUnreadMessageId`) and large emoji-only
+  messages.
 - Typing indicator, day separators, author grouping and avatars.
 - Infinite history with `onLoadMore`, including error and retry state.
 - Scroll-to-bottom button with unread counter.

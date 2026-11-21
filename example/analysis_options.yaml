@@ -6,6 +6,14 @@ analyzer:
     # `material_ui`. This demo stays on flutter/material, like chatx itself.
     # See "Material and material_ui" in the package README.
     deprecated_member_use: ignore
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
 
 linter:
   rules:

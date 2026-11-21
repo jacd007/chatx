@@ -1,11 +1,24 @@
 name: chatx
 description: >-
-  Backend-agnostic, zero-dependency chat UI for Flutter. Markdown, streaming
-  messages, delivery status, typing indicator, pagination and full theming.
+  Backend-agnostic, zero-dependency chat UI for Flutter: replies, swipe
+  actions, reactions, editing, markdown, streaming and bubbles with tails.
 version: 0.1.0
 repository: https://github.com/jacd007/chatx
 issue_tracker: https://github.com/jacd007/chatx/issues
 documentation: https://github.com/jacd007/chatx#readme
+screenshots:
+  - description: Conversation with replies, reactions and unread separator.
+    path: doc/screenshots/01_conversation.png
+  - description: Popup menu with quick reactions.
+    path: doc/screenshots/02_popup_menu.png
+  - description: Swipe to reply.
+    path: doc/screenshots/03_reply.png
+  - description: AI answer with markdown.
+    path: doc/screenshots/04_ai_markdown.png
+  - description: Bubble tails, radius and shadow.
+    path: doc/screenshots/05_bubble_styles.png
+  - description: Dark mode with a custom theme.
+    path: doc/screenshots/06_dark_custom_look.png
 topics:
   - chat
   - messaging

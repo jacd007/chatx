@@ -43,13 +43,14 @@ class _CustomLookPageState extends State<CustomLookPage> {
     super.dispose();
   }
 
-  void _send(String text) {
+  void _send(String text, ChatMessage? replyTo) {
     _controller.insert(
       TextMessage(
         id: newId(),
         author: me,
         createdAt: DateTime.now(),
         text: text,
+        replyToId: replyTo?.id,
         status: MessageStatus.sent,
       ),
     );
@@ -74,6 +75,7 @@ class _CustomLookPageState extends State<CustomLookPage> {
           outgoingTextStyle: TextStyle(color: scheme.onTertiary),
           bubbleRadius: 8,
           bubbleGroupedRadius: 8,
+          bubbleTail: ChatBubbleTail.top,
         ),
         // 2. Strings: change only what you need.
         localizations: l10n.copyWith(inputHint: 'Write something nice…'),
@@ -89,20 +91,22 @@ class _CustomLookPageState extends State<CustomLookPage> {
           }
           return bubble;
         },
-        // 5. Long-press menu.
-        messageActionsBuilder: (context, message) => [
-          ChatMessageAction.copyText(label: l10n.copy, icon: Icons.copy),
-          if (message.author.id == me.id)
-            ChatMessageAction(
-              label: 'Delete',
-              icon: Icons.delete_outline,
-              isDestructive: true,
-              onSelected: (message) => _controller.remove(message.id),
+        // 5. Long-press menu: keep the defaults and add your own entry.
+        onDeleteMessage: (message) => _controller.remove(message.id),
+        messageActionsBuilder: (context, message, defaults) => [
+          ...defaults,
+          ChatMessageAction(
+            label: 'Pin',
+            icon: Icons.push_pin_outlined,
+            onSelected: (message) => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Pinned (demo)')),
             ),
+          ),
         ],
         // 6. Replace the input bar while reusing ChatInput.
-        inputBuilder: (context, send) => ChatInput(
+        inputBuilder: (context, send, textController) => ChatInput(
           onSend: send,
+          controller: textController,
           leading: IconButton(
             tooltip: 'Attach',
             icon: const Icon(Icons.add_circle_outline),

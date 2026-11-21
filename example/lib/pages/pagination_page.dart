@@ -52,12 +52,13 @@ class _PaginationPageState extends State<PaginationPage> {
         controller: _controller,
         currentUser: me,
         onLoadMore: _loadMore,
-        onSendMessage: (text) => _controller.insert(
+        onSendMessage: (text, replyTo) => _controller.insert(
           TextMessage(
             id: newId(),
             author: me,
             createdAt: DateTime.now(),
             text: text,
+            replyToId: replyTo?.id,
             status: MessageStatus.sent,
           ),
         ),

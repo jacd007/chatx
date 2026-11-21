@@ -197,4 +197,52 @@ void main() {
       expect(const ChatUser(id: '1', name: '  ').initials, '1');
     });
   });
+
+  group('ChatController conversation state', () {
+    late ChatController controller;
+
+    setUp(() => controller = ChatController(messages: [text('a', 1)]));
+    tearDown(() => controller.dispose());
+
+    test('toggleReaction adds, counts and removes reactions', () {
+      controller
+        ..toggleReaction('a', '👍', 'me')
+        ..toggleReaction('a', '👍', 'ana')
+        ..toggleReaction('a', '🎉', 'me');
+      var reactions = controller.messageById('a')!.reactions;
+      expect(reactions.map((r) => (r.emoji, r.count)), [('👍', 2), ('🎉', 1)]);
+
+      controller
+        ..toggleReaction('a', '👍', 'me')
+        ..toggleReaction('a', '🎉', 'me');
+      reactions = controller.messageById('a')!.reactions;
+      expect(reactions.single.userIds, ['ana']);
+      expect(controller.toggleReaction('missing', '👍', 'me'), isFalse);
+    });
+
+    test('editText replaces text and sets editedAt', () {
+      final at = DateTime(2026, 5, 5);
+      expect(controller.editText('a', 'new', editedAt: at), isTrue);
+      final message = controller.messageById('a')! as TextMessage;
+      expect(message.text, 'new');
+      expect(message.editedAt, at);
+    });
+
+    test('reply and edit are mutually exclusive', () {
+      final message = controller.messageById('a')! as TextMessage;
+      controller.startReply(message);
+      expect(controller.replyingTo.value, message);
+      controller.startEditing(message);
+      expect(controller.replyingTo.value, isNull);
+      expect(controller.editing.value, message);
+      controller.startReply(message);
+      expect(controller.editing.value, isNull);
+    });
+
+    test('removing a message clears its reply or edit', () {
+      controller.startReply(controller.messageById('a')!);
+      controller.remove('a');
+      expect(controller.replyingTo.value, isNull);
+    });
+  });
 }

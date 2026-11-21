@@ -5,7 +5,12 @@ import 'package:material_ui/material_ui.dart';
 const me = ChatUser(id: 'me');
 const seed = Color(0xFF7C3AED);
 
-Widget app(ChatController controller, {required bool bridge, Locale? locale}) {
+Widget app(
+  ChatController controller, {
+  required bool bridge,
+  Locale? locale,
+  ChatMessageMenuStyle menuStyle = ChatMessageMenuStyle.bottomSheet,
+}) {
   return MaterialApp(
     theme: ThemeData(colorSchemeSeed: seed),
     locale: locale,
@@ -18,7 +23,10 @@ Widget app(ChatController controller, {required bool bridge, Locale? locale}) {
       body: ChatView(
         controller: controller,
         currentUser: me,
-        onSendMessage: (text) => controller.insert(
+        onReactionSelected: (m, emoji) =>
+            controller.toggleReaction(m.id, emoji, me.id),
+        messageMenuStyle: menuStyle,
+        onSendMessage: (text, replyTo) => controller.insert(
           TextMessage(
             id: text,
             author: me,
@@ -75,5 +83,34 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.text('Copy text'), findsOneWidget);
+  });
+
+  testWidgets('popup menu, reactions and swipe work through the bridge', (
+    tester,
+  ) async {
+    controller.insert(
+      TextMessage(
+        id: '1',
+        author: const ChatUser(id: 'ana', name: 'Ana'),
+        createdAt: DateTime.now(),
+        text: 'hey',
+      ),
+    );
+    await tester.pumpWidget(
+      app(controller, bridge: true, menuStyle: ChatMessageMenuStyle.popup),
+    );
+    await tester.longPress(find.byKey(const Key('chatx_bubble_1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('chatx_react_👍')));
+    await tester.pumpAndSettle();
+    expect(controller.messageById('1')!.reactions.single.emoji, '👍');
+
+    await tester.drag(
+      find.byKey(const Key('chatx_bubble_1')),
+      const Offset(120, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Replying to Ana'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

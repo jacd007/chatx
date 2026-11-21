@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'package:flutter/foundation.dart';
 
 import '../models/chat_message.dart';
+import '../models/chat_reaction.dart';
 import '../models/chat_user.dart';
 import '../models/message_status.dart';
 
@@ -40,6 +41,8 @@ class ChatController extends ChangeNotifier {
   final Map<String, ValueNotifier<ChatMessage>> _watchers = {};
   final ValueNotifier<List<ChatUser>> _typingUsers =
       ValueNotifier<List<ChatUser>>(const []);
+  final ValueNotifier<ChatMessage?> _replyingTo = ValueNotifier(null);
+  final ValueNotifier<ChatMessage?> _editing = ValueNotifier(null);
 
   /// All messages, oldest first. The list is a read-only live view.
   List<ChatMessage> get messages => _messagesView;
@@ -52,6 +55,18 @@ class ChatController extends ChangeNotifier {
 
   /// Users that are currently typing, in the order they started.
   ValueListenable<List<ChatUser>> get typingUsers => _typingUsers;
+
+  /// The message the user is replying to, or `null`.
+  ///
+  /// While set, `ChatView` shows a reply banner above the input and passes the
+  /// message to `onSendMessage`. Set it with [startReply].
+  ValueListenable<ChatMessage?> get replyingTo => _replyingTo;
+
+  /// The message the user is editing, or `null`.
+  ///
+  /// While set, `ChatView` fills the input with the message text and sends
+  /// the result to `onEditMessage`. Set it with [startEditing].
+  ValueListenable<ChatMessage?> get editing => _editing;
 
   /// Returns the message with [id], or `null` if there is none.
   ChatMessage? messageById(String id) {
@@ -154,12 +169,72 @@ class ChatController extends ChangeNotifier {
     );
   }
 
+  /// Replaces the text of the [TextMessage] with [id] and marks it as edited.
+  ///
+  /// Returns `false` if the message does not exist or is not a [TextMessage].
+  bool editText(String id, String text, {DateTime? editedAt}) {
+    final message = messageById(id);
+    if (message is! TextMessage) return false;
+    if (message.text == text) return true;
+    return update(
+      message.copyWith(text: text, editedAt: editedAt ?? DateTime.now()),
+    );
+  }
+
+  /// Adds the reaction [emoji] of [userId] to the message with [id], or
+  /// removes it if that user already reacted with it.
+  ///
+  /// Returns `false` if the message does not exist.
+  bool toggleReaction(String id, String emoji, String userId) {
+    final message = messageById(id);
+    if (message == null) return false;
+    final reactions = [...message.reactions];
+    final index = reactions.indexWhere((r) => r.emoji == emoji);
+    if (index == -1) {
+      reactions.add(ChatReaction(emoji: emoji, userIds: [userId]));
+    } else {
+      final current = reactions[index];
+      final userIds = current.hasUser(userId)
+          ? [
+              for (final u in current.userIds)
+                if (u != userId) u
+            ]
+          : [...current.userIds, userId];
+      if (userIds.isEmpty) {
+        reactions.removeAt(index);
+      } else {
+        reactions[index] = ChatReaction(emoji: emoji, userIds: userIds);
+      }
+    }
+    return update(message.withReactions(List.unmodifiable(reactions)));
+  }
+
+  /// Starts replying to [message]. Cancels any edit in progress.
+  void startReply(ChatMessage message) {
+    _editing.value = null;
+    _replyingTo.value = message;
+  }
+
+  /// Stops replying without sending.
+  void cancelReply() => _replyingTo.value = null;
+
+  /// Starts editing [message]. Cancels any reply in progress.
+  void startEditing(TextMessage message) {
+    _replyingTo.value = null;
+    _editing.value = message;
+  }
+
+  /// Stops editing without saving.
+  void cancelEditing() => _editing.value = null;
+
   /// Removes the message with [id]. Returns `false` if it did not exist.
   bool remove(String id) {
     final index = _indexOf(id);
     if (index == -1) return false;
     _messages.removeAt(index);
     _watchers.remove(id)?.dispose();
+    if (_replyingTo.value?.id == id) _replyingTo.value = null;
+    if (_editing.value?.id == id) _editing.value = null;
     notifyListeners();
     return true;
   }
@@ -226,6 +301,8 @@ class ChatController extends ChangeNotifier {
     }
     _watchers.clear();
     _typingUsers.dispose();
+    _replyingTo.dispose();
+    _editing.dispose();
     super.dispose();
   }
 

@@ -46,7 +46,7 @@ Future<void> pumpChat(
         body: ChatView(
           controller: controller,
           currentUser: me,
-          onSendMessage: onSend ?? (_) {},
+          onSendMessage: (text, _) => onSend?.call(text),
           onLoadMore: onLoadMore,
           onRetry: onRetry,
           onLinkTap: onLinkTap,
@@ -223,7 +223,7 @@ void main() {
     await pumpChat(
       tester,
       controller: controller,
-      actionsBuilder: (context, m) => [
+      actionsBuilder: (context, m, defaults) => [
         ChatMessageAction(
             label: 'Reply', onSelected: (m) => selected.add(m.id)),
       ],
@@ -351,7 +351,7 @@ void main() {
             body: ChatView(
               controller: controller,
               currentUser: me,
-              onSendMessage: (_) {},
+              onSendMessage: (_, __) {},
             ),
           ),
         ),
@@ -375,7 +375,7 @@ void main() {
             body: ChatView(
               controller: controller,
               currentUser: me,
-              onSendMessage: (_) {},
+              onSendMessage: (_, __) {},
               onRetry: (_) {},
             ),
           ),

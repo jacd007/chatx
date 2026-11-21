@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'chat_reaction.dart';
 import 'chat_user.dart';
 import 'message_status.dart';
 
@@ -24,6 +25,8 @@ sealed class ChatMessage {
     required this.author,
     required this.createdAt,
     this.status,
+    this.replyToId,
+    this.reactions = const [],
     this.metadata,
   });
 
@@ -39,11 +42,38 @@ sealed class ChatMessage {
   /// Delivery state. Usually only set for messages of the current user.
   final MessageStatus? status;
 
+  /// ID of the message this one replies to. The bubble shows a quote of it.
+  final String? replyToId;
+
+  /// Emoji reactions, in the order they were first added.
+  final List<ChatReaction> reactions;
+
   /// Arbitrary data you want to carry with the message. Never read by chatx.
   final Map<String, Object?>? metadata;
 
   /// Returns a copy of this message with [status] replaced.
   ChatMessage withStatus(MessageStatus? status);
+
+  /// Returns a copy of this message with [reactions] replaced.
+  ChatMessage withReactions(List<ChatReaction> reactions);
+
+  bool _baseEquals(ChatMessage other) =>
+      other.id == id &&
+      other.author == author &&
+      other.createdAt == createdAt &&
+      other.status == status &&
+      other.replyToId == replyToId &&
+      listEquals(other.reactions, reactions) &&
+      mapEquals(other.metadata, metadata);
+
+  int get _baseHash => Object.hash(
+        id,
+        author,
+        createdAt,
+        status,
+        replyToId,
+        Object.hashAll(reactions),
+      );
 }
 
 /// A message whose [text] is rendered with chatx's markdown subset.
@@ -61,6 +91,8 @@ final class TextMessage extends ChatMessage {
     this.isStreaming = false,
     this.editedAt,
     super.status,
+    super.replyToId,
+    super.reactions,
     super.metadata,
   });
 
@@ -83,6 +115,8 @@ final class TextMessage extends ChatMessage {
     bool? isStreaming,
     DateTime? editedAt,
     MessageStatus? status,
+    String? replyToId,
+    List<ChatReaction>? reactions,
     Map<String, Object?>? metadata,
   }) {
     return TextMessage(
@@ -93,6 +127,8 @@ final class TextMessage extends ChatMessage {
       isStreaming: isStreaming ?? this.isStreaming,
       editedAt: editedAt ?? this.editedAt,
       status: status ?? this.status,
+      replyToId: replyToId ?? this.replyToId,
+      reactions: reactions ?? this.reactions,
       metadata: metadata ?? this.metadata,
     );
   }
@@ -106,32 +142,26 @@ final class TextMessage extends ChatMessage {
         isStreaming: isStreaming,
         editedAt: editedAt,
         status: status,
+        replyToId: replyToId,
+        reactions: reactions,
         metadata: metadata,
       );
+
+  @override
+  TextMessage withReactions(List<ChatReaction> reactions) =>
+      copyWith(reactions: reactions);
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is TextMessage &&
-          other.id == id &&
-          other.author == author &&
-          other.createdAt == createdAt &&
-          other.status == status &&
+          _baseEquals(other) &&
           other.text == text &&
           other.isStreaming == isStreaming &&
-          other.editedAt == editedAt &&
-          mapEquals(other.metadata, metadata);
+          other.editedAt == editedAt;
 
   @override
-  int get hashCode => Object.hash(
-        id,
-        author,
-        createdAt,
-        status,
-        text,
-        isStreaming,
-        editedAt,
-      );
+  int get hashCode => Object.hash(_baseHash, text, isStreaming, editedAt);
 
   @override
   String toString() => 'TextMessage(id: $id, author: ${author.id}, '
@@ -140,7 +170,8 @@ final class TextMessage extends ChatMessage {
 
 /// A centered, author-less notice such as "Ana joined the group".
 ///
-/// System messages never group with other messages and have no bubble.
+/// System messages never group with other messages, have no bubble and
+/// ignore replies and reactions.
 final class SystemMessage extends ChatMessage {
   /// Creates a system notice.
   const SystemMessage({
@@ -161,17 +192,15 @@ final class SystemMessage extends ChatMessage {
   SystemMessage withStatus(MessageStatus? status) => this;
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is SystemMessage &&
-          other.id == id &&
-          other.author == author &&
-          other.createdAt == createdAt &&
-          other.text == text &&
-          mapEquals(other.metadata, metadata);
+  SystemMessage withReactions(List<ChatReaction> reactions) => this;
 
   @override
-  int get hashCode => Object.hash(id, author, createdAt, text);
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SystemMessage && _baseEquals(other) && other.text == text;
+
+  @override
+  int get hashCode => Object.hash(_baseHash, text);
 
   @override
   String toString() => 'SystemMessage(id: $id)';
@@ -190,6 +219,8 @@ final class CustomMessage extends ChatMessage {
     required this.type,
     this.payload,
     super.status,
+    super.replyToId,
+    super.reactions,
     super.metadata,
   });
 
@@ -199,6 +230,31 @@ final class CustomMessage extends ChatMessage {
   /// Data your builder needs to render the message.
   final Object? payload;
 
+  /// Returns a copy of this message with the given fields replaced.
+  CustomMessage copyWith({
+    String? id,
+    ChatUser? author,
+    DateTime? createdAt,
+    String? type,
+    Object? payload,
+    MessageStatus? status,
+    String? replyToId,
+    List<ChatReaction>? reactions,
+    Map<String, Object?>? metadata,
+  }) {
+    return CustomMessage(
+      id: id ?? this.id,
+      author: author ?? this.author,
+      createdAt: createdAt ?? this.createdAt,
+      type: type ?? this.type,
+      payload: payload ?? this.payload,
+      status: status ?? this.status,
+      replyToId: replyToId ?? this.replyToId,
+      reactions: reactions ?? this.reactions,
+      metadata: metadata ?? this.metadata,
+    );
+  }
+
   @override
   CustomMessage withStatus(MessageStatus? status) => CustomMessage(
         id: id,
@@ -207,23 +263,25 @@ final class CustomMessage extends ChatMessage {
         type: type,
         payload: payload,
         status: status,
+        replyToId: replyToId,
+        reactions: reactions,
         metadata: metadata,
       );
+
+  @override
+  CustomMessage withReactions(List<ChatReaction> reactions) =>
+      copyWith(reactions: reactions);
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is CustomMessage &&
-          other.id == id &&
-          other.author == author &&
-          other.createdAt == createdAt &&
-          other.status == status &&
+          _baseEquals(other) &&
           other.type == type &&
-          other.payload == payload &&
-          mapEquals(other.metadata, metadata);
+          other.payload == payload;
 
   @override
-  int get hashCode => Object.hash(id, author, createdAt, status, type, payload);
+  int get hashCode => Object.hash(_baseHash, type, payload);
 
   @override
   String toString() => 'CustomMessage(id: $id, type: $type)';
