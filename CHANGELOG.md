@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## 0.2.2 - 2026-11-21
+
+### Fixed
+
+- Long conversations open at the first unread message, with the "New
+  messages" line in view. The jump used to snap back to the bottom.
+- Mentions of the current user are highlighted even when they are not in
+  `mentionableUsers`.
+
 ## 0.2.1 - 2026-11-21
 
 ### Changed
