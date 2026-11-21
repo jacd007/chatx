@@ -46,7 +46,7 @@ follows your app's theme.
 
 | Suggested prompts | Reasoning while thinking | Versions and sources |
 | :---: | :---: | :---: |
-| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/36_ai_prompts.png" width="240" alt="Empty AI chat with suggested prompt cards"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/35_ai_reasoning.png" width="240" alt="Thinking block streaming the reasoning"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/37_ai_versions_sources.png" width="240" alt="Answer with source chips and a 2/2 version switcher"> |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/36_ai_prompts.png" width="240" alt="Empty AI chat with suggested prompt cards"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/35_ai_reasoning.png" width="240" alt="Thinking block streaming the reasoning"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/37_ai_versions_sources.png" width="240" alt="Regenerated answer with its source chip and a 2/2 version switcher"> |
 
 | Video and attachments | Voice transcript | Unread mentions |
 | :---: | :---: | :---: |
@@ -60,9 +60,9 @@ follows your app's theme.
 | :---: | :---: | :---: |
 | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/45_gallery.png" width="240" alt="Gallery with media, files and links tabs"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/46_offline_queue.png" width="240" alt="Offline banner and a queued message"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/47_products.png" width="240" alt="Product carousel"> |
 
-| Payment request | Hover actions (mouse) | |
+| Payment request | Hover actions (mouse) | Earlier answer version |
 | :---: | :---: | :---: |
-| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/48_payment.png" width="240" alt="Payment request with Pay and Decline"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/49_hover_actions.png" width="240" alt="Reply, react and more buttons shown on hover"> |  |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/48_payment.png" width="240" alt="Payment request with Pay and Decline"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/49_hover_actions.png" width="240" alt="Reply, react and more buttons shown on hover"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/50_ai_previous_version.png" width="240" alt="Version 1/2 of an answer with its own tool call and sources"> |
 
 ## Features
 
