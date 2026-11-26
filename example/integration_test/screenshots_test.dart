@@ -529,4 +529,13 @@ void main() {
     await mouse.removePointer();
     await settle(tester, 300);
   });
+
+  testWidgets('feature catalog: link safety', (tester) async {
+    await open(tester, 'Feature catalog');
+    await tester.enterText(find.byType(TextField).first, 'link safety');
+    await settle(tester);
+    await tester.tap(find.text('Link safety'));
+    await settle(tester, 900);
+    await shoot('51_link_safety');
+  });
 }
