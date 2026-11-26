@@ -296,7 +296,12 @@ typedef ChatFeedbackCallback = void Function(
 /// languages. Matching ignores case and only affects whole words.
 ///
 /// ```dart
-/// ChatView(wordFilter: ChatWordFilter({'darn', 'heck'}), ...)
+/// ChatView(
+///   moderation: ChatModerationOptions(
+///     wordFilter: ChatWordFilter({'darn', 'heck'}),
+///   ),
+///   ...
+/// )
 /// ```
 @immutable
 class ChatWordFilter {

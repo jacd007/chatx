@@ -1380,7 +1380,8 @@ final class SurveyMessage extends ChatMessage {
 ///
 /// chatx does not draw real maps. Provide an image with [mapImageUri] (for
 /// example from a static maps API) or a widget with
-/// `ChatView.locationMapBuilder`; otherwise a stylized placeholder is shown.
+/// `ChatBuilders.locationMapBuilder`; otherwise a stylized placeholder is
+/// shown.
 final class LocationMessage extends ChatMessage {
   /// Creates a location message.
   const LocationMessage({
