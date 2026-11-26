@@ -182,7 +182,7 @@ class _AiActions extends StatelessWidget {
             final text = index != null && index < message.versions.length
                 ? message.versions[index].text
                 : message.text;
-            Clipboard.setData(ClipboardData(text: text));
+            state._copy(text);
           },
         ),
         if (onFeedback != null) ...[
@@ -252,6 +252,7 @@ class _DeletedContent extends StatelessWidget {
 /// Sheet with the current text and every previous version.
 Future<void> _showEditHistory(BuildContext context, TextMessage message) {
   final l10n = ChatLocalizations.of(context);
+  final view = context.findAncestorStateOfType<_ChatViewState>()?.widget;
   final material = MaterialLocalizations.of(context);
   String when(DateTime time) =>
       '${material.formatMediumDate(time.toLocal())} · ${_clock(context, time)}';
@@ -280,7 +281,10 @@ Future<void> _showEditHistory(BuildContext context, TextMessage message) {
             children: [
               Text(label, style: textTheme.labelSmall),
               const SizedBox(height: 4),
-              ChatText(text),
+              ChatText(
+                view?.textSanitizer?.call(text) ?? text,
+                onCopyText: view?.onCopyText,
+              ),
             ],
           ),
         );

@@ -4,6 +4,7 @@ import '../l10n/chat_localizations.dart';
 import '../material.dart';
 import '../models/chat_user.dart';
 import '../theme/chat_theme.dart';
+import '../utils/display_name.dart';
 
 /// Three bouncing dots, used for typing users and empty streaming messages.
 ///
@@ -103,7 +104,7 @@ class TypingIndicator extends StatelessWidget {
     if (users.isEmpty) return const SizedBox.shrink();
     final theme = ChatThemeData.of(context);
     final l10n = ChatLocalizations.of(context);
-    final names = [for (final u in users) u.name ?? l10n.someone];
+    final names = [for (final u in users) u.displayName ?? l10n.someone];
     final label = l10n.typing(names);
     return Semantics(
       liveRegion: true,

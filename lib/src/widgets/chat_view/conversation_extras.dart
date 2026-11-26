@@ -380,7 +380,7 @@ class _SeenBy extends StatelessWidget {
     final extra = receipts.length - shown.length;
     return Semantics(
       label: l10n.seenBy([
-        for (final r in receipts) r.user.name ?? l10n.someone,
+        for (final r in receipts) r.user.displayName ?? l10n.someone,
       ]),
       excludeSemantics: true,
       child: Padding(
@@ -410,8 +410,9 @@ class _SeenBy extends StatelessWidget {
 Future<void> _showMessageInfo(
   BuildContext context,
   ChatMessage message,
-  ChatLocalizations l10n,
-) {
+  ChatLocalizations l10n, {
+  String Function(String text)? sanitize,
+}) {
   return showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
@@ -435,7 +436,7 @@ Future<void> _showMessageInfo(
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
               child: Text(
-                _messagePreview(message, l10n),
+                _messagePreview(message, l10n, sanitize: sanitize),
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
                 style: textTheme.bodyMedium,
@@ -449,7 +450,7 @@ Future<void> _showMessageInfo(
             for (final receipt in message.receipts)
               ListTile(
                 leading: ChatAvatar(user: receipt.user, size: 36),
-                title: Text(receipt.user.name ?? l10n.someone),
+                title: Text(receipt.user.displayName ?? l10n.someone),
                 trailing: Text(
                   ChatHeader.relativeTime(sheetContext, receipt.readAt),
                   style: textTheme.bodySmall,

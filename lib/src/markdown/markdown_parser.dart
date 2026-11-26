@@ -262,6 +262,9 @@ abstract final class MarkdownParser {
     return blocks;
   }
 
+  /// Empties the [parseCached] cache, releasing the texts it holds.
+  static void clearCache() => _cache.clear();
+
   /// Parses [source] into blocks.
   static List<MdBlock> parse(String source) {
     final lines = source.replaceAll('\r\n', '\n').split('\n');

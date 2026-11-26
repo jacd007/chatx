@@ -66,6 +66,7 @@ export 'src/models/message_status.dart';
 export 'src/models/voice_playback.dart';
 export 'src/theme/chat_bubble_border.dart';
 export 'src/theme/chat_theme.dart';
+export 'src/utils/chat_text_sanitizer.dart';
 export 'src/widgets/chat_avatar.dart';
 export 'src/widgets/chat_builders.dart';
 export 'src/widgets/chat_header.dart';

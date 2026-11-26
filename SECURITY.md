@@ -19,6 +19,17 @@ message content as untrusted:
 - Only links allowed by `ChatLinkPolicy` (by default `http`, `https` and
   `mailto`) are tappable. `javascript:`, `file:`, `intent:` and other schemes
   are rendered as plain text.
+- A markdown link whose label looks like an address with a different host
+  shows the real host after the label (`bank.com (evil.com)`).
+  `ChatLinkPolicy.isDeceptive` exposes the same check.
+- Bidirectional controls (U+202A–U+202E, U+2066–U+2069, U+200E, U+200F,
+  U+061C), invisible characters (U+200B, U+2060, U+FEFF) and Unicode tag
+  characters outside flag emoji are removed from user names. Message bodies are only cleaned when the app passes
+  `ChatView.textSanitizer`, for example `ChatTextSanitizer.strip`.
+- Apps control copying through `ChatView.onCopyText` and the composer
+  length through `ChatView.inputMaxLength`.
+- Parsed message text is kept in a shared cache of up to 512 entries.
+  `ChatText.clearCache()` empties it.
 - chatx never opens links, stores data, or makes network requests. Avatar
   images are the only exception: they load from `ChatUser.avatarUrl` through
   `Image.network`.

@@ -1,6 +1,7 @@
 import '../material.dart';
 import '../models/chat_user.dart';
 import '../theme/chat_theme.dart';
+import '../utils/display_name.dart';
 
 /// Circular avatar of a [ChatUser].
 ///
@@ -65,7 +66,7 @@ class ChatAvatar extends StatelessWidget {
     );
     avatar = SizedBox.square(dimension: diameter, child: avatar);
 
-    final label = user.name ?? user.initials;
+    final label = user.displayName ?? user.initials;
     if (onTap == null) {
       return Semantics(image: true, label: label, child: avatar);
     }

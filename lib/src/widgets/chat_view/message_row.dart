@@ -171,7 +171,7 @@ class _MessageRowState extends State<_MessageRow> {
       details: details,
       maxWidth: widget.maxBubbleWidth,
     );
-    final name = message.author.name;
+    final name = message.author.displayName;
     final tailInset =
         theme.bubbleTail == ChatBubbleTail.none ? 0.0 : theme.bubbleTailWidth;
     final avatarInset =
@@ -459,6 +459,7 @@ class _Bubble extends StatelessWidget {
           accentColor:
               outgoing ? textColor : theme.userNameTextStyle.color ?? textColor,
           currentUserId: view.currentUser.id,
+          sanitize: view.textSanitizer,
           onTap: () => state._scrollToMessage(replyToId),
         );
     // Watch the original so the quote follows its edits and deletion.
@@ -489,7 +490,10 @@ class _Bubble extends StatelessWidget {
             stretch ? CrossAxisAlignment.stretch : CrossAxisAlignment.end,
         children: [
           if (message.forwardedFrom != null)
-            _ForwardedLabel(name: message.forwardedFrom!, color: textColor),
+            _ForwardedLabel(
+              name: sanitizeName(message.forwardedFrom) ?? l10n.someone,
+              color: textColor,
+            ),
           if (quote != null) ...[quote, const SizedBox(height: 6)],
           ...children,
         ],
@@ -922,7 +926,8 @@ class _Bubble extends StatelessWidget {
       }
     }
 
-    final author = outgoing ? l10n.you : (message.author.name ?? l10n.someone);
+    final author =
+        outgoing ? l10n.you : (message.author.displayName ?? l10n.someone);
 
     return Semantics(
       container: true,
@@ -1024,9 +1029,11 @@ class _Bubble extends StatelessWidget {
     ChatThemeData theme, {
     InlineSpan? trailing,
   }) {
-    final filtered = view.moderation.wordFilter?.apply(text) ?? text;
+    final shown = view.textSanitizer?.call(text) ?? text;
+    final filtered = view.moderation.wordFilter?.apply(shown) ?? shown;
     Widget build(String? query) => ChatText(
           filtered,
+          onCopyText: view.onCopyText,
           style: textStyle,
           linkStyle: theme.linkStyle,
           codeStyle: theme.codeTextStyle,
@@ -1064,6 +1071,7 @@ class _ReplyQuote extends StatelessWidget {
     required this.accentColor,
     required this.currentUserId,
     required this.onTap,
+    this.sanitize,
   });
 
   final ChatMessage? original;
@@ -1074,6 +1082,9 @@ class _ReplyQuote extends StatelessWidget {
   final String currentUserId;
   final VoidCallback onTap;
 
+  /// `ChatView.textSanitizer`, applied to the preview.
+  final String Function(String text)? sanitize;
+
   @override
   Widget build(BuildContext context) {
     final l10n = ChatLocalizations.of(context);
@@ -1083,10 +1094,10 @@ class _ReplyQuote extends StatelessWidget {
         ? null
         : original.author.id == currentUserId
             ? l10n.you
-            : original.author.name ?? l10n.someone;
+            : original.author.displayName ?? l10n.someone;
     final preview = original == null
         ? l10n.quoteUnavailable
-        : _messagePreview(original, l10n);
+        : _messagePreview(original, l10n, sanitize: sanitize);
 
     return Semantics(
       button: original != null,
@@ -1146,7 +1157,19 @@ class _ReplyQuote extends StatelessWidget {
 }
 
 /// One-line, markdown-free summary of [message].
-String _messagePreview(ChatMessage message, ChatLocalizations l10n) =>
+///
+/// Pass `ChatView.textSanitizer` as [sanitize] so previews hide what the
+/// message body hides. It only changes what is displayed.
+String _messagePreview(
+  ChatMessage message,
+  ChatLocalizations l10n, {
+  String Function(String text)? sanitize,
+}) {
+  final preview = _rawPreview(message, l10n);
+  return sanitize?.call(preview) ?? preview;
+}
+
+String _rawPreview(ChatMessage message, ChatLocalizations l10n) =>
     switch (message) {
       _ when message.deletedAt != null => l10n.messageDeleted,
       TextMessage(:final text) => MarkdownParser.toPlainText(text),

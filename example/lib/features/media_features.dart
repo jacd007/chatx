@@ -236,6 +236,45 @@ final mediaFeatures = FeatureGroup('Media', [
     ),
   ),
   FeatureDemo(
+    title: 'Link safety',
+    description: 'Links that hide their address show the real host, and '
+        'names cannot reorder text.',
+    icon: Icons.shield_outlined,
+    builder: (_) => DemoChat(
+      title: 'Link safety',
+      hint: 'The first link says mybank.example but opens another site, so '
+          'chatx shows the real host.',
+      seed: () => [
+        TextMessage(
+          id: 's1',
+          // The right-to-left override is stripped from the name.
+          author: const ChatUser(id: 'spoof', name: 'Support\u202E'),
+          createdAt: ago(5),
+          text: 'Your account is locked. Sign in at '
+              '[mybank.example](https://login-mybank.example.net) to '
+              'unlock it.',
+        ),
+        text('s2',
+            'Looks fake. The real site is [mybank.example](https://mybank.example).',
+            author: me, minutesAgo: 3),
+        text(
+            's3',
+            'Same with [Read the guide](https://mybank.example/help): '
+                'a plain label shows no host.',
+            author: ana,
+            minutesAgo: 1),
+      ],
+      view: (context, c) => ChatView(
+        controller: c,
+        currentUser: me,
+        onSend: (o) => sendText(c, o),
+        onLinkTap: (uri) => showLink(context, uri),
+        textSanitizer: ChatTextSanitizer.strip,
+        inputMaxLength: 2000,
+      ),
+    ),
+  ),
+  FeatureDemo(
     title: 'Stickers',
     description: 'A sticker picker next to the input and sticker bubbles.',
     icon: Icons.emoji_emotions_outlined,

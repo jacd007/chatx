@@ -112,7 +112,11 @@ class _PinnedBannerState extends State<_PinnedBanner> {
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 200),
                       child: Text(
-                        _messagePreview(message, l10n),
+                        _messagePreview(
+                          message,
+                          l10n,
+                          sanitize: widget.state.widget.textSanitizer,
+                        ),
                         key: ValueKey(message.id),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -228,8 +232,7 @@ class _SelectionBar extends StatelessWidget {
         ChatSelectionAction(
           label: l10n.copy,
           icon: Icons.copy_rounded,
-          onSelected: (_) =>
-              Clipboard.setData(ClipboardData(text: texts.join('\n\n'))),
+          onSelected: (_) => state._copy(texts.join('\n\n')),
         ),
       if (view.onForwardMessages != null)
         ChatSelectionAction(
@@ -395,7 +398,7 @@ class _MentionSuggestions extends StatelessWidget {
                         key: Key('chatx_mention_${user.id}'),
                         dense: true,
                         leading: ChatAvatar(user: user, size: 32),
-                        title: Text(user.name!),
+                        title: Text(user.displayName ?? ''),
                         onTap: () => state._insertMention(user),
                       ),
                   ],

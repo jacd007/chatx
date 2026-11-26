@@ -69,16 +69,25 @@ class ChatMessageAction {
   ///
   /// The default menu already includes it. Use it when you build the menu
   /// from scratch. Pass the label from `ChatLocalizations.of(context).copy`.
+  ///
+  /// When [onCopy] is set, it receives the text instead of the clipboard.
+  /// Pass `ChatView.onCopyText` to keep your menu consistent with the
+  /// default one.
   static ChatMessageAction copyText({
     required String label,
     IconData? icon,
+    ValueChanged<String>? onCopy,
   }) {
     return ChatMessageAction(
       label: label,
       icon: icon,
       onSelected: (message) {
         if (message is TextMessage) {
-          Clipboard.setData(ClipboardData(text: message.text));
+          if (onCopy != null) {
+            onCopy(message.text);
+          } else {
+            Clipboard.setData(ClipboardData(text: message.text));
+          }
         }
       },
     );

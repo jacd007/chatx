@@ -3,6 +3,7 @@ import '../l10n/chat_localizations.dart';
 import '../material.dart';
 import '../models/chat_user.dart';
 import '../theme/chat_theme.dart';
+import '../utils/display_name.dart';
 import 'chat_avatar.dart';
 
 /// Small badge with the role of a user: owner, admin or moderator.
@@ -156,7 +157,7 @@ class ChatUserProfile extends StatelessWidget {
             ChatAvatar(user: user, size: 88),
             const SizedBox(height: 12),
             Text(
-              user.name ?? user.id,
+              user.displayName ?? user.id,
               textAlign: TextAlign.center,
               style: textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w700,
@@ -340,7 +341,7 @@ class ChatMemberList extends StatelessWidget {
           ),
           title: Row(
             children: [
-              Flexible(child: Text(user.name ?? user.id)),
+              Flexible(child: Text(user.displayName ?? user.id)),
               if (role != null) ...[
                 const SizedBox(width: 8),
                 ChatRoleBadge(role: role),

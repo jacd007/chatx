@@ -5,6 +5,7 @@ import '../markdown/chat_link_policy.dart';
 import '../material.dart';
 import '../models/chat_message.dart';
 import '../theme/chat_theme.dart';
+import '../utils/display_name.dart';
 
 /// Every photo, video, file and link shared in a conversation, in three
 /// tabs. Newest first.
@@ -203,7 +204,7 @@ class ChatMediaGallery extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     subtitle: Text(
-                      '${file.author.name ?? ''} · '
+                      '${file.author.displayName ?? ''} · '
                       '${material.formatMediumDate(file.createdAt.toLocal())}',
                     ),
                   );
