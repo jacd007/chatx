@@ -133,7 +133,10 @@ void main() {
       final nodes = <SemanticsNode>[];
       bool visit(SemanticsNode node) {
         final data = node.getSemanticsData();
-        if (data.flagsCollection.isLink) {
+        // hasFlag is deprecated on newer Flutter, but flagsCollection does
+        // not exist on the minimum supported version.
+        // ignore: deprecated_member_use
+        if (data.hasFlag(SemanticsFlag.isLink)) {
           expect(data.hasAction(SemanticsAction.tap), isTrue);
           nodes.add(node);
         }
