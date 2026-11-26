@@ -399,7 +399,12 @@ class _EventContent extends StatelessWidget {
         ),
         if (message.description != null) ...[
           const SizedBox(height: 8),
-          ChatText(message.description!, style: textStyle),
+          ChatText(
+            view.textSanitizer?.call(message.description!) ??
+                message.description!,
+            style: textStyle,
+            onCopyText: view.onCopyText,
+          ),
         ],
         const SizedBox(height: 8),
         Text(

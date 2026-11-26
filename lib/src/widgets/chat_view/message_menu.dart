@@ -39,6 +39,7 @@ Future<Object?> _showFocusedMenu(
   required ChatLocalizations l10n,
   required bool showMore,
   required ValueNotifier<String?> focusedId,
+  String Function(String text)? textSanitizer,
 }) {
   final navigator = Navigator.of(anchor);
   final overlay = navigator.overlay!.context.findRenderObject()! as RenderBox;
@@ -89,6 +90,7 @@ Future<Object?> _showFocusedMenu(
           l10n: l10n,
           showMore: showMore,
           showPreview: !focused,
+          textSanitizer: textSanitizer,
         ),
       ),
     ),
@@ -376,6 +378,7 @@ class _MenuPanel extends StatelessWidget {
     required this.l10n,
     required this.showMore,
     this.showPreview = false,
+    this.textSanitizer,
   });
 
   /// Background of the menu, shared with its pointer.
@@ -394,6 +397,7 @@ class _MenuPanel extends StatelessWidget {
   final String currentUserId;
   final ChatLocalizations l10n;
   final bool showMore;
+  final String Function(String text)? textSanitizer;
 
   @override
   Widget build(BuildContext context) {
@@ -438,14 +442,18 @@ class _MenuPanel extends StatelessWidget {
                       Text(
                         message.author.id == currentUserId
                             ? l10n.you
-                            : message.author.name ?? l10n.someone,
+                            : message.author.displayName ?? l10n.someone,
                         style: Theme.of(context)
                             .textTheme
                             .labelLarge
                             ?.copyWith(color: scheme.primary),
                       ),
                       Text(
-                        _messagePreview(message, l10n),
+                        _messagePreview(
+                          message,
+                          l10n,
+                          sanitize: textSanitizer,
+                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodyMedium,

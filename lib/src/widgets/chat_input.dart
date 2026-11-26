@@ -284,6 +284,13 @@ class _ChatInputState extends State<ChatInput> {
     final start = selection.isValid ? selection.start : value.text.length;
     final end = selection.isValid ? selection.end : value.text.length;
     final text = value.text.replaceRange(start, end, emoji);
+    // The picker bypasses the text field, so it enforces maxLength here.
+    final maxLength = widget.maxLength;
+    if (maxLength != null &&
+        maxLength > 0 &&
+        text.characters.length > maxLength) {
+      return;
+    }
     _controller.value = TextEditingValue(
       text: text,
       selection: TextSelection.collapsed(offset: start + emoji.length),

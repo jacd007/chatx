@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show LocaleStringAttribute, SpellOutStringAttribute;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -29,7 +30,8 @@ import 'syntax_highlighter.dart';
 /// | `https://...`, `www....`     | automatic link      |
 ///
 /// HTML is never interpreted. Links are filtered by [linkPolicy]; only
-/// allowed links are tappable and passed to [onLinkTap].
+/// allowed links are tappable and passed to [onLinkTap]. Mentions and links
+/// inside a link label are part of that label, not separate targets.
 ///
 /// `ChatView` uses this widget for every `TextMessage`. You can also use it
 /// in your own builders.
@@ -52,6 +54,7 @@ class ChatText extends StatefulWidget {
     this.currentUserId,
     this.highlight,
     this.highlightColor,
+    this.onCopyText,
   });
 
   /// Raw markdown source.
@@ -103,6 +106,18 @@ class ChatText extends StatefulWidget {
 
   /// Background of [highlight] matches.
   final Color? highlightColor;
+
+  /// Called instead of writing to the clipboard when the user copies a code
+  /// block. Use it to mark copied text as sensitive or to clear it later.
+  /// When `null`, the text goes to the clipboard.
+  final ValueChanged<String>? onCopyText;
+
+  /// Drops the parsed markdown that chatx keeps for recently shown texts.
+  ///
+  /// Parsed messages are cached in memory, across all [ChatText] widgets, so
+  /// scrolling stays fast. Call this when that text should no longer be
+  /// held, for example when the user logs out.
+  static void clearCache() => MarkdownParser.clearCache();
 
   @override
   State<ChatText> createState() => _ChatTextState();
@@ -267,6 +282,7 @@ class _ChatTextState extends State<ChatText> {
           style: style.code,
           background: style.codeBackground,
           trailing: tail,
+          onCopy: widget.onCopyText,
         );
       case MdTable():
         return _table(block, style);
@@ -398,10 +414,13 @@ class _ChatTextState extends State<ChatText> {
     );
   }
 
-  InlineSpan _inline(MdInline node, _Styles style) {
+  // [link] is set while rendering a link label. Every leaf span of the label
+  // carries its recognizer, because taps hit the leaf that holds the text.
+  // [_LinkSpan] then gives screen readers the label as one link.
+  InlineSpan _inline(MdInline node, _Styles style, [_LinkLabel? link]) {
     switch (node) {
       case MdText(:final text):
-        return TextSpan(children: _decorate(text, style));
+        return TextSpan(children: _decorate(text, style, link));
       case MdStyled(style: MdStyle.spoiler, :final children)
           when !_spoilersRevealed:
         final recognizer = TapGestureRecognizer()
@@ -424,20 +443,29 @@ class _ChatTextState extends State<ChatText> {
             MdStyle.spoiler => null,
           },
           children: [
-            for (final child in children) _inline(child, style),
+            for (final child in children) _inline(child, style, link),
           ],
         );
       case MdCode(:final code):
         return TextSpan(
           text: code,
           style: style.code.copyWith(backgroundColor: style.codeBackground),
+          recognizer: link?.recognizer,
+          mouseCursor: link?.cursor ?? MouseCursor.defer,
         );
+      case MdLink(:final children) when link != null:
+        // A link inside a link label is only text of the outer label.
+        return TextSpan(children: [
+          for (final child in children) _inline(child, style, link),
+        ]);
       case MdLink(:final target, :final children):
-        final uri = widget.linkPolicy.resolve(target);
+        final policy = widget.linkPolicy;
+        final uri = policy.resolve(target);
         if (uri == null) {
           // Disallowed links keep their label but are never interactive.
           return TextSpan(children: [
-            for (final child in children) _inline(child, style),
+            for (final child in children)
+              _inline(child, style, const _LinkLabel(null)),
           ]);
         }
         final onLinkTap = widget.onLinkTap;
@@ -446,22 +474,113 @@ class _ChatTextState extends State<ChatText> {
           recognizer = TapGestureRecognizer()..onTap = () => onLinkTap(uri);
           _recognizers.add(recognizer);
         }
-        return TextSpan(
+        final label = _LinkLabel(recognizer);
+        // A label that names another address shows where the link really
+        // goes, as part of the same link.
+        final reveal = policy.revealDeceptiveTargets &&
+            policy.isDeceptive(children.map(_plain).join(), uri);
+        return _LinkSpan(
+          link: recognizer,
           style: style.link,
-          recognizer: recognizer,
-          mouseCursor:
-              recognizer == null ? MouseCursor.defer : SystemMouseCursors.click,
+          mouseCursor: label.cursor,
           children: [
-            for (final child in children) _inline(child, style),
+            for (final child in children) _inline(child, style, label),
+            if (reveal)
+              TextSpan(
+                text: ' (${uri.host})',
+                style: TextStyle(
+                  color: style.link.color?.withValues(alpha: 0.75),
+                ),
+                recognizer: recognizer,
+                mouseCursor: label.cursor,
+              ),
           ],
         );
     }
   }
 }
 
+/// A link label: its leaves share [link], so a tap on any of them opens it.
+///
+/// Flutter gives every leaf span with a recognizer its own semantics node,
+/// so a label split by styles, mentions or a search highlight would read
+/// as several links. This span reports the whole label as one link instead.
+class _LinkSpan extends TextSpan {
+  const _LinkSpan({
+    required this.link,
+    super.style,
+    super.mouseCursor,
+    super.children,
+  });
+
+  /// Opens the link, or `null` when the link is not tappable.
+  final TapGestureRecognizer? link;
+
+  @override
+  void computeSemanticsInformation(
+    List<InlineSpanSemanticsInformation> collector, {
+    Locale? inheritedLocale,
+    bool inheritedSpellOut = false,
+  }) {
+    final text = StringBuffer();
+    var merge = link != null;
+    // Leaves with their own recognizer (a hidden spoiler) or label keep
+    // their own nodes, so nothing hidden is read out.
+    visitChildren((span) {
+      if (span is! TextSpan) return merge = false;
+      final value = span.text;
+      if (value == null) return true;
+      if (span.recognizer != link || span.semanticsLabel != null) {
+        return merge = false;
+      }
+      text.write(value);
+      return true;
+    });
+    if (!merge || text.isEmpty) {
+      super.computeSemanticsInformation(
+        collector,
+        inheritedLocale: inheritedLocale,
+        inheritedSpellOut: inheritedSpellOut,
+      );
+      return;
+    }
+    final label = text.toString();
+    final effectiveLocale = locale ?? inheritedLocale;
+    collector.add(
+      InlineSpanSemanticsInformation(
+        label,
+        stringAttributes: [
+          if (spellOut ?? inheritedSpellOut)
+            SpellOutStringAttribute(
+                range: TextRange(start: 0, end: label.length)),
+          if (effectiveLocale != null)
+            LocaleStringAttribute(
+              locale: effectiveLocale,
+              range: TextRange(start: 0, end: label.length),
+            ),
+        ],
+        recognizer: link,
+      ),
+    );
+  }
+}
+
+/// The link whose label is being rendered.
+class _LinkLabel {
+  const _LinkLabel(this.recognizer);
+
+  /// Opens the link, or `null` when the link is not tappable.
+  final TapGestureRecognizer? recognizer;
+
+  MouseCursor get cursor =>
+      recognizer == null ? MouseCursor.defer : SystemMouseCursors.click;
+}
+
 extension on _ChatTextState {
   /// Splits plain text into spans for mentions and highlighted matches.
-  List<InlineSpan> _decorate(String text, _Styles style) {
+  ///
+  /// Inside a [link] label, mentions are styled but open the link instead.
+  List<InlineSpan> _decorate(String text, _Styles style, _LinkLabel? link) {
     final spans = <InlineSpan>[];
     var plainStart = 0;
     var i = 0;
@@ -471,11 +590,11 @@ extension on _ChatTextState {
         i++;
         continue;
       }
-      spans.addAll(_highlighted(text.substring(plainStart, i), style));
+      spans.addAll(_highlighted(text.substring(plainStart, i), style, link));
       final (user, length) = mention;
       final onTap = widget.onMentionTap;
-      TapGestureRecognizer? recognizer;
-      if (onTap != null) {
+      var recognizer = link?.recognizer;
+      if (link == null && onTap != null) {
         recognizer = TapGestureRecognizer()..onTap = () => onTap(user);
         _recognizers.add(recognizer);
       }
@@ -495,7 +614,7 @@ extension on _ChatTextState {
       i += length;
       plainStart = i;
     }
-    spans.addAll(_highlighted(text.substring(plainStart), style));
+    spans.addAll(_highlighted(text.substring(plainStart), style, link));
     return spans;
   }
 
@@ -521,28 +640,38 @@ extension on _ChatTextState {
       c == 0x5F ||
       c > 0x7F;
 
-  List<InlineSpan> _highlighted(String text, _Styles style) {
+  List<InlineSpan> _highlighted(
+    String text,
+    _Styles style,
+    _LinkLabel? link,
+  ) {
     if (text.isEmpty) return const [];
+    final recognizer = link?.recognizer;
+    final cursor = link?.cursor ?? MouseCursor.defer;
+    TextSpan leaf(String text, [TextStyle? style]) => TextSpan(
+          text: text,
+          style: style,
+          recognizer: recognizer,
+          mouseCursor: cursor,
+        );
     final query = widget.highlight?.trim().toLowerCase() ?? '';
-    if (query.isEmpty) return [TextSpan(text: text)];
+    if (query.isEmpty) return [leaf(text)];
     final lower = text.toLowerCase();
     final spans = <InlineSpan>[];
     var start = 0;
     while (true) {
       final match = lower.indexOf(query, start);
       if (match == -1) break;
-      if (match > start) {
-        spans.add(TextSpan(text: text.substring(start, match)));
-      }
+      if (match > start) spans.add(leaf(text.substring(start, match)));
       spans.add(
-        TextSpan(
-          text: text.substring(match, match + query.length),
-          style: TextStyle(backgroundColor: style.highlightBackground),
+        leaf(
+          text.substring(match, match + query.length),
+          TextStyle(backgroundColor: style.highlightBackground),
         ),
       );
       start = match + query.length;
     }
-    if (start < text.length) spans.add(TextSpan(text: text.substring(start)));
+    if (start < text.length) spans.add(leaf(text.substring(start)));
     return spans;
   }
 }
@@ -594,6 +723,7 @@ class _CodeBlock extends StatefulWidget {
     required this.style,
     required this.background,
     required this.trailing,
+    required this.onCopy,
   });
 
   final String code;
@@ -601,6 +731,7 @@ class _CodeBlock extends StatefulWidget {
   final TextStyle style;
   final Color background;
   final InlineSpan? trailing;
+  final ValueChanged<String>? onCopy;
 
   @override
   State<_CodeBlock> createState() => _CodeBlockState();
@@ -617,7 +748,12 @@ class _CodeBlockState extends State<_CodeBlock> {
   }
 
   void _copy() {
-    Clipboard.setData(ClipboardData(text: widget.code));
+    final onCopy = widget.onCopy;
+    if (onCopy != null) {
+      onCopy(widget.code);
+    } else {
+      Clipboard.setData(ClipboardData(text: widget.code));
+    }
     HapticFeedback.selectionClick();
     setState(() => _copied = true);
     _reset?.cancel();

@@ -2,10 +2,15 @@ part of '../chat_view.dart';
 
 /// Banner above the input that shows the reply or edit in progress.
 class _ComposerBanner extends StatelessWidget {
-  const _ComposerBanner({required this.controller, required this.currentUser});
+  const _ComposerBanner({
+    required this.controller,
+    required this.currentUser,
+    this.textSanitizer,
+  });
 
   final ChatController controller;
   final ChatUser currentUser;
+  final String Function(String text)? textSanitizer;
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +36,7 @@ class _ComposerBanner extends StatelessWidget {
           final l10n = ChatLocalizations.of(context);
           final name = replying.author.id == currentUser.id
               ? l10n.you
-              : replying.author.name ?? l10n.someone;
+              : replying.author.displayName ?? l10n.someone;
           content = _bannerContent(
             context,
             key: const Key('chatx_reply_banner'),
@@ -91,7 +96,7 @@ class _ComposerBanner extends StatelessWidget {
                     style: theme.userNameTextStyle.copyWith(color: accent),
                   ),
                   Text(
-                    _messagePreview(message, l10n),
+                    _messagePreview(message, l10n, sanitize: textSanitizer),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.systemMessageTextStyle,

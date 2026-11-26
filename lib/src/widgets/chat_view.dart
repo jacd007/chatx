@@ -24,6 +24,7 @@ import '../models/message_status.dart';
 import '../models/voice_playback.dart';
 import '../theme/chat_bubble_border.dart';
 import '../theme/chat_theme.dart';
+import '../utils/display_name.dart';
 import '../utils/emoji.dart';
 import 'chat_avatar.dart';
 import 'chat_builders.dart';
@@ -99,6 +100,7 @@ class ChatView extends StatefulWidget {
     this.onRetry,
     this.onLinkTap,
     this.linkPolicy = const ChatLinkPolicy(),
+    this.onCopyText,
     this.onAvatarTap,
     this.onTypingChanged,
     this.firstUnreadMessageId,
@@ -109,9 +111,11 @@ class ChatView extends StatefulWidget {
     this.showUserNames = true,
     this.showDateSeparators = true,
     this.enableMarkdown = true,
+    this.textSanitizer,
     this.enableJumboEmoji = true,
     this.groupingInterval = const Duration(minutes: 5),
     this.inputEnabled = true,
+    this.inputMaxLength,
     this.mentionableUsers = const [],
     this.onMentionTap,
     this.onPinMessage,
@@ -225,6 +229,12 @@ class ChatView extends StatefulWidget {
   /// Which links are tappable. Defaults to `http`, `https` and `mailto`.
   final ChatLinkPolicy linkPolicy;
 
+  /// Called instead of writing to the clipboard when the user copies text:
+  /// the "Copy" menu entry, the selection bar, the copy button of AI answers
+  /// and code blocks. Use it to mark copied text as sensitive or to clear
+  /// the clipboard later. When `null`, the text goes to the clipboard.
+  final ValueChanged<String>? onCopyText;
+
   /// Called when the avatar of another user is tapped, for example to open
   /// `ChatUserProfile.show`.
   final ValueChanged<ChatUser>? onAvatarTap;
@@ -260,6 +270,16 @@ class ChatView extends StatefulWidget {
   /// Whether to render markdown in [TextMessage]s. Links are always detected.
   final bool enableMarkdown;
 
+  /// Transforms the text of messages and captions before it is shown, for
+  /// example `textSanitizer: ChatTextSanitizer.strip` to remove bidi
+  /// overrides and zero-width characters that can disguise links and file
+  /// names.
+  ///
+  /// It only changes what is displayed: the messages in [controller], and
+  /// what the user copies, stay as they are. When `null`, text is shown as
+  /// sent.
+  final String Function(String text)? textSanitizer;
+
   /// Whether messages with only one to three emoji are shown large, without
   /// a bubble.
   final bool enableJumboEmoji;
@@ -269,6 +289,10 @@ class ChatView extends StatefulWidget {
 
   /// Whether the default input bar accepts text.
   final bool inputEnabled;
+
+  /// Maximum number of characters the default input bar accepts. See
+  /// [ChatInput.maxLength]. When `null`, the length is unlimited.
+  final int? inputMaxLength;
 
   /// Users that can be mentioned. Typing `@` in the input suggests them, and
   /// `@Name` in messages is highlighted.
@@ -1065,6 +1089,16 @@ class _ChatViewState extends State<ChatView> {
     });
   }
 
+  /// Hands [text] to [ChatView.onCopyText], or to the clipboard.
+  void _copy(String text) {
+    final onCopy = widget.onCopyText;
+    if (onCopy != null) {
+      onCopy(text);
+    } else {
+      Clipboard.setData(ClipboardData(text: text));
+    }
+  }
+
   /// Whether [message] mentions the current user with `@Name`.
   bool _mentionsMe(ChatMessage message) {
     final name = widget.currentUser.name;
@@ -1240,7 +1274,11 @@ class _ChatViewState extends State<ChatView> {
           onSelected: _startReply,
         ),
       if (message is TextMessage)
-        ChatMessageAction.copyText(label: l10n.copy, icon: Icons.copy_rounded),
+        ChatMessageAction.copyText(
+          label: l10n.copy,
+          icon: Icons.copy_rounded,
+          onCopy: widget.onCopyText,
+        ),
       if (message is TextMessage && !streaming && widget.ai.onTranslate != null)
         ChatMessageAction(
           label: l10n.translate,
@@ -1276,7 +1314,12 @@ class _ChatViewState extends State<ChatView> {
         ChatMessageAction(
           label: l10n.messageInfo,
           icon: Icons.info_outline_rounded,
-          onSelected: (m) => _showMessageInfo(context, m, l10n),
+          onSelected: (m) => _showMessageInfo(
+            context,
+            m,
+            l10n,
+            sanitize: widget.textSanitizer,
+          ),
         ),
       if (widget.onSaveMessage != null)
         ChatMessageAction(
@@ -1301,7 +1344,7 @@ class _ChatViewState extends State<ChatView> {
         ),
       if (!mine && widget.moderation.onBlockUser != null)
         ChatMessageAction(
-          label: l10n.block(message.author.name ?? l10n.someone),
+          label: l10n.block(message.author.displayName ?? l10n.someone),
           icon: Icons.block_rounded,
           isDestructive: true,
           onSelected: (m) => widget.moderation.onBlockUser!(m.author),
@@ -1391,6 +1434,7 @@ class _ChatViewState extends State<ChatView> {
       l10n: l10n,
       showMore: widget.enableEmojiPicker,
       focusedId: _menuMessageId,
+      textSanitizer: widget.textSanitizer,
     );
     final selection = await menu;
     if (!mounted) return;
@@ -1432,6 +1476,7 @@ class _ChatViewState extends State<ChatView> {
             onSend: _handleSend,
             controller: _textController,
             focusNode: _focusNode,
+            maxLength: widget.inputMaxLength,
             enabled: widget.inputEnabled && !slowed,
             hintText: slowed
                 ? l10n.slowModeWait(
@@ -1579,6 +1624,7 @@ class _ChatViewState extends State<ChatView> {
                             _ComposerBanner(
                               controller: widget.controller,
                               currentUser: widget.currentUser,
+                              textSanitizer: widget.textSanitizer,
                             ),
                             _AttachmentTray(state: this),
                             input,

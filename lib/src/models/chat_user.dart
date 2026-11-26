@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../utils/chat_text_sanitizer.dart';
+
 /// A participant in a conversation.
 ///
 /// Two users are considered the same author when their [id]s match. The
@@ -38,9 +40,11 @@ class ChatUser {
   final Map<String, Object?>? metadata;
 
   /// Up to two uppercase initials taken from [name], or from [id] when the
-  /// name is missing.
+  /// name is missing. Bidi controls and invisible characters are ignored
+  /// (see [ChatTextSanitizer.strip]).
   String get initials {
-    final source = (name?.trim().isNotEmpty ?? false) ? name!.trim() : id;
+    final clean = name == null ? '' : ChatTextSanitizer.strip(name!).trim();
+    final source = clean.isNotEmpty ? clean : id;
     final parts = source.split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
     if (parts.isEmpty) return '?';
     final first = String.fromCharCodes(parts.first.runes.take(1));

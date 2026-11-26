@@ -4,6 +4,7 @@ import '../controller/chat_controller.dart';
 import '../l10n/chat_localizations.dart';
 import '../material.dart';
 import '../models/chat_user.dart';
+import '../utils/display_name.dart';
 import 'chat_avatar.dart';
 import 'typing_indicator.dart';
 
@@ -129,14 +130,14 @@ class _ChatHeaderState extends State<ChatHeader> {
     final l10n = ChatLocalizations.of(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final title = widget.title ?? widget.user.name ?? widget.user.id;
+    final title = widget.title ?? widget.user.displayName ?? widget.user.id;
     final subtitleStyle = theme.textTheme.bodySmall?.copyWith(
       color: scheme.onSurfaceVariant,
     );
 
     Widget subtitle(List<ChatUser> typing) {
       if (typing.isNotEmpty) {
-        final names = [for (final u in typing) u.name ?? l10n.someone];
+        final names = [for (final u in typing) u.displayName ?? l10n.someone];
         // In one-to-one chats, "typing…" is enough.
         final label = widget.memberCount == null && typing.length == 1
             ? l10n.typingShort
