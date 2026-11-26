@@ -64,6 +64,10 @@ follows your app's theme.
 | :---: | :---: | :---: |
 | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/48_payment.png" width="240" alt="Payment request with Pay and Decline"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/49_hover_actions.png" width="240" alt="Reply, react and more buttons shown on hover"> | <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/50_ai_previous_version.png" width="240" alt="Version 1/2 of an answer with its own tool call and sources"> |
 
+| Link safety |
+| :---: |
+| <img src="https://raw.githubusercontent.com/jacd007/chatx/main/doc/screenshots/51_link_safety.png" width="240" alt="A link labelled mybank.example shows its real host, login-mybank.example.net"> |
+
 ## Features
 
 - **Drop-in screen.** `ChatView` gives you a message list and input bar.
@@ -168,6 +172,7 @@ follows your app's theme.
   - [Mentions](#mentions)
   - [Search](#search)
   - [Selection](#selection)
+  - [Copying text](#copying-text)
   - [Pinned messages](#pinned-messages)
   - [Location](#location)
   - [Events and RSVP](#events-and-rsvp)
@@ -496,6 +501,19 @@ The rest only appear in the UI when you list them in `sendFeatures`:
 | `stickers` | The `stickerPacks` tabs in the emoji picker | `OutgoingSticker` |
 | `sendScheduledNow` | "Send now" on scheduled messages | `OutgoingScheduledNow` |
 
+To cap the length of what the user types, set `inputMaxLength`. It also
+applies when editing a message and to emoji from the picker:
+
+```dart
+ChatView(
+  inputMaxLength: 4000,
+  // ...
+)
+```
+
+Suggested prompts and quick replies are not typed, so they are not capped.
+Your backend should still check the length of every message it receives.
+
 ### Delivery status and retry
 
 Set `status` on outgoing messages and update it as your backend reports
@@ -727,6 +745,26 @@ ChatView(
   // ...
 )
 ```
+
+A markdown link can show one address and open another, as in
+`[bank.com](https://evil.com)`. When the label looks like an address and its
+host differs from the target, chatx shows the real host after the label:
+`bank.com (evil.com)`. The link still opens its target. To block such links
+instead, check them in `onLinkTap`. The label is not passed there, so a
+simple option is to confirm before opening (`confirmOpen` is your own
+dialog):
+
+```dart
+ChatView(
+  onLinkTap: (uri) async {
+    if (await confirmOpen(context, uri)) launchUrl(uri);
+  },
+  // ...
+)
+```
+
+`ChatLinkPolicy.isDeceptive(label, uri)` is public if you render links
+yourself. Set `revealDeceptiveTargets: false` to show labels as written.
 
 ### Replies and swipe actions
 
@@ -1265,6 +1303,28 @@ ChatView(
 ```
 
 Set `enableSelection: false` to hide "Select".
+
+### Copying text
+
+"Copy text" in the menu, the selection bar, the copy button of AI answers
+and the copy button of code blocks write to the clipboard. To handle the
+copy yourself, for example to mark the text as sensitive on Android 13+ or
+to clear the clipboard after a while, pass `onCopyText`. chatx then calls it
+instead of writing to the clipboard:
+
+```dart
+ChatView(
+  onCopyText: (text) => secureClipboard.copy(text, sensitive: true),
+  // ...
+)
+```
+
+When you build the menu yourself, pass the same function to
+`ChatMessageAction.copyText(label: ..., onCopy: ...)`. A standalone
+`ChatText` takes it as `onCopyText`.
+
+Copying from text selected inside a bubble (when the platform offers it) is
+handled by Flutter, not by this hook.
 
 ### Pinned messages
 
@@ -1870,8 +1930,8 @@ Besides `builders`, related `ChatView` options come in groups:
 
 Other `ChatView` options: `showAvatars`, `showUserNames`,
 `showDateSeparators`, `enableMarkdown`, `enableJumboEmoji`,
-`groupingInterval`, `inputEnabled`, `onMessageTap`, `onAvatarTap` and
-`scrollController`.
+`groupingInterval`, `inputEnabled`, `inputMaxLength`, `onCopyText`,
+`textSanitizer`, `onMessageTap`, `onAvatarTap` and `scrollController`.
 
 ### Localization
 
@@ -2187,7 +2247,9 @@ chatx is built for long conversations and fast streams:
 - **Images.** Thumbnails are decoded at their display size
   (`ResizeImage`), not at full resolution.
 - **Markdown cache.** Parsed messages are cached, so scrolling back does not
-  parse again.
+  parse again. The cache is shared by every chat and holds up to 512
+  message texts. Call `ChatText.clearCache()` when the user logs out to drop
+  them from memory.
 
 Tips for your app:
 
@@ -2278,6 +2340,14 @@ Message text usually comes from other people, so chatx treats it as untrusted:
 - HTML is shown as text, never interpreted.
 - Only links allowed by `ChatLinkPolicy` are tappable. `javascript:`, `file:`,
   `intent:` and other schemes stay plain text.
+- A link whose label looks like a different address shows its real host,
+  as in `bank.com (evil.com)`.
+- Bidirectional controls and invisible characters are removed from user
+  names, so a name cannot reorder or hide the text around it. Message bodies
+  are shown as sent; pass `textSanitizer: ChatTextSanitizer.strip` to clean
+  them too (on display only, the stored message is not changed).
+- `onCopyText` lets you handle every copy action, `inputMaxLength` caps the
+  composer, and `ChatText.clearCache()` drops cached message text.
 - chatx stores nothing and makes no network requests, except loading avatar
   images from `ChatUser.avatarUrl`.
 

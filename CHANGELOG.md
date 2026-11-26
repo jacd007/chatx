@@ -4,6 +4,42 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## 0.2.3 - 2026-11-25
+
+Fixes for issues reported while integrating chatx 0.2.2 in an app.
+
+### Fixed
+
+- Tapping a link now opens it. The tap handler was on a parent text span,
+  and Flutter only delivers taps to the span that holds the text, so links
+  in messages did nothing when tapped. Mentions inside a link label now open
+  the link.
+- Screen readers announce a link as one link even when its label mixes
+  styles, mentions, code or a search highlight. It used to be read as
+  several links.
+
+### Security
+
+- Markdown links whose label looks like a different address, such as
+  `[bank.com](https://evil.com)`, show the real host after the label:
+  `bank.com (evil.com)`. New `ChatLinkPolicy.revealDeceptiveTargets`
+  (default `true`) and `ChatLinkPolicy.isDeceptive`.
+- User names no longer render bidirectional overrides and invisible
+  characters, which allowed reversed or look-alike names. New
+  `ChatTextSanitizer` with `strip` and `isolate`. `strip` also removes
+  Unicode tag characters, except inside flag emoji such as 🏴󠁧󠁢󠁥󠁮󠁧󠁿.
+- `ChatView.textSanitizer` cleans message text on display, for example
+  with `ChatTextSanitizer.strip`, including reply quotes, the pinned banner
+  and the menu preview. Off by default.
+- `ChatView.onCopyText` replaces every built-in clipboard write: the "Copy
+  text" action, the selection bar, AI answer copy and code blocks. Use it to
+  mark copied text as sensitive or clear it later.
+  `ChatMessageAction.copyText` and `ChatText` accept the same hook.
+- `ChatView.inputMaxLength` caps the composer. The emoji picker respects
+  `ChatInput.maxLength` too.
+- `ChatText.clearCache()` drops parsed message text from the shared
+  markdown cache, for example on logout.
+
 ## 0.2.2 - 2026-11-21
 
 ### Fixed
